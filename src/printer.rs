@@ -34,6 +34,7 @@ pub struct Printer<'a> {
     context_lines: u64,
     theme: Option<&'a str>,
     tab_width: Option<usize>,
+    grid: bool,
 }
 
 impl<'a> Printer<'a> {
@@ -42,6 +43,7 @@ impl<'a> Printer<'a> {
             context_lines,
             theme: None,
             tab_width: None,
+            grid: true,
         }
     }
 
@@ -53,6 +55,10 @@ impl<'a> Printer<'a> {
         self.theme = Some(theme);
     }
 
+    pub fn grid(&mut self, enabled: bool) {
+        self.grid = enabled;
+    }
+
     pub fn print(&self, chunk: Chunk) -> Result<()> {
         // XXX: PrettyPrinter instance must be created for each print() call because there is no way
         // to clear line_ranges in the instance.
@@ -62,7 +68,7 @@ impl<'a> Printer<'a> {
         pp.input(input);
 
         pp.line_numbers(true);
-        pp.grid(true);
+        pp.grid(self.grid);
         pp.header(true);
         if let Some(theme) = self.theme {
             pp.theme(theme);
@@ -77,6 +83,10 @@ impl<'a> Printer<'a> {
 
         for lnum in chunk.line_numbers.iter().copied() {
             pp.highlight(lnum as usize);
+        }
+
+        if !self.grid {
+            print!("\n\n");
         }
 
         // Note: print() returns true when no error

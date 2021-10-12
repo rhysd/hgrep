@@ -41,7 +41,11 @@ impl ParseError {
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}: Could not parse line {:?}", self.message, self.line)
+        write!(
+            f,
+            "{}: Could not parse line {:?}. Did you forget adding -n and/or -H to the grep command?",
+            self.message, self.line
+        )
     }
 }
 

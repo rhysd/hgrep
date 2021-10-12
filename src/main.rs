@@ -27,12 +27,18 @@ fn main() -> Result<()> {
                 .about("Lines of leading and trailing context surrounding each match"),
         )
         .arg(
+            Arg::new("no-grid")
+                .short('G')
+                .long("no-grid")
+                .about("Remove border lines for more compact output"),
+        )
+        .arg(
             Arg::new("tab")
                 .short('t')
                 .long("tab")
                 .takes_value(true)
                 .value_name("NUM")
-                .about("Width of tab character"),
+                .about("Number of spaces for tab character"),
         )
         .arg(
             Arg::new("theme")
@@ -73,6 +79,9 @@ fn main() -> Result<()> {
     if let Some(theme) = matches.value_of("theme") {
         printer.theme(theme);
     }
+    if matches.is_present("no-grid") {
+        printer.grid(false);
+    }
 
     // XXX: io::stdin().lock() is not available since bat's implementation internally takes lock of stdin
     // *even if* it does not use stdin.
@@ -80,5 +89,6 @@ fn main() -> Result<()> {
     for c in io::BufReader::new(io::stdin()).grep_lines().chunks(ctx) {
         printer.print(c?)?;
     }
+
     Ok(())
 }
