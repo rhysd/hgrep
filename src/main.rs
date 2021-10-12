@@ -1,6 +1,7 @@
 use anyhow::Result;
 use bat::PrettyPrinter;
 use clap::{App, AppSettings, Arg};
+use std::env;
 use std::io;
 
 mod chunk;
@@ -76,8 +77,17 @@ fn main() -> Result<()> {
                 .context("could not parse \"tab\" option value as unsigned integer")?,
         );
     }
+
+    let theme_env = env::var("BAT_THEME").ok();
+    if let Some(var) = &theme_env {
+        printer.theme(var);
+    }
     if let Some(theme) = matches.value_of("theme") {
         printer.theme(theme);
+    }
+
+    if let Ok("plain" | "header" | "numbers") = env::var("BAT_STYLE").as_ref().map(String::as_str) {
+        printer.grid(false);
     }
     if matches.is_present("no-grid") {
         printer.grid(false);
