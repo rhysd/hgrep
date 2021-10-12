@@ -30,13 +30,27 @@ impl fmt::Display for PrintError {
     }
 }
 
-pub struct Printer {
+pub struct Printer<'a> {
     context_lines: u64,
+    theme: Option<&'a str>,
+    tab_width: Option<usize>,
 }
 
-impl Printer {
+impl<'a> Printer<'a> {
     pub fn new(context_lines: u64) -> Self {
-        Self { context_lines }
+        Self {
+            context_lines,
+            theme: None,
+            tab_width: None,
+        }
+    }
+
+    pub fn tab_width(&mut self, width: usize) {
+        self.tab_width = Some(width);
+    }
+
+    pub fn theme(&mut self, theme: &'a str) {
+        self.theme = Some(theme);
     }
 
     pub fn print(&self, chunk: Chunk) -> Result<()> {
@@ -50,6 +64,9 @@ impl Printer {
         pp.line_numbers(true);
         pp.grid(true);
         pp.header(true);
+        if let Some(theme) = self.theme {
+            pp.theme(theme);
+        }
 
         let start = chunk.line_numbers[0].saturating_sub(self.context_lines);
         let end = chunk.line_numbers[chunk.line_numbers.len() - 1] + self.context_lines;

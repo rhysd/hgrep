@@ -1,5 +1,5 @@
 [package]
-name = "eatgrep"
+name = "batgrep"
 version = "0.1.0"
 edition = "2018"
 
@@ -8,3 +8,4 @@ edition = "2018"
 [dependencies]
 anyhow = "1"
 bat = { version = "^0.18.3", default-features = false, features = ["regex-onig"] }
+clap = { version = "3.0.0-beta", default-features = false, features = ["std", "color", "suggestions"] }
