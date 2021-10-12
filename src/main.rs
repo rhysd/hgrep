@@ -43,16 +43,24 @@ impl std::error::Error for CommandError {}
 fn main() -> Result<()> {
     use anyhow::Context;
 
-    #[cfg(feature = "ripgrep")]
-    let path_description = "Paths to search";
-    #[cfg(not(feature = "ripgrep"))]
-    let path_description =
-        "Paths to search. Not available until installing batgrep with \"ripgrep\" feature";
-    #[cfg(feature = "ripgrep")]
-    let pattern_description = "Pattern to search";
-    #[cfg(not(feature = "ripgrep"))]
-    let pattern_description =
-        "Pattern to search. Not available until installing batgrep with \"ripgrep\" feature";
+    macro_rules! ripgrep_only_desc {
+        ($ident:ident, $desc:expr) => {
+            #[cfg(feature = "ripgrep")]
+            let $ident = $desc;
+            #[cfg(not(feature = "ripgrep"))]
+            let $ident = "Not available until installing batgrep with \"ripgrep\" feature";
+        };
+    }
+
+    ripgrep_only_desc!(path_desc, "Paths to search");
+    ripgrep_only_desc!(
+        pattern_desc,
+        "Pattern to search. Regular expression is available"
+    );
+    ripgrep_only_desc!(
+        no_ignore_desc,
+        "Don't respect ignore files (.gitignore, .ignore, etc.)"
+    );
 
     let matches = App::new("batgrep")
         .version(env!("CARGO_PKG_VERSION"))
@@ -94,12 +102,13 @@ fn main() -> Result<()> {
                 .long("list-themes")
                 .about("List all theme names available for --theme option"),
         )
-        .arg(Arg::new("PATTERN").about(pattern_description))
         .arg(
-            Arg::new("PATH")
-                .about(path_description)
-                .multiple_values(true),
+            Arg::new("no-ignore")
+                .long("no-ignore")
+                .about(no_ignore_desc),
         )
+        .arg(Arg::new("PATTERN").about(pattern_desc))
+        .arg(Arg::new("PATH").about(path_desc).multiple_values(true))
         .get_matches();
 
     if matches.is_present("list-themes") {
@@ -153,14 +162,18 @@ fn main() -> Result<()> {
     }
 
     #[cfg(feature = "ripgrep")]
-    match (pattern, paths) {
-        (Some(pat), Some(paths)) => return ripgrep::grep(printer, pat, paths, ctx),
-        (Some(pat), None) => {
-            let cwd = env::current_dir()?;
-            let paths = iter::once(cwd.as_os_str());
-            return ripgrep::grep(printer, pat, paths, ctx);
+    {
+        let mut config = ripgrep::Config::new(ctx);
+        config.no_ignore(matches.is_present("no-ignore"));
+        match (pattern, paths) {
+            (Some(pat), Some(paths)) => return ripgrep::grep(printer, pat, paths, config),
+            (Some(pat), None) => {
+                let cwd = env::current_dir()?;
+                let paths = iter::once(cwd.as_os_str());
+                return ripgrep::grep(printer, pat, paths, config);
+            }
+            _ => { /* fall through */ }
         }
-        _ => { /* fall through */ }
     }
 
     // XXX: io::stdin().lock() is not available since bat's implementation internally takes lock of stdin
