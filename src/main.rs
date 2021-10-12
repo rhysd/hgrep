@@ -65,6 +65,10 @@ fn main() -> Result<()> {
         hidden_desc,
         "Search hidden files and directories. By default, hidden files and directories are skipped"
     );
+    ripgrep_only_desc!(
+        ignore_case_desc,
+        "When this flag is provided, the given patterns will be searched case insensitively"
+    );
 
     let matches = App::new("batgrep")
         .version(env!("CARGO_PKG_VERSION"))
@@ -110,6 +114,12 @@ fn main() -> Result<()> {
             Arg::new("no-ignore")
                 .long("no-ignore")
                 .about(no_ignore_desc),
+        )
+        .arg(
+            Arg::new("ignore-case")
+                .short('i')
+                .long("ignore-case")
+                .about(ignore_case_desc),
         )
         .arg(Arg::new("hidden").long("hidden").about(hidden_desc))
         .arg(Arg::new("PATTERN").about(pattern_desc))
@@ -171,7 +181,8 @@ fn main() -> Result<()> {
         let mut config = ripgrep::Config::new(ctx);
         config
             .no_ignore(matches.is_present("no-ignore"))
-            .hidden(matches.is_present("hidden"));
+            .hidden(matches.is_present("hidden"))
+            .case_insensitive(matches.is_present("ignore-case"));
         match (pattern, paths) {
             (Some(pat), Some(paths)) => return ripgrep::grep(printer, pat, paths, config),
             (Some(pat), None) => {

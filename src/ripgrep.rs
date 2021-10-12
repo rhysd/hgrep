@@ -2,7 +2,7 @@ use crate::chunk::Chunks;
 use crate::grep::Match;
 use crate::printer::Printer;
 use anyhow::{Error, Result};
-use grep_regex::RegexMatcher;
+use grep_regex::RegexMatcherBuilder;
 use grep_searcher::{BinaryDetection, Searcher, Sink, SinkMatch};
 use ignore::{WalkBuilder, WalkParallel, WalkState};
 use rayon::prelude::*;
@@ -18,6 +18,7 @@ pub struct Config {
     context_lines: u64,
     no_ignore: bool,
     hidden: bool,
+    case_insensitive: bool,
 }
 
 impl Config {
@@ -35,6 +36,11 @@ impl Config {
 
     pub fn hidden(&mut self, yes: bool) -> &mut Self {
         self.hidden = yes;
+        self
+    }
+
+    pub fn case_insensitive(&mut self, yes: bool) -> &mut Self {
+        self.case_insensitive = yes;
         self
     }
 
@@ -73,7 +79,7 @@ pub fn grep<'a, P: Printer + Send>(
 
     let printer = Mutex::new(printer);
     paths.into_par_iter().try_for_each(|path| {
-        let matches = search(pat, path)?;
+        let matches = search(pat, path, &config)?;
         let printer = printer.lock().unwrap();
         for chunk in Chunks::new(matches.into_iter().map(Ok), config.context_lines) {
             printer.print(chunk?)?;
@@ -127,11 +133,16 @@ impl Sink for Matches {
     }
 }
 
-fn search(pat: &str, path: PathBuf) -> Result<Vec<Match>> {
+fn search(pat: &str, path: PathBuf, config: &Config) -> Result<Vec<Match>> {
     let file = File::open(&path)?;
-    let matcher = RegexMatcher::new(pat)?;
+
+    let mut builder = RegexMatcherBuilder::new();
+    builder.case_insensitive(config.case_insensitive);
+    let matcher = builder.build(pat)?;
+
     let mut searcher = Searcher::new();
     searcher.set_binary_detection(BinaryDetection::quit(0));
+
     let mut matches = Matches { path, buf: vec![] };
     searcher.search_file(&matcher, &file, &mut matches)?;
     Ok(matches.buf)
