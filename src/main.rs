@@ -43,32 +43,25 @@ impl std::error::Error for CommandError {}
 fn main() -> Result<()> {
     use anyhow::Context;
 
-    macro_rules! ripgrep_only_desc {
-        ($ident:ident, $desc:expr) => {
-            #[cfg(feature = "ripgrep")]
-            let $ident = $desc;
-            #[cfg(not(feature = "ripgrep"))]
-            let $ident = "Not available until installing batgrep with \"ripgrep\" feature";
+    macro_rules! ripgrep_only_descriptions {
+        ($($ident:ident = $desc:expr,)+) => {
+            $(
+                #[cfg(feature = "ripgrep")]
+                let $ident = $desc;
+                #[cfg(not(feature = "ripgrep"))]
+                let $ident = "Not available until installing batgrep with \"ripgrep\" feature";
+            )+
         };
     }
 
-    ripgrep_only_desc!(path_desc, "Paths to search");
-    ripgrep_only_desc!(
-        pattern_desc,
-        "Pattern to search. Regular expression is available"
-    );
-    ripgrep_only_desc!(
-        no_ignore_desc,
-        "Don't respect ignore files (.gitignore, .ignore, etc.)"
-    );
-    ripgrep_only_desc!(
-        hidden_desc,
-        "Search hidden files and directories. By default, hidden files and directories are skipped"
-    );
-    ripgrep_only_desc!(
-        ignore_case_desc,
-        "When this flag is provided, the given patterns will be searched case insensitively"
-    );
+    ripgrep_only_descriptions! {
+        path_desc = "Paths to search",
+        pattern_desc = "Pattern to search. Regular expression is available",
+        no_ignore_desc = "Don't respect ignore files (.gitignore, .ignore, etc.)",
+        hidden_desc = "Search hidden files and directories. By default, hidden files and directories are skipped",
+        ignore_case_desc = "When this flag is provided, the given patterns will be searched case insensitively",
+        smart_case_desc = "Searches case insensitively if the pattern is all lowercase. Search case sensitively otherwise",
+    }
 
     let matches = App::new("batgrep")
         .version(env!("CARGO_PKG_VERSION"))
@@ -120,6 +113,12 @@ fn main() -> Result<()> {
                 .short('i')
                 .long("ignore-case")
                 .about(ignore_case_desc),
+        )
+        .arg(
+            Arg::new("smart-case")
+                .short('S')
+                .long("smart-case")
+                .about(smart_case_desc),
         )
         .arg(Arg::new("hidden").long("hidden").about(hidden_desc))
         .arg(Arg::new("PATTERN").about(pattern_desc))
@@ -182,7 +181,8 @@ fn main() -> Result<()> {
         config
             .no_ignore(matches.is_present("no-ignore"))
             .hidden(matches.is_present("hidden"))
-            .case_insensitive(matches.is_present("ignore-case"));
+            .case_insensitive(matches.is_present("ignore-case"))
+            .smart_case(matches.is_present("smart-case"));
         match (pattern, paths) {
             (Some(pat), Some(paths)) => return ripgrep::grep(printer, pat, paths, config),
             (Some(pat), None) => {

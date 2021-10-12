@@ -19,6 +19,7 @@ pub struct Config {
     no_ignore: bool,
     hidden: bool,
     case_insensitive: bool,
+    smart_case: bool,
 }
 
 impl Config {
@@ -41,6 +42,17 @@ impl Config {
 
     pub fn case_insensitive(&mut self, yes: bool) -> &mut Self {
         self.case_insensitive = yes;
+        if yes {
+            self.smart_case = false;
+        }
+        self
+    }
+
+    pub fn smart_case(&mut self, yes: bool) -> &mut Self {
+        self.smart_case = yes;
+        if yes {
+            self.case_insensitive = false;
+        }
         self
     }
 
@@ -137,7 +149,9 @@ fn search(pat: &str, path: PathBuf, config: &Config) -> Result<Vec<Match>> {
     let file = File::open(&path)?;
 
     let mut builder = RegexMatcherBuilder::new();
-    builder.case_insensitive(config.case_insensitive);
+    builder
+        .case_insensitive(config.case_insensitive)
+        .case_smart(config.smart_case);
     let matcher = builder.build(pat)?;
 
     let mut searcher = Searcher::new();
