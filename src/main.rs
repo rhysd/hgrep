@@ -1,4 +1,5 @@
 use anyhow::Result;
+use bat::PrettyPrinter;
 use clap::{App, AppSettings, Arg};
 use std::io;
 
@@ -40,7 +41,19 @@ fn main() -> Result<()> {
                 .value_name("THEME")
                 .about("Theme for syntax highlighting"),
         )
+        .arg(
+            Arg::new("list-themes")
+                .long("list-themes")
+                .about("List all theme names available for --theme option"),
+        )
         .get_matches();
+
+    if matches.is_present("list-themes") {
+        for theme in PrettyPrinter::new().themes() {
+            println!("{}", theme);
+        }
+        return Ok(());
+    }
 
     let ctx = matches
         .value_of("context")
