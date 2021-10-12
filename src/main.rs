@@ -61,6 +61,10 @@ fn main() -> Result<()> {
         no_ignore_desc,
         "Don't respect ignore files (.gitignore, .ignore, etc.)"
     );
+    ripgrep_only_desc!(
+        hidden_desc,
+        "Search hidden files and directories. By default, hidden files and directories are skipped"
+    );
 
     let matches = App::new("batgrep")
         .version(env!("CARGO_PKG_VERSION"))
@@ -107,6 +111,7 @@ fn main() -> Result<()> {
                 .long("no-ignore")
                 .about(no_ignore_desc),
         )
+        .arg(Arg::new("hidden").long("hidden").about(hidden_desc))
         .arg(Arg::new("PATTERN").about(pattern_desc))
         .arg(Arg::new("PATH").about(path_desc).multiple_values(true))
         .get_matches();
@@ -164,7 +169,9 @@ fn main() -> Result<()> {
     #[cfg(feature = "ripgrep")]
     {
         let mut config = ripgrep::Config::new(ctx);
-        config.no_ignore(matches.is_present("no-ignore"));
+        config
+            .no_ignore(matches.is_present("no-ignore"))
+            .hidden(matches.is_present("hidden"));
         match (pattern, paths) {
             (Some(pat), Some(paths)) => return ripgrep::grep(printer, pat, paths, config),
             (Some(pat), None) => {

@@ -17,6 +17,7 @@ use std::sync::Mutex;
 pub struct Config {
     context_lines: u64,
     no_ignore: bool,
+    hidden: bool,
 }
 
 impl Config {
@@ -27,8 +28,13 @@ impl Config {
         }
     }
 
-    pub fn no_ignore(&mut self, yes: bool) -> &Self {
+    pub fn no_ignore(&mut self, yes: bool) -> &mut Self {
         self.no_ignore = yes;
+        self
+    }
+
+    pub fn hidden(&mut self, yes: bool) -> &mut Self {
+        self.hidden = yes;
         self
     }
 
@@ -38,7 +44,7 @@ impl Config {
             builder.add(path);
         }
         builder
-            .hidden(false)
+            .hidden(!self.hidden)
             .parents(!self.no_ignore)
             .ignore(!self.no_ignore)
             .git_global(!self.no_ignore)
