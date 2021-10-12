@@ -59,6 +59,10 @@ impl<'a> Printer<'a> {
         self.grid = enabled;
     }
 
+    pub fn context_lines(&self) -> u64 {
+        self.context_lines
+    }
+
     pub fn print(&self, chunk: Chunk) -> Result<()> {
         // XXX: PrettyPrinter instance must be created for each print() call because there is no way
         // to clear line_ranges in the instance.

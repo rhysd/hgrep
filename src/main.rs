@@ -4,20 +4,61 @@ use clap::{App, AppSettings, Arg};
 use std::env;
 use std::io;
 
+#[cfg(not(feature = "ripgrep"))]
+use std::fmt;
+
+#[cfg(feature = "ripgrep")]
+use std::iter;
+
 mod chunk;
 mod grep;
 mod printer;
+#[cfg(feature = "ripgrep")]
+mod ripgrep;
 
 use grep::BufReadExt;
 use printer::Printer;
 
+#[cfg(not(feature = "ripgrep"))]
+#[derive(Debug)]
+enum CommandError {
+    PathArgNotSupported(&'static str),
+}
+
+#[cfg(not(feature = "ripgrep"))]
+impl fmt::Display for CommandError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CommandError::PathArgNotSupported => write!(
+                f,
+                "PATH argument is not supported without \"ripgrep\" feature"
+            ),
+        }
+    }
+}
+
+#[cfg(not(feature = "ripgrep"))]
+impl std::error::Error for CommandError {}
+
 fn main() -> Result<()> {
     use anyhow::Context;
+
+    #[cfg(feature = "ripgrep")]
+    let path_description = "Paths to search";
+    #[cfg(not(feature = "ripgrep"))]
+    let path_description =
+        "Paths to search. Not available until installing batgrep with \"ripgrep\" feature";
+    #[cfg(feature = "ripgrep")]
+    let pattern_description = "Pattern to search";
+    #[cfg(not(feature = "ripgrep"))]
+    let pattern_description =
+        "Pattern to search. Not available until installing batgrep with \"ripgrep\" feature";
 
     let matches = App::new("batgrep")
         .version(env!("CARGO_PKG_VERSION"))
         .about("like grep, but uses bat to show the results.")
         .global_setting(AppSettings::ColoredHelp)
+        .override_usage("batgrep [FLAGS] [OPTIONS] [PATTERN [PATH...]]")
         .arg(
             Arg::new("context")
                 .short('c')
@@ -52,6 +93,12 @@ fn main() -> Result<()> {
             Arg::new("list-themes")
                 .long("list-themes")
                 .about("List all theme names available for --theme option"),
+        )
+        .arg(Arg::new("PATTERN").about(pattern_description))
+        .arg(
+            Arg::new("PATH")
+                .about(path_description)
+                .multiple_values(true),
         )
         .get_matches();
 
@@ -91,6 +138,27 @@ fn main() -> Result<()> {
     }
     if matches.is_present("no-grid") {
         printer.grid(false);
+    }
+
+    let pattern = matches.value_of("PATTERN");
+    #[cfg(not(feature = "ripgrep"))]
+    if pattern.is_some() {
+        return Err(CommandError::PathArgNotSupported("PATTERN").into());
+    }
+
+    let paths = matches.values_of_os("PATH");
+    #[cfg(not(feature = "ripgrep"))]
+    if paths.is_some() {
+        return Err(CommandError::PathArgNotSupported("PATH").into());
+    }
+
+    #[cfg(feature = "ripgrep")]
+    match (pattern, paths) {
+        (Some(pat), Some(paths)) => return ripgrep::grep(printer, pat, paths),
+        (Some(pat), None) => {
+            return ripgrep::grep(printer, pat, iter::once(env::current_dir()?.as_os_str()))
+        }
+        _ => { /* fall through */ }
     }
 
     // XXX: io::stdin().lock() is not available since bat's implementation internally takes lock of stdin
