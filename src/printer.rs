@@ -30,14 +30,19 @@ impl fmt::Display for PrintError {
     }
 }
 
-pub struct Printer<'a> {
+// Trait to replace printer implementation for unit tests
+pub trait Printer {
+    fn print(&self, chunk: Chunk) -> Result<()>;
+}
+
+pub struct BatPrinter<'a> {
     context_lines: u64,
     theme: Option<&'a str>,
     tab_width: Option<usize>,
     grid: bool,
 }
 
-impl<'a> Printer<'a> {
+impl<'a> BatPrinter<'a> {
     pub fn new(context_lines: u64) -> Self {
         Self {
             context_lines,
@@ -58,12 +63,10 @@ impl<'a> Printer<'a> {
     pub fn grid(&mut self, enabled: bool) {
         self.grid = enabled;
     }
+}
 
-    pub fn context_lines(&self) -> u64 {
-        self.context_lines
-    }
-
-    pub fn print(&self, chunk: Chunk) -> Result<()> {
+impl<'a> Printer for BatPrinter<'a> {
+    fn print(&self, chunk: Chunk) -> Result<()> {
         // XXX: PrettyPrinter instance must be created for each print() call because there is no way
         // to clear line_ranges in the instance.
         let mut pp = PrettyPrinter::new();

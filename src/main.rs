@@ -17,7 +17,7 @@ mod printer;
 mod ripgrep;
 
 use grep::BufReadExt;
-use printer::Printer;
+use printer::{BatPrinter, Printer};
 
 #[cfg(not(feature = "ripgrep"))]
 #[derive(Debug)]
@@ -115,7 +115,7 @@ fn main() -> Result<()> {
         .parse()
         .context("could not parse \"context\" option value as unsigned integer")?;
 
-    let mut printer = Printer::new(ctx);
+    let mut printer = BatPrinter::new(ctx);
 
     if let Some(width) = matches.value_of("tab") {
         printer.tab_width(
@@ -154,9 +154,11 @@ fn main() -> Result<()> {
 
     #[cfg(feature = "ripgrep")]
     match (pattern, paths) {
-        (Some(pat), Some(paths)) => return ripgrep::grep(printer, pat, paths),
+        (Some(pat), Some(paths)) => return ripgrep::grep(printer, pat, paths, ctx),
         (Some(pat), None) => {
-            return ripgrep::grep(printer, pat, iter::once(env::current_dir()?.as_os_str()))
+            let cwd = env::current_dir()?;
+            let paths = iter::once(cwd.as_os_str());
+            return ripgrep::grep(printer, pat, paths, ctx);
         }
         _ => { /* fall through */ }
     }

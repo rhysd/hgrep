@@ -13,10 +13,11 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use walkdir::WalkDir;
 
-pub fn grep<'a>(
-    printer: Printer<'a>,
+pub fn grep<'a, P: Printer + Send>(
+    printer: P,
     pat: &str,
     paths: impl Iterator<Item = &'a OsStr>,
+    context: u64,
 ) -> Result<()> {
     // Use HashSet for unique paths
     let paths: HashSet<_> = paths
@@ -36,7 +37,7 @@ pub fn grep<'a>(
     paths.into_par_iter().try_for_each(|path| {
         let matches = grep_file(pat, path)?;
         let printer = printer.lock().unwrap();
-        for chunk in Chunks::new(matches.into_iter().map(Ok), printer.context_lines()) {
+        for chunk in Chunks::new(matches.into_iter().map(Ok), context) {
             printer.print(chunk?)?;
         }
         Ok(())
