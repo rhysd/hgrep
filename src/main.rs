@@ -4,11 +4,11 @@ use clap::{App, AppSettings, Arg};
 use std::io;
 
 mod chunk;
+mod grep;
 mod printer;
-mod read;
 
+use grep::BufReadExt;
 use printer::Printer;
-use read::BufReadExt;
 
 fn main() -> Result<()> {
     use anyhow::Context;

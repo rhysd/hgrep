@@ -90,6 +90,7 @@ impl<'a> Printer<'a> {
         }
 
         // Note: print() returns true when no error
+        // Note: bat's Error type cannot be converted to anyhow::Error due to lack of some type bounds
         match pp.print() {
             Ok(true) => Ok(()),
             Ok(false) => Err(Error::new(PrintError {

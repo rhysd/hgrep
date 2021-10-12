@@ -1,4 +1,4 @@
-use crate::read::Match;
+use crate::grep::Match;
 use anyhow::Result;
 use std::iter::Peekable;
 use std::path::PathBuf;
