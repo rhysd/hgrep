@@ -97,8 +97,8 @@ dependencies = [
  "clap",
  "grep-regex",
  "grep-searcher",
+ "ignore",
  "rayon",
- "walkdir",
 ]
 
 [[package]]
@@ -502,6 +502,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62b467343b94ba476dcb2500d242dadbb39557df889310ac77c5d99100aaac33"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "ignore"
+version = "0.4.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "713f1b139373f96a2e0ce3ac931cd01ee973c3c5dd7c40c0c2efe96ad2b6751d"
+dependencies = [
+ "crossbeam-utils",
+ "globset",
+ "lazy_static",
+ "log",
+ "memchr",
+ "regex",
+ "same-file",
+ "thread_local",
+ "walkdir",
+ "winapi-util",
 ]
 
 [[package]]

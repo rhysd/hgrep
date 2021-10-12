@@ -10,8 +10,8 @@ default = ["ripgrep"]
 ripgrep = [
     "grep-regex",
     "grep-searcher",
-    "walkdir",
     "rayon",
+    "ignore",
 ]
 
 [dependencies]
@@ -20,5 +20,5 @@ bat = { version = "^0.18.3", default-features = false, features = ["regex-onig"]
 clap = { version = "3.0.0-beta", default-features = false, features = ["std", "color", "suggestions"] }
 grep-regex = { version = "0.1.9", optional = true }
 grep-searcher = { version = "0.1.8", optional = true }
-walkdir = { version = "2", optional = true }
 rayon = { version = "1", optional = true }
+ignore = { version = "0.4", optional = true }
