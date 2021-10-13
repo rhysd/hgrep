@@ -26,6 +26,7 @@ pub struct Config<'main> {
     globs: Vec<&'main str>,
     glob_case_insensitive: bool,
     fixed_strings: bool,
+    word_regexp: bool,
 }
 
 impl<'main> Config<'main> {
@@ -79,6 +80,11 @@ impl<'main> Config<'main> {
         self
     }
 
+    pub fn word_regexp(&mut self, yes: bool) -> &mut Self {
+        self.word_regexp = yes;
+        self
+    }
+
     fn build_walker(&self, mut paths: impl Iterator<Item = &'main OsStr>) -> Result<WalkParallel> {
         let target = paths.next().unwrap();
 
@@ -116,7 +122,8 @@ impl<'main> Config<'main> {
         let mut builder = RegexMatcherBuilder::new();
         builder
             .case_insensitive(self.case_insensitive)
-            .case_smart(self.smart_case);
+            .case_smart(self.smart_case)
+            .word(self.word_regexp);
         Ok(if self.fixed_strings {
             builder.build(&regex::escape(pat))?
         } else {

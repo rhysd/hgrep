@@ -64,6 +64,7 @@ fn main() -> Result<()> {
         glob_desc = "Include or exclude files and directories for searching that match the given glob",
         glob_case_insensitive_desc = "Process glob patterns given with the -g/--glob flag case insensitively",
         fixed_strings_desc = "Treat the pattern as a literal string instead of a regular expression",
+        word_regexp_desc = "Only show matches surrounded by word boundaries",
     }
 
     let matches = App::new("batgrep")
@@ -145,6 +146,12 @@ fn main() -> Result<()> {
                 .long("fixed-strings")
                 .about(fixed_strings_desc),
         )
+        .arg(
+            Arg::new("word-regexp")
+                .short('w')
+                .long("word-regexp")
+                .about(word_regexp_desc),
+        )
         .arg(Arg::new("PATTERN").about(pattern_desc))
         .arg(Arg::new("PATH").about(path_desc).multiple_values(true))
         .get_matches();
@@ -208,7 +215,8 @@ fn main() -> Result<()> {
             .case_insensitive(matches.is_present("ignore-case"))
             .smart_case(matches.is_present("smart-case"))
             .glob_case_insensitive(matches.is_present("glob-case-insensitive"))
-            .fixed_strings(matches.is_present("fixed-strings"));
+            .fixed_strings(matches.is_present("fixed-strings"))
+            .word_regexp(matches.is_present("word-regexp"));
         let globs = matches.values_of("glob");
         if let Some(globs) = globs {
             config.globs(globs);
