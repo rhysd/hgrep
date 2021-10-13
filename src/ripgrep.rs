@@ -1,7 +1,7 @@
 use crate::chunk::Chunks;
 use crate::grep::Match;
 use crate::printer::Printer;
-use anyhow::{Error, Result};
+use anyhow::Result;
 use grep_regex::{RegexMatcher, RegexMatcherBuilder};
 use grep_searcher::{BinaryDetection, MmapChoice, Searcher, SearcherBuilder, Sink, SinkMatch};
 use ignore::overrides::OverrideBuilder;
@@ -261,25 +261,24 @@ fn walk<'main>(
     walker.run(|| {
         // This function is called per threads for initialization.
         let tx = tx.clone();
-        Box::new(move |entry| {
-            let quit = entry.is_err();
-            let path = entry.map_err(Error::new);
-            tx.send(path).unwrap();
-            if quit {
-                WalkState::Quit
-            } else {
+        Box::new(move |entry| match entry {
+            Ok(entry) => {
+                if entry.file_type().map(|f| f.is_file()).unwrap_or(false) {
+                    tx.send(Ok(entry.into_path())).unwrap();
+                }
                 WalkState::Continue
+            }
+            Err(err) => {
+                tx.send(Err(err)).unwrap();
+                WalkState::Quit
             }
         })
     });
     drop(tx); // Notify sender finishes
 
     let mut files = vec![];
-    for entry in rx.into_iter() {
-        let entry = entry?;
-        if entry.file_type().map(|f| f.is_file()).unwrap_or(false) {
-            files.push(entry.into_path());
-        }
+    for file in rx.into_iter() {
+        files.push(file?);
     }
     Ok(files)
 }
