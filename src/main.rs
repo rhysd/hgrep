@@ -65,6 +65,7 @@ fn main() -> Result<()> {
         glob_case_insensitive_desc = "Process glob patterns given with the -g/--glob flag case insensitively",
         fixed_strings_desc = "Treat the pattern as a literal string instead of a regular expression",
         word_regexp_desc = "Only show matches surrounded by word boundaries",
+        follow_symlink_desc = "When this flag is enabled, ripgrep will follow symbolic links while traversing directories",
     }
 
     let matches = App::new("batgrep")
@@ -152,6 +153,12 @@ fn main() -> Result<()> {
                 .long("word-regexp")
                 .about(word_regexp_desc),
         )
+        .arg(
+            Arg::new("follow-symlink")
+                .short('L')
+                .long("follow")
+                .about(follow_symlink_desc),
+        )
         .arg(Arg::new("PATTERN").about(pattern_desc))
         .arg(Arg::new("PATH").about(path_desc).multiple_values(true))
         .get_matches();
@@ -216,7 +223,8 @@ fn main() -> Result<()> {
             .smart_case(matches.is_present("smart-case"))
             .glob_case_insensitive(matches.is_present("glob-case-insensitive"))
             .fixed_strings(matches.is_present("fixed-strings"))
-            .word_regexp(matches.is_present("word-regexp"));
+            .word_regexp(matches.is_present("word-regexp"))
+            .follow_symlink(matches.is_present("follow-symlink"));
         let globs = matches.values_of("glob");
         if let Some(globs) = globs {
             config.globs(globs);

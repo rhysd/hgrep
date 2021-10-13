@@ -23,10 +23,11 @@ pub struct Config<'main> {
     hidden: bool,
     case_insensitive: bool,
     smart_case: bool,
-    globs: Vec<&'main str>,
+    globs: Box<[&'main str]>,
     glob_case_insensitive: bool,
     fixed_strings: bool,
     word_regexp: bool,
+    follow_symlink: bool,
 }
 
 impl<'main> Config<'main> {
@@ -64,9 +65,7 @@ impl<'main> Config<'main> {
     }
 
     pub fn globs(&mut self, globs: impl Iterator<Item = &'main str>) -> &mut Self {
-        for glob in globs {
-            self.globs.push(glob);
-        }
+        self.globs = globs.collect();
         self
     }
 
@@ -82,6 +81,11 @@ impl<'main> Config<'main> {
 
     pub fn word_regexp(&mut self, yes: bool) -> &mut Self {
         self.word_regexp = yes;
+        self
+    }
+
+    pub fn follow_symlink(&mut self, yes: bool) -> &mut Self {
+        self.follow_symlink = yes;
         self
     }
 
@@ -109,6 +113,7 @@ impl<'main> Config<'main> {
             .git_ignore(!self.no_ignore)
             .git_exclude(!self.no_ignore)
             .require_git(false)
+            .follow_links(self.follow_symlink)
             .overrides(overrides);
 
         if !self.no_ignore {
