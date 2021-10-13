@@ -125,6 +125,11 @@ fn main() -> Result<()> {
                     .long("crlf")
                     .about(r#"When enabled, ripgrep will treat CRLF ('\r\n') as a line terminator instead of just '\n'"#),
             )
+            .arg(
+                Arg::new("mmap")
+                    .long("mmap")
+                    .about("Search using memory maps when possible. mmap is disabled by default unlike ripgrep"),
+            )
             .arg(Arg::new("PATTERN").about("Pattern to search. Regular expression is available"))
             .arg(Arg::new("PATH").about("Paths to search").multiple_values(true));
 
@@ -184,7 +189,8 @@ fn main() -> Result<()> {
             .follow_symlink(matches.is_present("follow-symlink"))
             .multiline(matches.is_present("multiline"))
             .crlf(matches.is_present("crlf"))
-            .multiline_dotall(matches.is_present("multiline-dotall"));
+            .multiline_dotall(matches.is_present("multiline-dotall"))
+            .mmap(matches.is_present("mmap"));
         let globs = matches.values_of("glob");
         if let Some(globs) = globs {
             config.globs(globs);

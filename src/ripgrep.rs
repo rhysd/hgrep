@@ -3,7 +3,7 @@ use crate::grep::Match;
 use crate::printer::Printer;
 use anyhow::{Error, Result};
 use grep_regex::{RegexMatcher, RegexMatcherBuilder};
-use grep_searcher::{BinaryDetection, Searcher, SearcherBuilder, Sink, SinkMatch};
+use grep_searcher::{BinaryDetection, MmapChoice, Searcher, SearcherBuilder, Sink, SinkMatch};
 use ignore::overrides::OverrideBuilder;
 use ignore::{WalkBuilder, WalkParallel, WalkState};
 use rayon::prelude::*;
@@ -31,6 +31,7 @@ pub struct Config<'main> {
     multiline: bool,
     crlf: bool,
     multiline_dotall: bool,
+    mmap: bool,
 }
 
 impl<'main> Config<'main> {
@@ -107,6 +108,11 @@ impl<'main> Config<'main> {
         self
     }
 
+    pub fn mmap(&mut self, yes: bool) -> &mut Self {
+        self.mmap = yes;
+        self
+    }
+
     fn build_walker(&self, mut paths: impl Iterator<Item = &'main OsStr>) -> Result<WalkParallel> {
         let target = paths.next().unwrap();
 
@@ -170,10 +176,16 @@ impl<'main> Config<'main> {
 
     fn build_searcher(&self) -> Searcher {
         let mut builder = SearcherBuilder::new();
+        let mmap = if self.mmap {
+            unsafe { MmapChoice::auto() }
+        } else {
+            MmapChoice::never()
+        };
         builder
             .binary_detection(BinaryDetection::quit(0))
             .line_number(true)
-            .multi_line(self.multiline);
+            .multi_line(self.multiline)
+            .memory_map(mmap);
         builder.build()
     }
 }
