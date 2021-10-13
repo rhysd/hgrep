@@ -35,6 +35,7 @@ pub struct Config<'main> {
     max_count: Option<u64>,
     max_depth: Option<usize>,
     max_filesize: Option<u64>,
+    line_regexp: bool,
 }
 
 impl<'main> Config<'main> {
@@ -88,6 +89,17 @@ impl<'main> Config<'main> {
 
     pub fn word_regexp(&mut self, yes: bool) -> &mut Self {
         self.word_regexp = yes;
+        if yes {
+            self.line_regexp = false;
+        }
+        self
+    }
+
+    pub fn line_regexp(&mut self, yes: bool) -> &mut Self {
+        self.line_regexp = yes;
+        if yes {
+            self.word_regexp = false;
+        }
         self
     }
 
@@ -188,7 +200,13 @@ impl<'main> Config<'main> {
         }
 
         Ok(if self.fixed_strings {
-            builder.build(&regex::escape(pat))?
+            let mut s = regex::escape(pat);
+            if self.line_regexp {
+                s = format!("^(?:{})$", s);
+            }
+            builder.build(&s)?
+        } else if self.line_regexp {
+            builder.build(&format!("^(?:{})$", pat))?
         } else {
             builder.build(pat)?
         })

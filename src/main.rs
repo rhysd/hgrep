@@ -152,6 +152,12 @@ fn main() -> Result<()> {
                     .value_name("NUM")
                     .about("Ignore files larger than NUM in size"),
             )
+            .arg(
+                Arg::new("line-regexp")
+                    .short('x')
+                    .long("line-regexp")
+                    .about("Only show matches surrounded by line boundaries. This is equivalent to putting ^...$ around all of the search patterns"),
+            )
             .arg(Arg::new("PATTERN").about("Pattern to search. Regular expression is available"))
             .arg(Arg::new("PATH").about("Paths to search").multiple_values(true));
 
@@ -212,7 +218,8 @@ fn main() -> Result<()> {
             .multiline(matches.is_present("multiline"))
             .crlf(matches.is_present("crlf"))
             .multiline_dotall(matches.is_present("multiline-dotall"))
-            .mmap(matches.is_present("mmap"));
+            .mmap(matches.is_present("mmap"))
+            .line_regexp(matches.is_present("line-regexp"));
 
         let globs = matches.values_of("glob");
         if let Some(globs) = globs {
