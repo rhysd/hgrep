@@ -32,6 +32,7 @@ pub struct Config<'main> {
     crlf: bool,
     multiline_dotall: bool,
     mmap: bool,
+    max_count: Option<u64>,
 }
 
 impl<'main> Config<'main> {
@@ -110,6 +111,11 @@ impl<'main> Config<'main> {
 
     pub fn mmap(&mut self, yes: bool) -> &mut Self {
         self.mmap = yes;
+        self
+    }
+
+    pub fn max_count(&mut self, num: u64) -> &mut Self {
+        self.max_count = Some(num);
         self
     }
 
@@ -202,8 +208,10 @@ pub fn grep<'main, P: Printer + Send>(
     }
 
     let printer = Mutex::new(printer);
+    let count = config.max_count.map(Mutex::new);
+    let count = count.as_ref();
     paths.into_par_iter().try_for_each(|path| {
-        let matches = search(pat, path, &config)?;
+        let matches = search(pat, path, &config, count)?;
         let printer = printer.lock().unwrap();
         for chunk in Chunks::new(matches.into_iter().map(Ok), config.context_lines) {
             printer.print(chunk?)?;
@@ -244,16 +252,24 @@ fn walk<'main>(
     Ok(files)
 }
 
-struct Matches {
+struct Matches<'a> {
     multiline: bool,
+    count: Option<&'a Mutex<u64>>,
     path: PathBuf,
     buf: Vec<Match>,
 }
 
-impl Sink for Matches {
+impl<'a> Sink for Matches<'a> {
     type Error = io::Error;
 
     fn matched(&mut self, _searcher: &Searcher, mat: &SinkMatch<'_>) -> Result<bool, Self::Error> {
+        if let Some(count) = &self.count {
+            let mut c = count.lock().unwrap();
+            if *c == 0 {
+                return Ok(false);
+            }
+            *c -= 1;
+        }
         let line_number = mat.line_number().unwrap();
         let path = self.path.clone();
         self.buf.push(Match { path, line_number });
@@ -268,12 +284,23 @@ impl Sink for Matches {
     }
 }
 
-fn search(pat: &str, path: PathBuf, config: &Config) -> Result<Vec<Match>> {
+fn search(
+    pat: &str,
+    path: PathBuf,
+    config: &Config,
+    count: Option<&Mutex<u64>>,
+) -> Result<Vec<Match>> {
+    if let Some(count) = count {
+        if *count.lock().unwrap() == 0 {
+            return Ok(vec![]);
+        }
+    }
     let file = File::open(&path)?;
     let matcher = config.build_regex_matcher(pat)?;
     let mut searcher = config.build_searcher();
     let mut matches = Matches {
         multiline: config.multiline,
+        count,
         path,
         buf: vec![],
     };

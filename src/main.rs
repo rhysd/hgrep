@@ -80,8 +80,8 @@ fn main() -> Result<()> {
                 Arg::new("glob")
                     .short('g')
                     .long("glob")
-                    .value_name("GLOB")
                     .takes_value(true)
+                    .value_name("GLOB")
                     .multiple_values(true)
                     .allow_hyphen_values(true)
                     .about("Include or exclude files and directories for searching that match the given glob"),
@@ -129,6 +129,14 @@ fn main() -> Result<()> {
                 Arg::new("mmap")
                     .long("mmap")
                     .about("Search using memory maps when possible. mmap is disabled by default unlike ripgrep"),
+            )
+            .arg(
+                Arg::new("max-count")
+                    .short('m')
+                    .long("max-count")
+                    .takes_value(true)
+                    .value_name("NUM")
+                    .about("Limit the number of matching lines per file searched to NUM"),
             )
             .arg(Arg::new("PATTERN").about("Pattern to search. Regular expression is available"))
             .arg(Arg::new("PATH").about("Paths to search").multiple_values(true));
@@ -191,10 +199,19 @@ fn main() -> Result<()> {
             .crlf(matches.is_present("crlf"))
             .multiline_dotall(matches.is_present("multiline-dotall"))
             .mmap(matches.is_present("mmap"));
+
         let globs = matches.values_of("glob");
         if let Some(globs) = globs {
             config.globs(globs);
         }
+
+        if let Some(num) = matches.value_of("max-count") {
+            let num = num
+                .parse()
+                .context("could not parse \"max-count\" option value as unsigned integer")?;
+            config.max_count(num);
+        }
+
         match (pattern, paths) {
             (Some(pat), Some(paths)) => return ripgrep::grep(printer, pat, paths, config),
             (Some(pat), None) => {
