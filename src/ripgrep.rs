@@ -2,7 +2,7 @@ use crate::chunk::Chunks;
 use crate::grep::Match;
 use crate::printer::Printer;
 use anyhow::{Error, Result};
-use grep_regex::RegexMatcherBuilder;
+use grep_regex::{RegexMatcher, RegexMatcherBuilder};
 use grep_searcher::{BinaryDetection, Searcher, Sink, SinkMatch};
 use ignore::overrides::OverrideBuilder;
 use ignore::{WalkBuilder, WalkParallel, WalkState};
@@ -25,6 +25,7 @@ pub struct Config<'main> {
     smart_case: bool,
     globs: Vec<&'main str>,
     glob_case_insensitive: bool,
+    fixed_strings: bool,
 }
 
 impl<'main> Config<'main> {
@@ -73,6 +74,11 @@ impl<'main> Config<'main> {
         self
     }
 
+    pub fn fixed_strings(&mut self, yes: bool) -> &mut Self {
+        self.fixed_strings = yes;
+        self
+    }
+
     fn build_walker(&self, mut paths: impl Iterator<Item = &'main OsStr>) -> Result<WalkParallel> {
         let target = paths.next().unwrap();
 
@@ -104,6 +110,18 @@ impl<'main> Config<'main> {
         }
 
         Ok(builder.build_parallel())
+    }
+
+    fn build_regex_matcher(&self, pat: &str) -> Result<RegexMatcher> {
+        let mut builder = RegexMatcherBuilder::new();
+        builder
+            .case_insensitive(self.case_insensitive)
+            .case_smart(self.smart_case);
+        Ok(if self.fixed_strings {
+            builder.build(&regex::escape(pat))?
+        } else {
+            builder.build(pat)?
+        })
     }
 }
 
@@ -179,12 +197,7 @@ impl Sink for Matches {
 
 fn search(pat: &str, path: PathBuf, config: &Config) -> Result<Vec<Match>> {
     let file = File::open(&path)?;
-
-    let mut builder = RegexMatcherBuilder::new();
-    builder
-        .case_insensitive(config.case_insensitive)
-        .case_smart(config.smart_case);
-    let matcher = builder.build(pat)?;
+    let matcher = config.build_regex_matcher(pat)?;
 
     let mut searcher = Searcher::new();
     searcher.set_binary_detection(BinaryDetection::quit(0));

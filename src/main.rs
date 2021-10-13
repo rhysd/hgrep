@@ -49,7 +49,7 @@ fn main() -> Result<()> {
                 #[cfg(feature = "ripgrep")]
                 let $ident = $desc;
                 #[cfg(not(feature = "ripgrep"))]
-                let $ident = "Not available until installing batgrep with \"ripgrep\" feature";
+                let $ident = "This option is for the builtin \"ripgrep\" feature. Not available until installing batgrep with the feature";
             )+
         };
     }
@@ -63,6 +63,7 @@ fn main() -> Result<()> {
         smart_case_desc = "Searches case insensitively if the pattern is all lowercase. Search case sensitively otherwise",
         glob_desc = "Include or exclude files and directories for searching that match the given glob",
         glob_case_insensitive_desc = "Process glob patterns given with the -g/--glob flag case insensitively",
+        fixed_strings_desc = "Treat the pattern as a literal string instead of a regular expression",
     }
 
     let matches = App::new("batgrep")
@@ -123,7 +124,6 @@ fn main() -> Result<()> {
                 .about(smart_case_desc),
         )
         .arg(Arg::new("hidden").long("hidden").about(hidden_desc))
-        .arg(Arg::new("PATTERN").about(pattern_desc))
         .arg(
             Arg::new("glob")
                 .short('g')
@@ -139,6 +139,13 @@ fn main() -> Result<()> {
                 .long("glob-case-insensitive")
                 .about(glob_case_insensitive_desc),
         )
+        .arg(
+            Arg::new("fixed-strings")
+                .short('F')
+                .long("fixed-strings")
+                .about(fixed_strings_desc),
+        )
+        .arg(Arg::new("PATTERN").about(pattern_desc))
         .arg(Arg::new("PATH").about(path_desc).multiple_values(true))
         .get_matches();
 
@@ -200,7 +207,8 @@ fn main() -> Result<()> {
             .hidden(matches.is_present("hidden"))
             .case_insensitive(matches.is_present("ignore-case"))
             .smart_case(matches.is_present("smart-case"))
-            .glob_case_insensitive(matches.is_present("glob-case-insensitive"));
+            .glob_case_insensitive(matches.is_present("glob-case-insensitive"))
+            .fixed_strings(matches.is_present("fixed-strings"));
         let globs = matches.values_of("glob");
         if let Some(globs) = globs {
             config.globs(globs);
