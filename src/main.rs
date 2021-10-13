@@ -61,6 +61,8 @@ fn main() -> Result<()> {
         hidden_desc = "Search hidden files and directories. By default, hidden files and directories are skipped",
         ignore_case_desc = "When this flag is provided, the given patterns will be searched case insensitively",
         smart_case_desc = "Searches case insensitively if the pattern is all lowercase. Search case sensitively otherwise",
+        glob_desc = "Include or exclude files and directories for searching that match the given glob",
+        glob_case_insensitive_desc = "Process glob patterns given with the -g/--glob flag case insensitively",
     }
 
     let matches = App::new("batgrep")
@@ -122,6 +124,21 @@ fn main() -> Result<()> {
         )
         .arg(Arg::new("hidden").long("hidden").about(hidden_desc))
         .arg(Arg::new("PATTERN").about(pattern_desc))
+        .arg(
+            Arg::new("glob")
+                .short('g')
+                .long("glob")
+                .value_name("GLOB")
+                .takes_value(true)
+                .multiple_values(true)
+                .allow_hyphen_values(true)
+                .about(glob_desc),
+        )
+        .arg(
+            Arg::new("glob-case-insensitive")
+                .long("glob-case-insensitive")
+                .about(glob_case_insensitive_desc),
+        )
         .arg(Arg::new("PATH").about(path_desc).multiple_values(true))
         .get_matches();
 
@@ -182,7 +199,12 @@ fn main() -> Result<()> {
             .no_ignore(matches.is_present("no-ignore"))
             .hidden(matches.is_present("hidden"))
             .case_insensitive(matches.is_present("ignore-case"))
-            .smart_case(matches.is_present("smart-case"));
+            .smart_case(matches.is_present("smart-case"))
+            .glob_case_insensitive(matches.is_present("glob-case-insensitive"));
+        let globs = matches.values_of("glob");
+        if let Some(globs) = globs {
+            config.globs(globs);
+        }
         match (pattern, paths) {
             (Some(pat), Some(paths)) => return ripgrep::grep(printer, pat, paths, config),
             (Some(pat), None) => {

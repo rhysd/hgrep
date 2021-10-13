@@ -4,6 +4,7 @@ use crate::printer::Printer;
 use anyhow::{Error, Result};
 use grep_regex::RegexMatcherBuilder;
 use grep_searcher::{BinaryDetection, Searcher, Sink, SinkMatch};
+use ignore::overrides::OverrideBuilder;
 use ignore::{WalkBuilder, WalkParallel, WalkState};
 use rayon::prelude::*;
 use std::ffi::OsStr;
@@ -13,16 +14,20 @@ use std::path::PathBuf;
 use std::sync::mpsc::channel;
 use std::sync::Mutex;
 
+// Note: 'main is a lifetime of scope of main() function
+
 #[derive(Default)]
-pub struct Config {
+pub struct Config<'main> {
     context_lines: u64,
     no_ignore: bool,
     hidden: bool,
     case_insensitive: bool,
     smart_case: bool,
+    globs: Vec<&'main str>,
+    glob_case_insensitive: bool,
 }
 
-impl Config {
+impl<'main> Config<'main> {
     pub fn new(context_lines: u64) -> Self {
         Self {
             context_lines,
@@ -56,8 +61,31 @@ impl Config {
         self
     }
 
-    pub fn build_walker<'a>(&self, mut paths: impl Iterator<Item = &'a OsStr>) -> WalkParallel {
-        let mut builder = WalkBuilder::new(paths.next().unwrap());
+    pub fn globs(&mut self, globs: impl Iterator<Item = &'main str>) -> &mut Self {
+        for glob in globs {
+            self.globs.push(glob);
+        }
+        self
+    }
+
+    pub fn glob_case_insensitive(&mut self, yes: bool) -> &mut Self {
+        self.glob_case_insensitive = yes;
+        self
+    }
+
+    fn build_walker(&self, mut paths: impl Iterator<Item = &'main OsStr>) -> Result<WalkParallel> {
+        let target = paths.next().unwrap();
+
+        let mut builder = OverrideBuilder::new(target);
+        if self.glob_case_insensitive {
+            builder.case_insensitive(true)?;
+        }
+        for glob in self.globs.iter() {
+            builder.add(glob)?;
+        }
+        let overrides = builder.build()?;
+
+        let mut builder = WalkBuilder::new(target);
         for path in paths {
             builder.add(path);
         }
@@ -68,21 +96,22 @@ impl Config {
             .git_global(!self.no_ignore)
             .git_ignore(!self.no_ignore)
             .git_exclude(!self.no_ignore)
-            .require_git(false);
+            .require_git(false)
+            .overrides(overrides);
 
         if !self.no_ignore {
             builder.add_custom_ignore_filename(".rgignore");
         }
 
-        builder.build_parallel()
+        Ok(builder.build_parallel())
     }
 }
 
-pub fn grep<'a, P: Printer + Send>(
+pub fn grep<'main, P: Printer + Send>(
     printer: P,
     pat: &str,
-    paths: impl Iterator<Item = &'a OsStr>,
-    config: Config,
+    paths: impl Iterator<Item = &'main OsStr>,
+    config: Config<'main>,
 ) -> Result<()> {
     let paths = walk(paths, &config)?;
     if paths.is_empty() {
@@ -100,8 +129,11 @@ pub fn grep<'a, P: Printer + Send>(
     })
 }
 
-fn walk<'a>(paths: impl Iterator<Item = &'a OsStr>, config: &Config) -> Result<Vec<PathBuf>> {
-    let walker = config.build_walker(paths);
+fn walk<'main>(
+    paths: impl Iterator<Item = &'main OsStr>,
+    config: &Config<'main>,
+) -> Result<Vec<PathBuf>> {
+    let walker = config.build_walker(paths)?;
     let (tx, rx) = channel();
     walker.run(|| {
         // This function is called per threads for initialization.
