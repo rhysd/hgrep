@@ -33,6 +33,8 @@ pub struct Config<'main> {
     multiline_dotall: bool,
     mmap: bool,
     max_count: Option<u64>,
+    max_depth: Option<usize>,
+    max_filesize: Option<u64>,
 }
 
 impl<'main> Config<'main> {
@@ -119,6 +121,16 @@ impl<'main> Config<'main> {
         self
     }
 
+    pub fn max_depth(&mut self, num: usize) -> &mut Self {
+        self.max_depth = Some(num);
+        self
+    }
+
+    pub fn max_filesize(&mut self, num: u64) -> &mut Self {
+        self.max_filesize = Some(num);
+        self
+    }
+
     fn build_walker(&self, mut paths: impl Iterator<Item = &'main OsStr>) -> Result<WalkParallel> {
         let target = paths.next().unwrap();
 
@@ -144,6 +156,8 @@ impl<'main> Config<'main> {
             .git_exclude(!self.no_ignore)
             .require_git(false)
             .follow_links(self.follow_symlink)
+            .max_depth(self.max_depth)
+            .max_filesize(self.max_filesize)
             .overrides(overrides);
 
         if !self.no_ignore {

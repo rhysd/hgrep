@@ -123,7 +123,7 @@ fn main() -> Result<()> {
             .arg(
                 Arg::new("crlf")
                     .long("crlf")
-                    .about(r#"When enabled, ripgrep will treat CRLF ('\r\n') as a line terminator instead of just '\n'"#),
+                    .about(r"When enabled, ripgrep will treat CRLF ('\r\n') as a line terminator instead of just '\n'"),
             )
             .arg(
                 Arg::new("mmap")
@@ -137,6 +137,20 @@ fn main() -> Result<()> {
                     .takes_value(true)
                     .value_name("NUM")
                     .about("Limit the number of matching lines per file searched to NUM"),
+            )
+            .arg(
+                Arg::new("max-depth")
+                    .long("max-depth")
+                    .takes_value(true)
+                    .value_name("NUM")
+                    .about("Limit the depth of directory traversal to NUM levels beyond the paths given"),
+            )
+            .arg(
+                Arg::new("max-filesize")
+                    .long("max-filesize")
+                    .takes_value(true)
+                    .value_name("NUM")
+                    .about("Ignore files larger than NUM in size"),
             )
             .arg(Arg::new("PATTERN").about("Pattern to search. Regular expression is available"))
             .arg(Arg::new("PATH").about("Paths to search").multiple_values(true));
@@ -210,6 +224,20 @@ fn main() -> Result<()> {
                 .parse()
                 .context("could not parse \"max-count\" option value as unsigned integer")?;
             config.max_count(num);
+        }
+
+        if let Some(num) = matches.value_of("max-depth") {
+            let num = num
+                .parse()
+                .context("could not parse \"max-depth\" option value as unsigned integer")?;
+            config.max_depth(num);
+        }
+
+        if let Some(num) = matches.value_of("max-filesize") {
+            let num = num
+                .parse()
+                .context("could not parse \"max-filesize\" option value as unsigned integer")?;
+            config.max_filesize(num);
         }
 
         match (pattern, paths) {
