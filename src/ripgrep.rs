@@ -28,8 +28,9 @@ pub struct Config<'main> {
     fixed_strings: bool,
     word_regexp: bool,
     follow_symlink: bool,
-    multi_line: bool,
+    multiline: bool,
     crlf: bool,
+    multiline_dotall: bool,
 }
 
 impl<'main> Config<'main> {
@@ -91,13 +92,18 @@ impl<'main> Config<'main> {
         self
     }
 
-    pub fn multi_line(&mut self, yes: bool) -> &mut Self {
-        self.multi_line = yes;
+    pub fn multiline(&mut self, yes: bool) -> &mut Self {
+        self.multiline = yes;
         self
     }
 
     pub fn crlf(&mut self, yes: bool) -> &mut Self {
         self.crlf = yes;
+        self
+    }
+
+    pub fn multiline_dotall(&mut self, yes: bool) -> &mut Self {
+        self.multiline_dotall = yes;
         self
     }
 
@@ -143,7 +149,8 @@ impl<'main> Config<'main> {
             .word(self.word_regexp)
             .multi_line(true);
 
-        if self.multi_line {
+        if self.multiline {
+            builder.dot_matches_new_line(self.multiline_dotall);
             if self.crlf {
                 builder.crlf(true).line_terminator(None);
             }
@@ -166,7 +173,7 @@ impl<'main> Config<'main> {
         builder
             .binary_detection(BinaryDetection::quit(0))
             .line_number(true)
-            .multi_line(self.multi_line);
+            .multi_line(self.multiline);
         builder.build()
     }
 }
@@ -226,7 +233,7 @@ fn walk<'main>(
 }
 
 struct Matches {
-    multi_line: bool,
+    multiline: bool,
     path: PathBuf,
     buf: Vec<Match>,
 }
@@ -238,7 +245,7 @@ impl Sink for Matches {
         let line_number = mat.line_number().unwrap();
         let path = self.path.clone();
         self.buf.push(Match { path, line_number });
-        if self.multi_line {
+        if self.multiline {
             for i in 1..mat.lines().count() {
                 let line_number = line_number + i as u64;
                 let path = self.path.clone();
@@ -254,7 +261,7 @@ fn search(pat: &str, path: PathBuf, config: &Config) -> Result<Vec<Match>> {
     let matcher = config.build_regex_matcher(pat)?;
     let mut searcher = config.build_searcher();
     let mut matches = Matches {
-        multi_line: config.multi_line,
+        multiline: config.multiline,
         path,
         buf: vec![],
     };

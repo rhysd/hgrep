@@ -73,7 +73,7 @@ fn main() -> Result<()> {
                 Arg::new("smart-case")
                     .short('S')
                     .long("smart-case")
-                    .about("Searches case insensitively if the pattern is all lowercase. Search case sensitively otherwise"),
+                    .about("Search case insensitively if the pattern is all lowercase. Search case sensitively otherwise"),
             )
             .arg(Arg::new("hidden").long("hidden").about("Search hidden files and directories. By default, hidden files and directories are skipped"))
             .arg(
@@ -114,6 +114,11 @@ fn main() -> Result<()> {
                     .short('U')
                     .long("multiline")
                     .about("Enable matching across multiple lines"),
+            )
+            .arg(
+                Arg::new("multiline-dotall")
+                    .long("multiline-dotall")
+                    .about("Enable \"dot all\" in your regex pattern, which causes '.' to match newlines when multiline searching is enabled"),
             )
             .arg(
                 Arg::new("crlf")
@@ -177,8 +182,9 @@ fn main() -> Result<()> {
             .fixed_strings(matches.is_present("fixed-strings"))
             .word_regexp(matches.is_present("word-regexp"))
             .follow_symlink(matches.is_present("follow-symlink"))
-            .multi_line(matches.is_present("multiline"))
-            .crlf(matches.is_present("crlf"));
+            .multiline(matches.is_present("multiline"))
+            .crlf(matches.is_present("crlf"))
+            .multiline_dotall(matches.is_present("multiline-dotall"));
         let globs = matches.values_of("glob");
         if let Some(globs) = globs {
             config.globs(globs);
