@@ -23,10 +23,9 @@ impl fmt::Display for PrintError {
             self.start, self.end, &self.path,
         )?;
         if let Some(cause) = &self.cause {
-            writeln!(f, ". Caused by: {}", cause)
-        } else {
-            writeln!(f)
+            write!(f, ". Caused by: {}", cause)?;
         }
+        Ok(())
     }
 }
 

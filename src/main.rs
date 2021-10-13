@@ -109,6 +109,17 @@ fn main() -> Result<()> {
                     .long("follow")
                     .about("When this flag is enabled, ripgrep will follow symbolic links while traversing directories"),
             )
+            .arg(
+                Arg::new("multiline")
+                    .short('U')
+                    .long("multiline")
+                    .about("Enable matching across multiple lines"),
+            )
+            .arg(
+                Arg::new("crlf")
+                    .long("crlf")
+                    .about(r#"When enabled, ripgrep will treat CRLF ('\r\n') as a line terminator instead of just '\n'"#),
+            )
             .arg(Arg::new("PATTERN").about("Pattern to search. Regular expression is available"))
             .arg(Arg::new("PATH").about("Paths to search").multiple_values(true));
 
@@ -165,7 +176,9 @@ fn main() -> Result<()> {
             .glob_case_insensitive(matches.is_present("glob-case-insensitive"))
             .fixed_strings(matches.is_present("fixed-strings"))
             .word_regexp(matches.is_present("word-regexp"))
-            .follow_symlink(matches.is_present("follow-symlink"));
+            .follow_symlink(matches.is_present("follow-symlink"))
+            .multi_line(matches.is_present("multiline"))
+            .crlf(matches.is_present("crlf"));
         let globs = matches.values_of("glob");
         if let Some(globs) = globs {
             config.globs(globs);

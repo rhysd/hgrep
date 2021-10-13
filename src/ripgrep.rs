@@ -3,7 +3,7 @@ use crate::grep::Match;
 use crate::printer::Printer;
 use anyhow::{Error, Result};
 use grep_regex::{RegexMatcher, RegexMatcherBuilder};
-use grep_searcher::{BinaryDetection, Searcher, Sink, SinkMatch};
+use grep_searcher::{BinaryDetection, Searcher, SearcherBuilder, Sink, SinkMatch};
 use ignore::overrides::OverrideBuilder;
 use ignore::{WalkBuilder, WalkParallel, WalkState};
 use rayon::prelude::*;
@@ -28,6 +28,8 @@ pub struct Config<'main> {
     fixed_strings: bool,
     word_regexp: bool,
     follow_symlink: bool,
+    multi_line: bool,
+    crlf: bool,
 }
 
 impl<'main> Config<'main> {
@@ -89,6 +91,16 @@ impl<'main> Config<'main> {
         self
     }
 
+    pub fn multi_line(&mut self, yes: bool) -> &mut Self {
+        self.multi_line = yes;
+        self
+    }
+
+    pub fn crlf(&mut self, yes: bool) -> &mut Self {
+        self.crlf = yes;
+        self
+    }
+
     fn build_walker(&self, mut paths: impl Iterator<Item = &'main OsStr>) -> Result<WalkParallel> {
         let target = paths.next().unwrap();
 
@@ -128,12 +140,34 @@ impl<'main> Config<'main> {
         builder
             .case_insensitive(self.case_insensitive)
             .case_smart(self.smart_case)
-            .word(self.word_regexp);
+            .word(self.word_regexp)
+            .multi_line(true);
+
+        if self.multi_line {
+            if self.crlf {
+                builder.crlf(true).line_terminator(None);
+            }
+        } else {
+            builder
+                .line_terminator(Some(b'\n'))
+                .dot_matches_new_line(false)
+                .crlf(self.crlf);
+        }
+
         Ok(if self.fixed_strings {
             builder.build(&regex::escape(pat))?
         } else {
             builder.build(pat)?
         })
+    }
+
+    fn build_searcher(&self) -> Searcher {
+        let mut builder = SearcherBuilder::new();
+        builder
+            .binary_detection(BinaryDetection::quit(0))
+            .line_number(true)
+            .multi_line(self.multi_line);
+        builder.build()
     }
 }
 
@@ -192,6 +226,7 @@ fn walk<'main>(
 }
 
 struct Matches {
+    multi_line: bool,
     path: PathBuf,
     buf: Vec<Match>,
 }
@@ -203,6 +238,13 @@ impl Sink for Matches {
         let line_number = mat.line_number().unwrap();
         let path = self.path.clone();
         self.buf.push(Match { path, line_number });
+        if self.multi_line {
+            for i in 1..mat.lines().count() {
+                let line_number = line_number + i as u64;
+                let path = self.path.clone();
+                self.buf.push(Match { path, line_number });
+            }
+        }
         Ok(true)
     }
 }
@@ -210,11 +252,12 @@ impl Sink for Matches {
 fn search(pat: &str, path: PathBuf, config: &Config) -> Result<Vec<Match>> {
     let file = File::open(&path)?;
     let matcher = config.build_regex_matcher(pat)?;
-
-    let mut searcher = Searcher::new();
-    searcher.set_binary_detection(BinaryDetection::quit(0));
-
-    let mut matches = Matches { path, buf: vec![] };
+    let mut searcher = config.build_searcher();
+    let mut matches = Matches {
+        multi_line: config.multi_line,
+        path,
+        buf: vec![],
+    };
     searcher.search_file(&matcher, &file, &mut matches)?;
     Ok(matches.buf)
 }
