@@ -51,6 +51,7 @@ impl fmt::Display for ParseError {
 
 impl std::error::Error for ParseError {}
 
+#[derive(Debug, PartialEq)]
 pub struct Match {
     pub path: PathBuf,
     pub line_number: u64,
@@ -105,5 +106,74 @@ pub trait BufReadExt: BufRead + Sized {
 impl<R: BufRead> BufReadExt for R {
     fn grep_lines(self) -> GrepLines<Self> {
         GrepLines { reader: self }
+    }
+}
+
+#[test]
+fn test_read_ok() {
+    let input = [
+        "/path/to/foo.txt:1:    hello",
+        "/path/to/bar.txt:100:    bye",
+        "/path/to/bar.txt:110:    this : line : include : colon",
+    ]
+    .join("\n")
+    .into_bytes();
+
+    let output: Vec<_> = input.grep_lines().collect::<Result<_>>().unwrap();
+
+    let expected = vec![
+        Match {
+            path: PathBuf::from("/path/to/foo.txt"),
+            line_number: 1,
+        },
+        Match {
+            path: PathBuf::from("/path/to/bar.txt"),
+            line_number: 100,
+        },
+        Match {
+            path: PathBuf::from("/path/to/bar.txt"),
+            line_number: 110,
+        },
+    ];
+
+    assert_eq!(output, expected);
+}
+
+#[test]
+fn test_read_error() {
+    let input = [
+        "",
+        "/path/to/foo.txt:   foo",
+        "123:   foo",
+        "/path/to/foo.txt:   hello : world",
+        ":",
+        "::",
+    ]
+    .join("\n")
+    .into_bytes();
+
+    let msgs: Vec<_> = input
+        .grep_lines()
+        .map(|r| format!("{}", r.unwrap_err()))
+        .collect();
+
+    let expected = &[
+        "Path or line number is missing:",
+        "Path or line number is missing:",
+        "Path or line number is missing:",
+        "Could not parse line number as unsigned integer:",
+        "Path or line number is missing:",
+        "Path or line number is empty:",
+    ];
+
+    assert_eq!(msgs.len(), expected.len());
+
+    for (got, expected) in msgs.iter().zip(expected.iter()) {
+        assert!(
+            got.contains(expected),
+            "expected {:?} is included in {:?}",
+            expected,
+            got
+        );
     }
 }
