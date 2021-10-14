@@ -221,7 +221,30 @@ impl<'main> Config<'main> {
     }
 
     fn build_pcre2_matcher(&self, pat: &str) -> Result<Pcre2Matcher> {
-        Ok(Pcre2MatcherBuilder::new().build(pat)?)
+        let mut builder = Pcre2MatcherBuilder::new();
+        builder
+            .caseless(self.case_insensitive)
+            .case_smart(self.smart_case)
+            .word(self.word_regexp)
+            .multi_line(true)
+            .crlf(self.crlf);
+
+        #[cfg(target_pointer_width = "64")]
+        {
+            builder
+                .jit_if_available(true)
+                .max_jit_stack_size(Some(10 * (1 << 20)));
+        }
+
+        if self.multiline {
+            builder.dotall(self.multiline_dotall);
+        }
+
+        if self.line_regexp {
+            Ok(builder.build(&format!("^(?:{})$", pat))?)
+        } else {
+            Ok(builder.build(pat)?)
+        }
     }
 
     fn build_searcher(&self) -> Searcher {
