@@ -1,12 +1,12 @@
 bat + grep = batgrep
 ====================
 
-[batgrep][] is a grep tool to search files with given pattern and print the matched results with code snippets. In short, it's a
-fusion of [bat][] and grep or other alternatives like [ripgrep][].
+[batgrep][] is a grep tool to search files with given pattern and print the matched code snippets with syntax highlighting.
+In short, it's a fusion of [bat][] and grep or other alternatives like [ripgrep][].
 
-This is similar to `-C` option of `grep` command, its output is enhanced with syntax highlighting, but focuses on human readable
-outputs. batgrep is useful to survey the matches with contexts around them. When some matches are near enough, batgrep prints the
-lines within one code snippet.
+This is similar to `-C` option of `grep` command, but its output is enhanced with syntax highlighting. It focuses on human
+readable outputs. batgrep is useful to survey the matches with contexts around them. When some matches are near enough, batgrep
+prints the lines within one code snippet.
 
 batgrep takes matched results via stdin and prints them with syntax highlighted snippets. Ensure to give `-n -H` option to the
 `grep` command.

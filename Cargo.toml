@@ -3,7 +3,20 @@ name = "batgrep"
 version = "0.1.0"
 edition = "2018"
 authors = ["rhysd <lin90162@yahoo.co.jp>"]
-description = "if bat && (ripgrep || grep) { \"awesome\" }"
+description = """
+if bat && (ripgrep || grep) { \"awesome\" }
+
+batgrep is like grep, but uses bat to print the results. It eats results of
+`grep -nH` and prints the matches with syntax highlighting.
+
+This is similar to `-C` option of `grep` command, but its output is enhanced
+with syntax highlighting. It focuses on human readable outputs. batgrep is
+useful to survey the matches with contexts around them. When some matches are
+near enough, batgrep prints the lines within one code snippet.
+
+batgrep provides a builtin subset implementation of ripgrep as optional
+feature.
+"""
 license = "MIT"
 homepage = "https://github.com/rhysd/batgrep#readme"
 repository = "https://github.com/rhysd/batgrep"
