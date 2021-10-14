@@ -95,6 +95,8 @@ dependencies = [
  "anyhow",
  "bat",
  "clap",
+ "grep-matcher",
+ "grep-pcre2",
  "grep-regex",
  "grep-searcher",
  "ignore",
@@ -150,6 +152,9 @@ name = "cc"
 version = "1.0.71"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79c2681d6594606957bbb8631c4b90a7fcaaa72cdb714743a437b156d6a7eedd"
+dependencies = [
+ "jobserver",
+]
 
 [[package]]
 name = "cfg-if"
@@ -461,6 +466,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "grep-pcre2"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6ecedbb372bd549ae8db02418f82e87e38622844409b6cbcac47dbc95eede41"
+dependencies = [
+ "grep-matcher",
+ "pcre2",
+]
+
+[[package]]
 name = "grep-regex"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -538,6 +553,15 @@ name = "itoa"
 version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b71991ff56294aa922b450139ee08b3bfc70982c6b2c7562771375cf73542dd4"
+
+[[package]]
+name = "jobserver"
+version = "0.1.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af25a77299a7f711a01975c35a6a424eb6862092cc2d6c72c4ed6cbc56dfc1fa"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "lazy_static"
@@ -685,6 +709,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05ef02f6342ac01d8a93b65f96db53fe68a92a15f41144f97fb00a9e669633c3"
 dependencies = [
  "std_prelude",
+]
+
+[[package]]
+name = "pcre2"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85b30f2f69903b439dd9dc9e824119b82a55bf113b29af8d70948a03c1b11ab1"
+dependencies = [
+ "libc",
+ "log",
+ "pcre2-sys",
+ "thread_local",
+]
+
+[[package]]
+name = "pcre2-sys"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dec30e5e9ec37eb8fbf1dea5989bc957fd3df56fbee5061aa7b7a99dbb37b722"
+dependencies = [
+ "cc",
+ "libc",
+ "pkg-config",
 ]
 
 [[package]]

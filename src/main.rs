@@ -158,6 +158,12 @@ fn main() -> Result<()> {
                     .long("line-regexp")
                     .about("Only show matches surrounded by line boundaries. This is equivalent to putting ^...$ around all of the search patterns"),
             )
+            .arg(
+                Arg::new("pcre2")
+                    .short('P')
+                    .long("pcre2")
+                    .about("When this flag is present, ripgrep will use the PCRE2 regex engine instead of its default regex engine"),
+            )
             .arg(Arg::new("PATTERN").about("Pattern to search. Regular expression is available"))
             .arg(Arg::new("PATH").about("Paths to search").multiple_values(true));
 
@@ -205,13 +211,15 @@ fn main() -> Result<()> {
     {
         let pattern = matches.value_of("PATTERN");
         let paths = matches.values_of_os("PATH");
-        let mut config = ripgrep::Config::new(ctx);
+        let mut config = ripgrep::Config::default();
         config
+            .context_lines(ctx)
             .no_ignore(matches.is_present("no-ignore"))
             .hidden(matches.is_present("hidden"))
             .case_insensitive(matches.is_present("ignore-case"))
             .smart_case(matches.is_present("smart-case"))
             .glob_case_insensitive(matches.is_present("glob-case-insensitive"))
+            .pcre2(matches.is_present("pcre2")) // must be before fixed_string
             .fixed_strings(matches.is_present("fixed-strings"))
             .word_regexp(matches.is_present("word-regexp"))
             .follow_symlink(matches.is_present("follow-symlink"))

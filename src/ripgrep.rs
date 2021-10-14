@@ -2,6 +2,8 @@ use crate::chunk::Chunks;
 use crate::grep::Match;
 use crate::printer::Printer;
 use anyhow::Result;
+use grep_matcher::Matcher;
+use grep_pcre2::{RegexMatcher as Pcre2Matcher, RegexMatcherBuilder as Pcre2MatcherBuilder};
 use grep_regex::{RegexMatcher, RegexMatcherBuilder};
 use grep_searcher::{BinaryDetection, MmapChoice, Searcher, SearcherBuilder, Sink, SinkMatch};
 use ignore::overrides::OverrideBuilder;
@@ -36,16 +38,14 @@ pub struct Config<'main> {
     max_depth: Option<usize>,
     max_filesize: Option<u64>,
     line_regexp: bool,
+    pcre2: bool,
 }
 
 impl<'main> Config<'main> {
-    pub fn new(context_lines: u64) -> Self {
-        Self {
-            context_lines,
-            ..Default::default()
-        }
+    pub fn context_lines(&mut self, num: u64) -> &mut Self {
+        self.context_lines = num;
+        self
     }
-
     pub fn no_ignore(&mut self, yes: bool) -> &mut Self {
         self.no_ignore = yes;
         self
@@ -84,6 +84,9 @@ impl<'main> Config<'main> {
 
     pub fn fixed_strings(&mut self, yes: bool) -> &mut Self {
         self.fixed_strings = yes;
+        if yes {
+            self.pcre2 = false; // for regex::escape
+        }
         self
     }
 
@@ -140,6 +143,11 @@ impl<'main> Config<'main> {
 
     pub fn max_filesize(&mut self, num: u64) -> &mut Self {
         self.max_filesize = Some(num);
+        self
+    }
+
+    pub fn pcre2(&mut self, yes: bool) -> &mut Self {
+        self.pcre2 = yes;
         self
     }
 
@@ -212,6 +220,10 @@ impl<'main> Config<'main> {
         })
     }
 
+    fn build_pcre2_matcher(&self, pat: &str) -> Result<Pcre2Matcher> {
+        Ok(Pcre2MatcherBuilder::new().build(pat)?)
+    }
+
     fn build_searcher(&self) -> Searcher {
         let mut builder = SearcherBuilder::new();
         let mmap = if self.mmap {
@@ -239,8 +251,11 @@ pub fn grep<'main, P: Printer + Send>(
         return Ok(());
     }
 
-    let rg = Ripgrep::new(pat, config, printer)?;
-    paths.into_par_iter().try_for_each(|path| rg.grep(path))
+    if config.pcre2 {
+        Ripgrep::with_pcre2(pat, config, printer)?.grep(paths)
+    } else {
+        Ripgrep::with_regex(pat, config, printer)?.grep(paths)
+    }
 }
 
 fn walk<'main>(
@@ -304,21 +319,37 @@ impl<'a> Sink for Matches<'a> {
     }
 }
 
-struct Ripgrep<'main, P: Printer + Send> {
+struct Ripgrep<'main, M: Matcher, P: Printer + Send> {
     config: Config<'main>,
-    matcher: RegexMatcher,
+    matcher: M,
     count: Option<Mutex<u64>>,
     printer: Mutex<P>,
 }
 
-impl<'main, P: Printer + Send> Ripgrep<'main, P> {
-    fn new(pat: &str, config: Config<'main>, printer: P) -> Result<Self> {
-        Ok(Self {
+impl<'main, P: Printer + Send> Ripgrep<'main, RegexMatcher, P> {
+    fn with_regex(pat: &str, config: Config<'main>, printer: P) -> Result<Self> {
+        Ok(Self::new(config.build_regex_matcher(pat)?, config, printer))
+    }
+}
+
+impl<'main, P: Printer + Send> Ripgrep<'main, Pcre2Matcher, P> {
+    fn with_pcre2(pat: &str, config: Config<'main>, printer: P) -> Result<Self> {
+        Ok(Self::new(config.build_pcre2_matcher(pat)?, config, printer))
+    }
+}
+
+impl<'main, M, P> Ripgrep<'main, M, P>
+where
+    M: Matcher + Sync,
+    P: Printer + Send,
+{
+    fn new(matcher: M, config: Config<'main>, printer: P) -> Self {
+        Self {
             count: config.max_count.map(Mutex::new),
-            matcher: config.build_regex_matcher(pat)?,
+            matcher,
             printer: Mutex::new(printer),
             config,
-        })
+        }
     }
 
     fn search(&self, path: PathBuf) -> Result<Vec<Match>> {
@@ -339,12 +370,18 @@ impl<'main, P: Printer + Send> Ripgrep<'main, P> {
         Ok(matches.buf)
     }
 
-    fn grep(&self, path: PathBuf) -> Result<()> {
+    fn grep_file(&self, path: PathBuf) -> Result<()> {
         let matches = self.search(path)?;
         let printer = self.printer.lock().unwrap();
         for chunk in Chunks::new(matches.into_iter().map(Ok), self.config.context_lines) {
             printer.print(chunk?)?;
         }
         Ok(())
+    }
+
+    fn grep(&self, paths: Vec<PathBuf>) -> Result<()> {
+        paths
+            .into_par_iter()
+            .try_for_each(|path| self.grep_file(path))
     }
 }
