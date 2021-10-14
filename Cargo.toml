@@ -2,6 +2,19 @@
 name = "batgrep"
 version = "0.1.0"
 edition = "2018"
+authors = ["rhysd <lin90162@yahoo.co.jp>"]
+description = "if bat && (ripgrep || grep) { \"awesome\" }"
+license = "MIT"
+homepage = "https://github.com/rhysd/batgrep#readme"
+repository = "https://github.com/rhysd/batgrep"
+readme = "README.md"
+include = [
+    "/src",
+    "/LICENSE.txt",
+    "/README.md",
+]
+categories = ["command-line-utilities", "text-processing"]
+keywords = ["grep", "search", "syntax-highlighting", "ripgrep", "bat"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
