@@ -241,9 +241,9 @@ pub fn grep<'main, P: Printer + Send>(
 
     let printer = Mutex::new(printer);
     let count = config.max_count.map(Mutex::new);
-    let count = count.as_ref();
+    let matcher = config.build_regex_matcher(pat)?;
     paths.into_par_iter().try_for_each(|path| {
-        let matches = search(pat, path, &config, count)?;
+        let matches = search(&matcher, path, &config, &count)?;
         let printer = printer.lock().unwrap();
         for chunk in Chunks::new(matches.into_iter().map(Ok), config.context_lines) {
             printer.print(chunk?)?;
@@ -257,6 +257,7 @@ fn walk<'main>(
     config: &Config<'main>,
 ) -> Result<Vec<PathBuf>> {
     let walker = config.build_walker(paths)?;
+
     let (tx, rx) = channel();
     walker.run(|| {
         // This function is called per threads for initialization.
@@ -269,23 +270,19 @@ fn walk<'main>(
                 WalkState::Continue
             }
             Err(err) => {
-                tx.send(Err(err)).unwrap();
+                tx.send(Err(anyhow::Error::new(err))).unwrap();
                 WalkState::Quit
             }
         })
     });
     drop(tx); // Notify sender finishes
 
-    let mut files = vec![];
-    for file in rx.into_iter() {
-        files.push(file?);
-    }
-    Ok(files)
+    rx.into_iter().collect()
 }
 
 struct Matches<'a> {
     multiline: bool,
-    count: Option<&'a Mutex<u64>>,
+    count: &'a Option<Mutex<u64>>,
     path: PathBuf,
     buf: Vec<Match>,
 }
@@ -295,6 +292,7 @@ impl<'a> Sink for Matches<'a> {
 
     fn matched(&mut self, _searcher: &Searcher, mat: &SinkMatch<'_>) -> Result<bool, Self::Error> {
         if let Some(count) = &self.count {
+            // Note: AtomicU64 is not available since it does not provide fetch_saturating_sub
             let mut c = count.lock().unwrap();
             if *c == 0 {
                 return Ok(false);
@@ -315,11 +313,11 @@ impl<'a> Sink for Matches<'a> {
     }
 }
 
-fn search(
-    pat: &str,
+fn search<'main>(
+    matcher: &RegexMatcher,
     path: PathBuf,
-    config: &Config,
-    count: Option<&Mutex<u64>>,
+    config: &Config<'main>,
+    count: &Option<Mutex<u64>>,
 ) -> Result<Vec<Match>> {
     if let Some(count) = count {
         if *count.lock().unwrap() == 0 {
@@ -327,7 +325,6 @@ fn search(
         }
     }
     let file = File::open(&path)?;
-    let matcher = config.build_regex_matcher(pat)?;
     let mut searcher = config.build_searcher();
     let mut matches = Matches {
         multiline: config.multiline,
