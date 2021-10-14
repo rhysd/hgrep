@@ -239,17 +239,8 @@ pub fn grep<'main, P: Printer + Send>(
         return Ok(());
     }
 
-    let printer = Mutex::new(printer);
-    let count = config.max_count.map(Mutex::new);
-    let matcher = config.build_regex_matcher(pat)?;
-    paths.into_par_iter().try_for_each(|path| {
-        let matches = search(&matcher, path, &config, &count)?;
-        let printer = printer.lock().unwrap();
-        for chunk in Chunks::new(matches.into_iter().map(Ok), config.context_lines) {
-            printer.print(chunk?)?;
-        }
-        Ok(())
-    })
+    let rg = Ripgrep::new(pat, config, printer)?;
+    paths.into_par_iter().try_for_each(|path| rg.grep(path))
 }
 
 fn walk<'main>(
@@ -313,25 +304,47 @@ impl<'a> Sink for Matches<'a> {
     }
 }
 
-fn search<'main>(
-    matcher: &RegexMatcher,
-    path: PathBuf,
-    config: &Config<'main>,
-    count: &Option<Mutex<u64>>,
-) -> Result<Vec<Match>> {
-    if let Some(count) = count {
-        if *count.lock().unwrap() == 0 {
-            return Ok(vec![]);
-        }
+struct Ripgrep<'main, P: Printer + Send> {
+    config: Config<'main>,
+    matcher: RegexMatcher,
+    count: Option<Mutex<u64>>,
+    printer: Mutex<P>,
+}
+
+impl<'main, P: Printer + Send> Ripgrep<'main, P> {
+    fn new(pat: &str, config: Config<'main>, printer: P) -> Result<Self> {
+        Ok(Self {
+            count: config.max_count.map(Mutex::new),
+            matcher: config.build_regex_matcher(pat)?,
+            printer: Mutex::new(printer),
+            config,
+        })
     }
-    let file = File::open(&path)?;
-    let mut searcher = config.build_searcher();
-    let mut matches = Matches {
-        multiline: config.multiline,
-        count,
-        path,
-        buf: vec![],
-    };
-    searcher.search_file(&matcher, &file, &mut matches)?;
-    Ok(matches.buf)
+
+    fn search(&self, path: PathBuf) -> Result<Vec<Match>> {
+        if let Some(count) = &self.count {
+            if *count.lock().unwrap() == 0 {
+                return Ok(vec![]);
+            }
+        }
+        let file = File::open(&path)?;
+        let mut searcher = self.config.build_searcher();
+        let mut matches = Matches {
+            multiline: self.config.multiline,
+            count: &self.count,
+            path,
+            buf: vec![],
+        };
+        searcher.search_file(&self.matcher, &file, &mut matches)?;
+        Ok(matches.buf)
+    }
+
+    fn grep(&self, path: PathBuf) -> Result<()> {
+        let matches = self.search(path)?;
+        let printer = self.printer.lock().unwrap();
+        for chunk in Chunks::new(matches.into_iter().map(Ok), self.config.context_lines) {
+            printer.print(chunk?)?;
+        }
+        Ok(())
+    }
 }
