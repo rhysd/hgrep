@@ -15,10 +15,10 @@ Example:
 
 ```sh
 # With standard grep
-grep -nH pattern -R ./ | batgrep
+grep -nH pattern -R ./dir | batgrep
 
 # With grep alternative tools
-rg -nH pattern ./src | batgrep
+rg -nH pattern ./dir | batgrep
 ```
 
 As an optional feature, batgrep has builtin grep implementation thanks to ripgrep as library. It's a subset of `rg` command. And
@@ -28,21 +28,21 @@ Example:
 
 ```sh
 # Use builtin subset of ripgrep
-batgrep Error ./src
+batgrep pattern ./dir
 ```
 
 Please see [the usage section](#usage) for more details.
 
 ## Installation
 
-Via [cargo][] package manager, included in Rust toolchain.
+Via [cargo][] package manager, which is included in Rust toolchain.
 
 ```sh
 cargo install batgrep
 ```
 
 If you always use batgrep with reading the grep output from stdin and don't want the builtin ripgrep feature, it can be omitted.
-This reduces the number of dependencies and the binary size.
+This reduces the number of dependencies, installation time, and the binary size.
 
 ```sh
 cargo install batgrep --no-default-features
@@ -172,9 +172,9 @@ It works fine but batgrep is more optimized for this usage.
 - Performance is better than running `bat` process per matched line.
 - batgrep is available where ShellScript is unavailable (e.g. PowerShell).
 
-### FuzzyFinder like `fzf` with `bat` preview window
+### Fuzzy finder like `fzf` with `bat` preview window
 
-fuzzy finder like [fzf][] privides a preview window functionality and `bat` can print the match previews.
+Fuzzy finder like [fzf][] privides a preview window functionality and `bat` can print the match previews.
 
 ```sh
 grep -nH ... | \
