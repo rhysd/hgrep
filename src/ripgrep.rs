@@ -1,4 +1,4 @@
-use crate::chunk::Chunks;
+use crate::chunk::Files;
 use crate::grep::Match;
 use crate::printer::Printer;
 use anyhow::Result;
@@ -20,7 +20,8 @@ use std::sync::Mutex;
 
 #[derive(Default)]
 pub struct Config<'main> {
-    context_lines: u64,
+    min_context: u64,
+    max_context: u64,
     no_ignore: bool,
     hidden: bool,
     case_insensitive: bool,
@@ -42,10 +43,16 @@ pub struct Config<'main> {
 }
 
 impl<'main> Config<'main> {
-    pub fn context_lines(&mut self, num: u64) -> &mut Self {
-        self.context_lines = num;
+    pub fn min_context(&mut self, num: u64) -> &mut Self {
+        self.min_context = num;
         self
     }
+
+    pub fn max_context(&mut self, num: u64) -> &mut Self {
+        self.max_context = num;
+        self
+    }
+
     pub fn no_ignore(&mut self, yes: bool) -> &mut Self {
         self.no_ignore = yes;
         self
@@ -396,7 +403,8 @@ where
     fn grep_file(&self, path: PathBuf) -> Result<()> {
         let matches = self.search(path)?;
         let printer = self.printer.lock().unwrap();
-        for chunk in Chunks::new(matches.into_iter().map(Ok), self.config.context_lines) {
+        let (min, max) = (self.config.min_context, self.config.max_context);
+        for chunk in Files::new(matches.into_iter().map(Ok), min, max) {
             printer.print(chunk?)?;
         }
         Ok(())
