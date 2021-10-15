@@ -404,8 +404,8 @@ where
         let matches = self.search(path)?;
         let printer = self.printer.lock().unwrap();
         let (min, max) = (self.config.min_context, self.config.max_context);
-        for chunk in Files::new(matches.into_iter().map(Ok), min, max) {
-            printer.print(chunk?)?;
+        for file in Files::new(matches.into_iter().map(Ok), min, max) {
+            printer.print(file?)?;
         }
         Ok(())
     }

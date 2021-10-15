@@ -1,10 +1,11 @@
 use crate::grep::Match;
 use anyhow::Result;
+use std::cmp;
 use std::fs;
 use std::iter::Peekable;
 use std::path::PathBuf;
 
-#[derive(Debug)]
+#[cfg_attr(test, derive(Debug, PartialEq))]
 pub struct File {
     pub path: PathBuf,
     pub line_numbers: Box<[u64]>,
@@ -50,8 +51,8 @@ impl<I: Iterator<Item = Result<Match>>> Files<I> {
         match_end: u64,
         lines: &mut impl Iterator<Item = Line<'contents>>,
     ) -> (u64, u64) {
-        let before_start = match_start.saturating_sub(self.max_context);
-        let before_end = match_start.saturating_sub(self.min_context);
+        let before_start = cmp::max(match_start.saturating_sub(self.max_context), 1);
+        let before_end = cmp::max(match_start.saturating_sub(self.min_context), 1);
         let after_start = match_end + self.min_context;
         let after_end = match_end + self.max_context;
 
@@ -118,28 +119,42 @@ impl<I: Iterator<Item = Result<Match>>> Iterator for Files<I> {
         'chunks: loop {
             let first_match_line = line_number;
 
+            enum State {
+                NextMatch,
+                EndOfFile,
+                EndOfChunk,
+                Error,
+            }
+
             loop {
-                match self.iter.peek() {
-                    None => break 'chunks,
-                    Some(Err(_)) => {
-                        self.saw_error = true;
-                        break 'chunks;
-                    }
-                    Some(Ok(m)) if m.path != path => break 'chunks, // End of file
+                let peeked = match self.iter.peek() {
+                    None => State::EndOfFile,
+                    Some(Err(_)) => State::Error,
+                    Some(Ok(m)) if m.path != path => State::EndOfFile,
                     Some(Ok(m)) if m.line_number - line_number >= self.max_context * 2 => {
-                        chunks.push(self.calculate_chunk_range(
-                            first_match_line,
-                            line_number,
-                            &mut lines,
-                        ));
-                        break; // End of chunk
+                        State::EndOfChunk
                     }
-                    Some(Ok(m)) => {
+                    Some(Ok(_)) => State::NextMatch,
+                };
+
+                // Actions for each states
+                match peeked {
+                    State::EndOfFile | State::EndOfChunk => chunks.push(
+                        self.calculate_chunk_range(first_match_line, line_number, &mut lines),
+                    ),
+                    State::Error => self.saw_error = true,
+                    State::NextMatch => {
                         // Next match
-                        line_number = m.line_number;
+                        line_number = self.iter.next().unwrap().unwrap().line_number;
                         lnums.push(line_number);
-                        self.iter.next().unwrap().unwrap();
                     }
+                }
+
+                // Transition of each states
+                match peeked {
+                    State::EndOfFile | State::Error => break 'chunks,
+                    State::EndOfChunk => break,
+                    State::NextMatch => continue,
                 }
             }
 
@@ -149,5 +164,104 @@ impl<I: Iterator<Item = Result<Match>>> Iterator for Files<I> {
         }
 
         Some(Ok(File::new(path, lnums, chunks, contents)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    fn test_success_case(inputs: &[&str]) {
+        let dir = Path::new("testdata").join("grep_lines_to_chunks_per_file");
+
+        let matches = inputs
+            .iter()
+            .map(|input| {
+                let infile = dir.join(format!("{}.in", input));
+                fs::read_to_string(&infile)
+                    .unwrap()
+                    .split('\n')
+                    .enumerate()
+                    .filter_map(|(idx, line)| {
+                        line.ends_with('*').then(|| {
+                            Ok(Match {
+                                path: infile.clone(),
+                                line_number: idx as u64 + 1,
+                            })
+                        })
+                    })
+                    .collect::<Vec<Result<Match>>>()
+                    .into_iter()
+            })
+            .flatten();
+
+        let got: Vec<_> = Files::new(matches, 3, 6).collect::<Result<_>>().unwrap();
+
+        let expected: Vec<_> = inputs
+            .iter()
+            .map(|input| {
+                let outfile = dir.join(format!("{}.out", input));
+                let (chunks, lnums) = fs::read_to_string(&outfile)
+                    .unwrap()
+                    .split('\n')
+                    .filter(|s| !s.is_empty())
+                    .map(|line| {
+                        let mut s = line.split(',');
+                        let range = s.next().unwrap();
+                        let mut rs = range.split(' ');
+                        let chunk_start: u64 = rs.next().unwrap().parse().unwrap();
+                        let chunk_end: u64 = rs.next().unwrap().parse().unwrap();
+                        let lines = s.next().unwrap();
+                        let lnums: Vec<u64> =
+                            lines.split(' ').map(|s| s.parse().unwrap()).collect();
+                        ((chunk_start, chunk_end), lnums)
+                    })
+                    .fold(
+                        (Vec::new(), Vec::new()),
+                        |(mut chunks, mut lnums), (chunk, mut match_lnums)| {
+                            chunks.push(chunk);
+                            lnums.append(&mut match_lnums);
+                            (chunks, lnums)
+                        },
+                    );
+                let infile = dir.join(format!("{}.in", input));
+                let contents = fs::read(&infile).unwrap();
+                File::new(infile, lnums, chunks, contents)
+            })
+            .collect();
+
+        assert_eq!(got, expected);
+    }
+
+    macro_rules! success_case_tests {
+        {$($name:ident($tests:expr);)+} => {
+            $(
+                #[test]
+                fn $name() {
+                    test_success_case(&$tests);
+                }
+            )+
+        }
+    }
+
+    success_case_tests! {
+        test_single_max(["single_max"]);
+        test_before_and_after(["before_and_after"]);
+        test_before(["before"]);
+        test_after(["after"]);
+        test_edges(["edges"]);
+        test_edges_out(["edges_out"]);
+        test_blank_min(["blank_min"]);
+        test_blank_min_max(["blank_min_max"]);
+        test_blank_min_edge(["blank_min_edge"]);
+        test_blank_max_bottom(["blank_max_bottom"]);
+        test_blank_max_top(["blank_max_top"]);
+        test_all_blank(["all_blank"]);
+        test_top_file_edge(["top_file_edge"]);
+        test_top_inner_file_edge(["top_inner_file_edge"]);
+        test_min_file_edge(["min_file_edge"]);
+        test_one_line(["one_line"]);
+        test_no_context(["no_context"]);
     }
 }
