@@ -31,7 +31,7 @@ fn main() -> Result<()> {
                 .long("min-context")
                 .takes_value(true)
                 .value_name("NUM")
-                .default_value("8")
+                .default_value("5")
                 .about("Minimum lines of leading and trailing context surrounding each match"),
         )
         .arg(
@@ -40,7 +40,7 @@ fn main() -> Result<()> {
                 .long("max-context")
                 .takes_value(true)
                 .value_name("NUM")
-                .default_value("16")
+                .default_value("10")
                 .about("Maximum lines of leading and trailing context surrounding each match"),
         )
         .arg(
@@ -304,11 +304,11 @@ fn main() -> Result<()> {
     // XXX: io::stdin().lock() is not available since bat's implementation internally takes lock of stdin
     // *even if* it does not use stdin.
     // https://github.com/sharkdp/bat/issues/1902
-    for c in io::BufReader::new(io::stdin())
+    for f in io::BufReader::new(io::stdin())
         .grep_lines()
-        .chunks(min_context, max_context)
+        .chunks_per_file(min_context, max_context)
     {
-        printer.print(c?)?;
+        printer.print(f?)?;
     }
 
     Ok(())

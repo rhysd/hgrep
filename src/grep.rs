@@ -1,4 +1,4 @@
-use crate::chunk::Chunks;
+use crate::chunk::Files;
 use anyhow::{Error, Result};
 use std::borrow::Cow;
 use std::ffi::OsString;
@@ -62,8 +62,8 @@ pub struct GrepLines<R: BufRead> {
 }
 
 impl<R: BufRead> GrepLines<R> {
-    pub fn chunks(self, min: u64, max: u64) -> Chunks<Self> {
-        Chunks::new(self, min, max)
+    pub fn chunks_per_file(self, min: u64, max: u64) -> Files<Self> {
+        Files::new(self, min, max)
     }
 }
 

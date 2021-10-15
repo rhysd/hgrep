@@ -1,4 +1,4 @@
-use crate::chunk::Chunk;
+use crate::chunk::File;
 use anyhow::{Error, Result};
 use bat::line_range::{LineRange, LineRanges};
 use bat::{Input, PrettyPrinter};
@@ -25,7 +25,7 @@ impl fmt::Display for PrintError {
 
 // Trait to replace printer implementation for unit tests
 pub trait Printer {
-    fn print(&self, chunk: Chunk) -> Result<()>;
+    fn print(&self, file: File) -> Result<()>;
 }
 
 pub struct BatPrinter<'a> {
@@ -57,13 +57,13 @@ impl<'a> BatPrinter<'a> {
 }
 
 impl<'a> Printer for BatPrinter<'a> {
-    fn print(&self, chunk: Chunk) -> Result<()> {
+    fn print(&self, file: File) -> Result<()> {
         // XXX: PrettyPrinter instance must be created for each print() call because there is no way
         // to clear line_ranges in the instance.
         let mut pp = PrettyPrinter::new();
 
-        let input = Input::from_bytes(&chunk.contents)
-            .name(&chunk.path)
+        let input = Input::from_bytes(&file.contents)
+            .name(&file.path)
             .kind("File");
         pp.input(input);
 
@@ -75,7 +75,7 @@ impl<'a> Printer for BatPrinter<'a> {
             pp.theme(theme);
         }
 
-        let ranges = chunk
+        let ranges = file
             .chunks
             .iter()
             .map(|(s, e)| LineRange::new(*s as usize, *e as usize))
@@ -83,7 +83,7 @@ impl<'a> Printer for BatPrinter<'a> {
 
         pp.line_ranges(LineRanges::from(ranges));
 
-        for lnum in chunk.line_numbers.iter().copied() {
+        for lnum in file.line_numbers.iter().copied() {
             pp.highlight(lnum as usize);
         }
 
@@ -96,11 +96,11 @@ impl<'a> Printer for BatPrinter<'a> {
         match pp.print() {
             Ok(true) => Ok(()),
             Ok(false) => Err(Error::new(PrintError {
-                path: chunk.path,
+                path: file.path,
                 cause: None,
             })),
             Err(err) => Err(Error::new(PrintError {
-                path: chunk.path,
+                path: file.path,
                 cause: Some(format!("{}", err)),
             })),
         }

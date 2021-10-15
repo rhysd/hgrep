@@ -1,4 +1,4 @@
-use crate::chunk::Chunks;
+use crate::chunk::Files;
 use crate::grep::Match;
 use crate::printer::Printer;
 use anyhow::Result;
@@ -404,7 +404,7 @@ where
         let matches = self.search(path)?;
         let printer = self.printer.lock().unwrap();
         let (min, max) = (self.config.min_context, self.config.max_context);
-        for chunk in Chunks::new(matches.into_iter().map(Ok), min, max) {
+        for chunk in Files::new(matches.into_iter().map(Ok), min, max) {
             printer.print(chunk?)?;
         }
         Ok(())
