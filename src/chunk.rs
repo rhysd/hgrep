@@ -8,17 +8,17 @@ use std::path::PathBuf;
 pub struct Chunk {
     pub path: PathBuf,
     pub line_numbers: Box<[u64]>,
-    pub range_start: u64,
-    pub range_end: u64,
+    pub chunks: Box<[(u64, u64)]>,
+    pub contents: Box<[u8]>,
 }
 
 impl Chunk {
-    fn new(path: PathBuf, lnums: Vec<u64>, start: u64, end: u64) -> Self {
+    fn new(path: PathBuf, lnums: Vec<u64>, chunks: Vec<(u64, u64)>, contents: Vec<u8>) -> Self {
         Self {
             path,
             line_numbers: lnums.into_boxed_slice(),
-            range_start: start,
-            range_end: end,
+            chunks: chunks.into_boxed_slice(),
+            contents: contents.into_boxed_slice(),
         }
     }
 }
@@ -42,13 +42,11 @@ impl<I: Iterator<Item = Result<Match>>> Chunks<I> {
 }
 
 impl<I: Iterator<Item = Result<Match>>> Chunks<I> {
-    fn calculate_range(&self, lnums: &[u64], contents: &[u8]) -> (u64, u64) {
-        let start = lnums[0];
-        let start_start = start.saturating_sub(self.max_context);
-        let start_end = start.saturating_sub(self.min_context);
-        let end = lnums[lnums.len() - 1];
-        let end_start = end + self.min_context;
-        let end_end = end + self.max_context;
+    fn calculate_range(&self, match_start: u64, match_end: u64, contents: &[u8]) -> (u64, u64) {
+        let start_start = match_start.saturating_sub(self.max_context);
+        let start_end = match_start.saturating_sub(self.min_context);
+        let end_start = match_end + self.min_context;
+        let end_end = match_end + self.max_context;
 
         let mut range_start = start_start;
         let mut range_end = end_end;
@@ -78,26 +76,6 @@ impl<I: Iterator<Item = Result<Match>>> Chunks<I> {
 
         (range_start, range_end)
     }
-
-    fn next_chunk(&mut self, path: PathBuf, mut line_number: u64) -> Option<Result<Chunk>> {
-        let mut lnums = vec![line_number];
-        let contents = fs::read(&path).unwrap(); // TODO
-
-        loop {
-            let end = match self.iter.peek() {
-                None | Some(Err(_)) => true,
-                Some(Ok(m)) if m.path != path => true,
-                Some(Ok(m)) => m.line_number - line_number >= self.max_context * 2,
-            };
-            if end {
-                let (start, end) = self.calculate_range(&lnums, &contents);
-                return Some(Ok(Chunk::new(path, lnums, start, end)));
-            }
-
-            line_number = self.iter.next().unwrap().unwrap().line_number;
-            lnums.push(line_number);
-        }
-    }
 }
 
 impl<I: Iterator<Item = Result<Match>>> Iterator for Chunks<I> {
@@ -108,14 +86,53 @@ impl<I: Iterator<Item = Result<Match>>> Iterator for Chunks<I> {
             return None;
         }
 
-        let Match { path, line_number } = match self.iter.next()? {
+        let Match {
+            path,
+            mut line_number,
+        } = match self.iter.next()? {
             Ok(m) => m,
             Err(e) => {
                 self.saw_error = true;
                 return Some(Err(e));
             }
         };
+        let contents = match fs::read(&path) {
+            Ok(vec) => vec,
+            Err(err) => {
+                self.saw_error = true;
+                return Some(Err(err.into()));
+            }
+        };
+        let mut lnums = vec![line_number];
+        let mut chunks = Vec::new();
 
-        self.next_chunk(path, line_number)
+        'chunk: loop {
+            let first_match = line_number;
+            loop {
+                let end = match self.iter.peek() {
+                    None => break 'chunk,
+                    Some(Err(_)) => {
+                        self.saw_error = true;
+                        break 'chunk;
+                    }
+                    Some(Ok(m)) if m.path != path => true,
+                    Some(Ok(m)) => m.line_number - line_number >= self.max_context * 2,
+                };
+                if end {
+                    chunks.push(self.calculate_range(first_match, line_number, &contents));
+                    break;
+                }
+
+                // Go to next match
+                line_number = self.iter.next().unwrap().unwrap().line_number;
+                lnums.push(line_number);
+            }
+
+            // Go to next chunk
+            line_number = self.iter.next().unwrap().unwrap().line_number;
+            lnums.push(line_number); // first match line of next chunk
+        }
+
+        Some(Ok(Chunk::new(path, lnums, chunks, contents)))
     }
 }

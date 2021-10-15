@@ -8,8 +8,6 @@ use std::path::PathBuf;
 #[derive(Debug)]
 pub struct PrintError {
     path: PathBuf,
-    start: u64,
-    end: u64,
     cause: Option<String>,
 }
 
@@ -17,11 +15,7 @@ impl std::error::Error for PrintError {}
 
 impl fmt::Display for PrintError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Could not print range L{}..L{} of {:?}",
-            self.start, self.end, &self.path,
-        )?;
+        write!(f, "Could not print file {:?}", &self.path)?;
         if let Some(cause) = &self.cause {
             write!(f, ". Caused by: {}", cause)?;
         }
@@ -68,28 +62,33 @@ impl<'a> Printer for BatPrinter<'a> {
         // to clear line_ranges in the instance.
         let mut pp = PrettyPrinter::new();
 
-        let input = Input::from_file(&chunk.path).name(&chunk.path).kind("File");
+        let input = Input::from_bytes(&chunk.contents)
+            .name(&chunk.path)
+            .kind("File");
         pp.input(input);
 
         pp.line_numbers(true);
         pp.grid(self.grid);
         pp.header(true);
+        pp.snip(true);
         if let Some(theme) = self.theme {
             pp.theme(theme);
         }
 
-        let (start, end) = (chunk.range_start, chunk.range_end);
-        pp.line_ranges(LineRanges::from(vec![LineRange::new(
-            start as usize,
-            end as usize,
-        )]));
+        let ranges = chunk
+            .chunks
+            .iter()
+            .map(|(s, e)| LineRange::new(*s as usize, *e as usize))
+            .collect();
+
+        pp.line_ranges(LineRanges::from(ranges));
 
         for lnum in chunk.line_numbers.iter().copied() {
             pp.highlight(lnum as usize);
         }
 
         if !self.grid {
-            print!("\n\n");
+            print!("\n\n"); // Empty lines as files separator
         }
 
         // Note: print() returns true when no error
@@ -98,14 +97,10 @@ impl<'a> Printer for BatPrinter<'a> {
             Ok(true) => Ok(()),
             Ok(false) => Err(Error::new(PrintError {
                 path: chunk.path,
-                start,
-                end,
                 cause: None,
             })),
             Err(err) => Err(Error::new(PrintError {
                 path: chunk.path,
-                start,
-                end,
                 cause: Some(format!("{}", err)),
             })),
         }
