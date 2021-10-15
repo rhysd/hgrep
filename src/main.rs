@@ -26,13 +26,22 @@ fn main() -> Result<()> {
         )
         .global_setting(AppSettings::ColoredHelp)
         .arg(
-            Arg::new("context")
+            Arg::new("min-context")
                 .short('c')
-                .long("context")
+                .long("min-context")
                 .takes_value(true)
                 .value_name("NUM")
-                .default_value("10")
-                .about("Lines of leading and trailing context surrounding each match"),
+                .default_value("8")
+                .about("Minimum lines of leading and trailing context surrounding each match"),
+        )
+        .arg(
+            Arg::new("max-context")
+                .short('C')
+                .long("max-context")
+                .takes_value(true)
+                .value_name("NUM")
+                .default_value("16")
+                .about("Maximum lines of leading and trailing context surrounding each match"),
         )
         .arg(
             Arg::new("no-grid")
@@ -189,13 +198,25 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let ctx = matches
-        .value_of("context")
+    let min_context = matches
+        .value_of("min-context")
         .unwrap()
         .parse()
-        .context("could not parse \"context\" option value as unsigned integer")?;
+        .context("could not parse \"min-context\" option value as unsigned integer")?;
+    let max_context = matches
+        .value_of("max-context")
+        .unwrap()
+        .parse()
+        .context("could not parse \"max-context\" option value as unsigned integer")?;
+    if min_context > max_context {
+        anyhow::bail!(
+            "min-context {} is larger than max-context {}",
+            min_context,
+            max_context
+        );
+    }
 
-    let mut printer = BatPrinter::new(ctx);
+    let mut printer = BatPrinter::new();
 
     if let Some(width) = matches.value_of("tab") {
         printer.tab_width(
@@ -226,7 +247,8 @@ fn main() -> Result<()> {
         let paths = matches.values_of_os("PATH");
         let mut config = ripgrep::Config::default();
         config
-            .context_lines(ctx)
+            .min_context(min_context)
+            .max_context(max_context)
             .no_ignore(matches.is_present("no-ignore"))
             .hidden(matches.is_present("hidden"))
             .case_insensitive(matches.is_present("ignore-case"))
@@ -282,7 +304,10 @@ fn main() -> Result<()> {
     // XXX: io::stdin().lock() is not available since bat's implementation internally takes lock of stdin
     // *even if* it does not use stdin.
     // https://github.com/sharkdp/bat/issues/1902
-    for c in io::BufReader::new(io::stdin()).grep_lines().chunks(ctx) {
+    for c in io::BufReader::new(io::stdin())
+        .grep_lines()
+        .chunks(min_context, max_context)
+    {
         printer.print(c?)?;
     }
 

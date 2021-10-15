@@ -35,16 +35,14 @@ pub trait Printer {
 }
 
 pub struct BatPrinter<'a> {
-    context_lines: u64,
     theme: Option<&'a str>,
     tab_width: Option<usize>,
     grid: bool,
 }
 
 impl<'a> BatPrinter<'a> {
-    pub fn new(context_lines: u64) -> Self {
+    pub fn new() -> Self {
         Self {
-            context_lines,
             theme: None,
             tab_width: None,
             grid: true,
@@ -80,8 +78,7 @@ impl<'a> Printer for BatPrinter<'a> {
             pp.theme(theme);
         }
 
-        let start = chunk.line_numbers[0].saturating_sub(self.context_lines);
-        let end = chunk.line_numbers[chunk.line_numbers.len() - 1] + self.context_lines;
+        let (start, end) = (chunk.range_start, chunk.range_end);
         pp.line_ranges(LineRanges::from(vec![LineRange::new(
             start as usize,
             end as usize,

@@ -62,8 +62,8 @@ pub struct GrepLines<R: BufRead> {
 }
 
 impl<R: BufRead> GrepLines<R> {
-    pub fn chunks(self, context_lines: u64) -> Chunks<Self> {
-        Chunks::new(self, context_lines)
+    pub fn chunks(self, min: u64, max: u64) -> Chunks<Self> {
+        Chunks::new(self, min, max)
     }
 }
 
