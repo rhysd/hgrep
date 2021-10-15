@@ -59,24 +59,15 @@ impl<I: Iterator<Item = Result<Match>>> Files<I> {
         let mut range_end = after_end;
 
         for Line(line, lnum) in lines {
-            assert!(
-                lnum <= after_end,
-                "line {} is over its end of chunk {}",
-                lnum,
-                after_end
-            );
+            assert!(lnum <= after_end, "line {} > chunk {}", lnum, after_end);
 
-            let is_start = before_start <= lnum && lnum < before_end;
-            let is_end = after_start < lnum && lnum <= after_end;
-            if !is_start && !is_end {
-                continue;
-            }
-
+            let in_before = before_start <= lnum && lnum < before_end;
+            let in_after = after_start < lnum && lnum <= after_end;
             if line.is_empty() {
-                if is_start {
+                if in_before {
                     range_start = lnum + 1;
                 }
-                if is_end {
+                if in_after {
                     range_end = lnum.saturating_sub(1);
                     break;
                 }
@@ -134,7 +125,7 @@ impl<I: Iterator<Item = Result<Match>>> Iterator for Files<I> {
                         self.saw_error = true;
                         break 'chunks;
                     }
-                    Some(Ok(m)) if m.path != path => break 'chunks,
+                    Some(Ok(m)) if m.path != path => break 'chunks, // End of file
                     Some(Ok(m)) if m.line_number - line_number >= self.max_context * 2 => {
                         chunks.push(self.calculate_chunk_range(
                             first_match_line,

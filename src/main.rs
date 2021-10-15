@@ -1,6 +1,7 @@
 use anyhow::Result;
 use bat::PrettyPrinter;
 use clap::{App, AppSettings, Arg};
+use std::cmp;
 use std::env;
 use std::io;
 
@@ -208,13 +209,7 @@ fn main() -> Result<()> {
         .unwrap()
         .parse()
         .context("could not parse \"max-context\" option value as unsigned integer")?;
-    if min_context > max_context {
-        anyhow::bail!(
-            "min-context {} is larger than max-context {}",
-            min_context,
-            max_context
-        );
-    }
+    let max_context = cmp::max(min_context, max_context);
 
     let mut printer = BatPrinter::new();
 
