@@ -173,6 +173,10 @@ impl<I: Iterator<Item = Result<Match>>> Iterator for Files<I> {
             lnums.push(line_number); // first match line of next chunk
         }
 
+        if chunks.is_empty() {
+            assert!(lnums.is_empty());
+            return None;
+        }
         Some(Ok(File::new(path, lnums, chunks, contents)))
     }
 }
@@ -210,7 +214,7 @@ mod tests {
 
         let expected: Vec<_> = inputs
             .iter()
-            .map(|input| {
+            .filter_map(|input| {
                 let outfile = dir.join(format!("{}.out", input));
                 let (chunks, lnums) = fs::read_to_string(&outfile)
                     .unwrap()
@@ -235,9 +239,12 @@ mod tests {
                             (chunks, lnums)
                         },
                     );
+                if chunks.is_empty() || lnums.is_empty() {
+                    return None;
+                }
                 let infile = dir.join(format!("{}.in", input));
                 let contents = fs::read(&infile).unwrap();
-                File::new(infile, lnums, chunks, contents)
+                Some(File::new(infile, lnums, chunks, contents))
             })
             .collect();
 
@@ -256,6 +263,7 @@ mod tests {
     }
 
     success_case_tests! {
+        // One chunk
         test_single_max(["single_max"]);
         test_before_and_after(["before_and_after"]);
         test_before(["before"]);
@@ -273,5 +281,24 @@ mod tests {
         test_min_file_edge(["min_file_edge"]);
         test_one_line(["one_line"]);
         test_no_context(["no_context"]);
+        // Zero chunk
+        test_no_chunk_long(["no_chunk_long"]);
+        test_no_chunk_middle(["no_chunk_middle"]);
+        test_no_chunk_short(["no_chunk_short"]);
+        test_no_chunk_empty(["no_chunk_empty"]);
+        // Two chunks or more
+        test_two_chunks(["two_chunks"]);
+        test_two_chunks_contact(["two_chunks_contact"]);
+        test_two_chunks_joint(["two_chunks_joint"]);
+        test_two_chunks_blank_between(["two_chunks_blank_between"]);
+        test_two_chunks_all_blank_between(["two_chunks_all_blank_between"]);
+        test_two_chunks_max_blank_between(["two_chunks_max_blank_between"]);
+        test_two_chunks_neighbors(["two_chunks_neighbors"]);
+        test_three_chunks(["three_chunks"]);
+        test_three_chunks_joint_all(["three_chunks_joint_all"]);
+        test_three_chunks_joint_first(["three_chunks_joint_first"]);
+        test_three_chunks_joint_second(["three_chunks_joint_second"]);
+        // Edge cases
+        test_so_many_neighbors(["so_many_neighbors"]);
     }
 }
