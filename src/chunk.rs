@@ -184,12 +184,12 @@ impl<I: Iterator<Item = Result<Match>>> Iterator for Files<I> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::Error;
+    use std::fmt;
     use std::path::Path;
 
-    fn test_success_case(inputs: &[&str]) {
-        let dir = Path::new("testdata").join("grep_lines_to_chunks_per_file");
-
-        let matches = inputs
+    fn read_matches_from_test_files(dir: &Path, inputs: &[&str]) -> Vec<Result<Match>> {
+        inputs
             .iter()
             .map(|input| {
                 let infile = dir.join(format!("{}.in", input));
@@ -208,11 +208,12 @@ mod tests {
                     .collect::<Vec<Result<Match>>>()
                     .into_iter()
             })
-            .flatten();
+            .flatten()
+            .collect()
+    }
 
-        let got: Vec<_> = Files::new(matches, 3, 6).collect::<Result<_>>().unwrap();
-
-        let expected: Vec<_> = inputs
+    fn read_expected_chunks_from_test_files(dir: &Path, inputs: &[&str]) -> Vec<File> {
+        inputs
             .iter()
             .filter_map(|input| {
                 let outfile = dir.join(format!("{}.out", input));
@@ -246,7 +247,17 @@ mod tests {
                 let contents = fs::read(&infile).unwrap();
                 Some(File::new(infile, lnums, chunks, contents))
             })
-            .collect();
+            .collect()
+    }
+
+    fn test_success_case(inputs: &[&str]) {
+        let dir = Path::new("testdata").join("grep_lines_to_chunks_per_file");
+
+        let matches = read_matches_from_test_files(&dir, inputs);
+        let got: Vec<_> = Files::new(matches.into_iter(), 3, 6)
+            .collect::<Result<_>>()
+            .unwrap();
+        let expected = read_expected_chunks_from_test_files(&dir, inputs);
 
         assert_eq!(got, expected);
     }
@@ -300,5 +311,69 @@ mod tests {
         test_three_chunks_joint_second(["three_chunks_joint_second"]);
         // Edge cases
         test_so_many_neighbors(["so_many_neighbors"]);
+        // Multiple files
+        test_two_files(["single_max", "before"]);
+        test_no_chunk_file_between(["single_max", "no_chunk_long", "before"]);
+        test_no_chunk_file_begin(["no_chunk_long", "single_max"]);
+        test_no_chunk_file_end(["single_max", "no_chunk_long"]);
+        test_no_chunk_files(["no_chunk_long", "no_chunk_short"]);
+    }
+
+    #[test]
+    fn test_same_min_ctx_and_max_ctx() {
+        let dir = Path::new("testdata").join("grep_lines_to_chunks_per_file");
+        let matches = read_matches_from_test_files(&dir, &["single_max"]);
+        let got: Vec<_> = Files::new(matches.into_iter(), 3, 3)
+            .collect::<Result<_>>()
+            .unwrap();
+
+        let path = dir.join("single_max.in");
+        let expected = File {
+            line_numbers: vec![8].into_boxed_slice(),
+            chunks: vec![(5, 11)].into_boxed_slice(),
+            contents: fs::read(&path).unwrap().into_boxed_slice(),
+            path,
+        };
+
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0], expected);
+    }
+
+    #[test]
+    fn test_zero_context() {
+        let dir = Path::new("testdata").join("grep_lines_to_chunks_per_file");
+        let matches = read_matches_from_test_files(&dir, &["single_max"]);
+        let got: Vec<_> = Files::new(matches.into_iter(), 0, 0)
+            .collect::<Result<_>>()
+            .unwrap();
+
+        let path = dir.join("single_max.in");
+        let expected = File {
+            line_numbers: vec![8].into_boxed_slice(),
+            chunks: vec![(8, 8)].into_boxed_slice(),
+            contents: fs::read(&path).unwrap().into_boxed_slice(),
+            path,
+        };
+
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0], expected);
+    }
+
+    #[test]
+    fn test_error_while_matching() {
+        #[derive(Debug)]
+        struct DummyError;
+        impl fmt::Display for DummyError {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "dummy error!")
+            }
+        }
+        impl std::error::Error for DummyError {}
+
+        let matches: Vec<Result<Match>> = vec![Err(Error::new(DummyError))];
+        let err = Files::new(matches.into_iter(), 3, 6)
+            .collect::<Result<Vec<_>>>()
+            .unwrap_err();
+        assert_eq!(format!("{}", err), "dummy error!");
     }
 }
