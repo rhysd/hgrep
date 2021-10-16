@@ -501,4 +501,54 @@ mod tests {
 
         assert_eq!(expected, got);
     }
+
+    #[test]
+    fn test_grep_no_match_found() {
+        let path = Path::new("testdata").join("chunk").join("single_max.in");
+        let paths = iter::once(path.as_os_str());
+        let printer = DummyPrinter::default();
+        let pat = "^this does not match to any line!!!!!!$";
+        let mut config = Config::default();
+        config.min_context(3).max_context(6);
+        grep(&printer, pat, paths, config).unwrap();
+        let files = printer.0.into_inner().unwrap();
+        assert!(files.is_empty(), "result: {:?}", files);
+    }
+
+    #[test]
+    fn test_grep_path_does_not_exist() {
+        for path in &[
+            Path::new("testdata")
+                .join("chunk")
+                .join("this-file-does-not-exist.txt"),
+            Path::new("testdata").join("this-directory-dies-not-exist"),
+        ] {
+            let paths = iter::once(path.as_os_str());
+            let printer = DummyPrinter::default();
+            let pat = ".*";
+            let mut config = Config::default();
+            config.min_context(3).max_context(6);
+            grep(&printer, pat, paths, config).unwrap_err();
+            assert!(printer.0.into_inner().unwrap().is_empty());
+        }
+    }
+
+    struct ErrorPrinter;
+    impl Printer for ErrorPrinter {
+        fn print(&self, _: File) -> Result<()> {
+            anyhow::bail!("dummy error")
+        }
+    }
+
+    #[test]
+    fn test_grep_print_error() {
+        let path = Path::new("testdata").join("chunk").join("single_max.in");
+        let paths = iter::once(path.as_os_str());
+        let pat = ".*";
+        let mut config = Config::default();
+        config.min_context(3).max_context(6);
+        let err = grep(ErrorPrinter, pat, paths, config).unwrap_err();
+        let msg = format!("{}", err);
+        assert_eq!(msg, "dummy error");
+    }
 }
