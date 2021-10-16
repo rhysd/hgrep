@@ -36,7 +36,12 @@ Please see [the usage section](#usage) for more details.
 
 ## Installation
 
-Via [cargo][] package manager, which is included in Rust toolchain.
+### Releases
+
+Visit [the releases page][releases] and download the zip file for your platform. Unarchive the file and put the executable file
+in some `$PATH` directory. Currently x86_64 Linux/macOS/Windows binaries are supported.
+
+### Via [cargo][] package manager
 
 ```sh
 cargo install hgrep
@@ -215,3 +220,4 @@ hgrep is distributed under [the MIT license](./LICENSE.txt).
 [ci]: https://github.com/rhysd/hgrep/actions/workflows/ci.yml
 [crates-io]: https://crates.io/crates/hgrep
 [crates-io-badge]: https://img.shields.io/crates/v/hgrep.svg
+[releases]: https://github.com/rhysd/hgrep/releases
