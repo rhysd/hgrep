@@ -57,7 +57,8 @@ fn main() -> Result<()> {
                 .long("tab")
                 .takes_value(true)
                 .value_name("NUM")
-                .about("Number of spaces for tab character"),
+                .default_value("4")
+                .about("Number of spaces for tab character. Set 0 to pass tabs through directly"),
         )
         .arg(
             Arg::new("theme")
@@ -238,13 +239,12 @@ fn main() -> Result<()> {
 
     let mut printer = BatPrinter::new();
 
-    if let Some(width) = matches.value_of("tab") {
-        printer.tab_width(
-            width
-                .parse()
-                .context("could not parse \"tab\" option value as unsigned integer")?,
-        );
-    }
+    let tab_width = matches
+        .value_of("tab")
+        .unwrap()
+        .parse()
+        .context("could not parse \"tab\" option value as unsigned integer")?;
+    printer.tab_width(tab_width);
 
     let theme_env = env::var("BAT_THEME").ok();
     if let Some(var) = &theme_env {

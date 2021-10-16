@@ -78,6 +78,9 @@ impl<'a> Printer for BatPrinter<'a> {
         if let Some(theme) = self.theme {
             pp.theme(theme);
         }
+        if let Some(tab) = self.tab_width {
+            pp.tab_width(Some(tab));
+        }
 
         let ranges = file
             .chunks

@@ -104,6 +104,7 @@ output by hgrep.
 - Memory map is not used until `--mmap` flag is specified
 - Context option is `-c`, not `-C`, and set to 10 by default
 - Adding/Removing file types are not supported. Only default file types are supported (see `--type-list`)
+- `.ripgreprc` config file is not supported
 
 ### Change color theme and layout
 
@@ -138,8 +139,8 @@ export BAT_STYLE=numbers
   - `--min-context NUM` (`-c`): Minimum lines of leading and trailing context surrounding each match. Default value is 5
   - `--max-context NUM` (`-C`): Maximum lines of leading and trailing context surrounding each match. Default value is 5
   - `--no-grid` (`-G`): Remove border lines for more compact output
-  - `--tab NUM`: Number of spaces for tab character
-  - `--theme THEME`: Theme for syntax highlighting
+  - `--tab NUM`: Number of spaces for tab character. Set 0 to pass tabs through. Default value is 4
+  - `--theme THEME`: Theme for syntax highlighting. Default value is the same as `bat` command
   - `--list-themes`: List all theme names available for --theme option
 - Only for builtin ripgrep
   - `--no-ignore`: Don't respect ignore files (.gitignore, .ignore, etc.)
