@@ -10,6 +10,8 @@ mod grep;
 mod printer;
 #[cfg(feature = "ripgrep")]
 mod ripgrep;
+#[cfg(test)]
+mod test;
 
 use grep::BufReadExt;
 use printer::{BatPrinter, Printer};

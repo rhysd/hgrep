@@ -58,6 +58,10 @@ impl<'a> BatPrinter<'a> {
 
 impl<'a> Printer for BatPrinter<'a> {
     fn print(&self, file: File) -> Result<()> {
+        if file.chunks.is_empty() || file.line_numbers.is_empty() {
+            return Ok(()); // Ensure to print some match
+        }
+
         // XXX: PrettyPrinter instance must be created for each print() call because there is no way
         // to clear line_ranges in the instance.
         let mut pp = PrettyPrinter::new();

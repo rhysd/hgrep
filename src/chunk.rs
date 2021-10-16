@@ -14,7 +14,7 @@ pub struct File {
 }
 
 impl File {
-    fn new(path: PathBuf, lnums: Vec<u64>, chunks: Vec<(u64, u64)>, contents: Vec<u8>) -> Self {
+    pub fn new(path: PathBuf, lnums: Vec<u64>, chunks: Vec<(u64, u64)>, contents: Vec<u8>) -> Self {
         Self {
             path,
             line_numbers: lnums.into_boxed_slice(),
@@ -184,74 +184,16 @@ impl<I: Iterator<Item = Result<Match>>> Iterator for Files<I> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test::{
+        read_expected_chunks_from_test_files, read_matches_from_test_file,
+        read_matches_from_test_files,
+    };
     use anyhow::Error;
     use std::fmt;
     use std::path::Path;
 
-    fn read_matches_from_test_files(dir: &Path, inputs: &[&str]) -> Vec<Result<Match>> {
-        inputs
-            .iter()
-            .map(|input| {
-                let infile = dir.join(format!("{}.in", input));
-                fs::read_to_string(&infile)
-                    .unwrap()
-                    .lines()
-                    .enumerate()
-                    .filter_map(|(idx, line)| {
-                        line.ends_with('*').then(|| {
-                            Ok(Match {
-                                path: infile.clone(),
-                                line_number: idx as u64 + 1,
-                            })
-                        })
-                    })
-                    .collect::<Vec<Result<Match>>>()
-                    .into_iter()
-            })
-            .flatten()
-            .collect()
-    }
-
-    fn read_expected_chunks_from_test_files(dir: &Path, inputs: &[&str]) -> Vec<File> {
-        inputs
-            .iter()
-            .filter_map(|input| {
-                let outfile = dir.join(format!("{}.out", input));
-                let (chunks, lnums) = fs::read_to_string(&outfile)
-                    .unwrap()
-                    .lines()
-                    .filter(|s| !s.is_empty())
-                    .map(|line| {
-                        let mut s = line.split(',');
-                        let range = s.next().unwrap();
-                        let mut rs = range.split(' ');
-                        let chunk_start: u64 = rs.next().unwrap().parse().unwrap();
-                        let chunk_end: u64 = rs.next().unwrap().parse().unwrap();
-                        let lines = s.next().unwrap();
-                        let lnums: Vec<u64> =
-                            lines.split(' ').map(|s| s.parse().unwrap()).collect();
-                        ((chunk_start, chunk_end), lnums)
-                    })
-                    .fold(
-                        (Vec::new(), Vec::new()),
-                        |(mut chunks, mut lnums), (chunk, mut match_lnums)| {
-                            chunks.push(chunk);
-                            lnums.append(&mut match_lnums);
-                            (chunks, lnums)
-                        },
-                    );
-                if chunks.is_empty() || lnums.is_empty() {
-                    return None;
-                }
-                let infile = dir.join(format!("{}.in", input));
-                let contents = fs::read(&infile).unwrap();
-                Some(File::new(infile, lnums, chunks, contents))
-            })
-            .collect()
-    }
-
     fn test_success_case(inputs: &[&str]) {
-        let dir = Path::new("testdata").join("grep_lines_to_chunks_per_file");
+        let dir = Path::new("testdata").join("chunk");
 
         let matches = read_matches_from_test_files(&dir, inputs);
         let got: Vec<_> = Files::new(matches.into_iter(), 3, 6)
@@ -321,8 +263,8 @@ mod tests {
 
     #[test]
     fn test_same_min_ctx_and_max_ctx() {
-        let dir = Path::new("testdata").join("grep_lines_to_chunks_per_file");
-        let matches = read_matches_from_test_files(&dir, &["single_max"]);
+        let dir = Path::new("testdata").join("chunk");
+        let matches = read_matches_from_test_file(&dir, "single_max");
         let got: Vec<_> = Files::new(matches.into_iter(), 3, 3)
             .collect::<Result<_>>()
             .unwrap();
@@ -341,8 +283,8 @@ mod tests {
 
     #[test]
     fn test_zero_context() {
-        let dir = Path::new("testdata").join("grep_lines_to_chunks_per_file");
-        let matches = read_matches_from_test_files(&dir, &["single_max"]);
+        let dir = Path::new("testdata").join("chunk");
+        let matches = read_matches_from_test_file(&dir, "single_max");
         let got: Vec<_> = Files::new(matches.into_iter(), 0, 0)
             .collect::<Result<_>>()
             .unwrap();
