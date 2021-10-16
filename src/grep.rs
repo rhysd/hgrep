@@ -9,8 +9,8 @@ use std::str;
 
 #[cfg(target_os = "windows")]
 fn bytes_to_os_string(bytes: &[u8]) -> OsString {
-    use std::os::windows::prelude::*;
-    OsString::from_wide(bytes)
+    // This does not allow invalid sequence as UTF-8. Invalid characters are replaced with U+FFFD
+    String::from_utf8_lossy(bytes).to_string().into()
 }
 
 #[cfg(not(target_os = "windows"))]

@@ -121,6 +121,9 @@ impl<I: Iterator<Item = Result<Match>>> Iterator for Files<I> {
                 if l.ends_with(&[b'\n']) {
                     l = &l[..l.len() - 1];
                 }
+                if l.ends_with(&[b'\r']) {
+                    l = &l[..l.len() - 1]; // \r\n
+                }
                 Line(l, n as u64 + 1)
             });
         let mut lnums = vec![line_number];

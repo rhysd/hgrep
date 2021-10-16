@@ -148,7 +148,7 @@ fn main() -> Result<()> {
             .arg(
                 Arg::new("crlf")
                     .long("crlf")
-                    .about(r"When enabled, hgrep will treat CRLF ('\r\n') as a line terminator instead of just '\n'"),
+                    .about(r"When enabled, hgrep will treat CRLF ('\r\n') as a line terminator instead of just '\n'. This flag is useful on Windows"),
             )
             .arg(
                 Arg::new("mmap")

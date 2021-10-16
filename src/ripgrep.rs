@@ -2,7 +2,7 @@ use crate::chunk::Files;
 use crate::grep::Match;
 use crate::printer::Printer;
 use anyhow::Result;
-use grep_matcher::Matcher;
+use grep_matcher::{LineTerminator, Matcher};
 use grep_pcre2::{RegexMatcher as Pcre2Matcher, RegexMatcherBuilder as Pcre2MatcherBuilder};
 use grep_regex::{RegexMatcher, RegexMatcherBuilder};
 use grep_searcher::{BinaryDetection, MmapChoice, Searcher, SearcherBuilder, Sink, SinkMatch};
@@ -280,6 +280,9 @@ impl<'main> Config<'main> {
             .line_number(true)
             .multi_line(self.multiline)
             .memory_map(mmap);
+        if self.crlf {
+            builder.line_terminator(LineTerminator::crlf());
+        }
         builder.build()
     }
 
@@ -503,6 +506,9 @@ mod tests {
             let paths = iter::once(OsStr::new(&file));
             let mut config = Config::default();
             config.min_context(3).max_context(6);
+            if cfg!(target_os = "windows") {
+                config.crlf(true);
+            }
 
             grep(&printer, pat, paths, config).unwrap();
 
@@ -528,6 +534,9 @@ mod tests {
         let pat = r"\*$";
         let mut config = Config::default();
         config.min_context(3).max_context(6);
+        if cfg!(target_os = "windows") {
+            config.crlf(true);
+        }
         let paths = inputs
             .iter()
             .map(|s| dir.join(format!("{}.in", s)).into_os_string())
@@ -553,6 +562,9 @@ mod tests {
         let pat = "^this does not match to any line!!!!!!$";
         let mut config = Config::default();
         config.min_context(3).max_context(6);
+        if cfg!(target_os = "windows") {
+            config.crlf(true);
+        }
         grep(&printer, pat, paths, config).unwrap();
         let files = printer.0.into_inner().unwrap();
         assert!(files.is_empty(), "result: {:?}", files);
@@ -571,6 +583,9 @@ mod tests {
             let pat = ".*";
             let mut config = Config::default();
             config.min_context(3).max_context(6);
+            if cfg!(target_os = "windows") {
+                config.crlf(true);
+            }
             grep(&printer, pat, paths, config).unwrap_err();
             assert!(printer.0.into_inner().unwrap().is_empty());
         }
@@ -590,6 +605,9 @@ mod tests {
         let pat = ".*";
         let mut config = Config::default();
         config.min_context(3).max_context(6);
+        if cfg!(target_os = "windows") {
+            config.crlf(true);
+        }
         let err = grep(ErrorPrinter, pat, paths, config).unwrap_err();
         let msg = format!("{}", err);
         assert_eq!(msg, "dummy error");

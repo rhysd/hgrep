@@ -16,7 +16,7 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - name: Run tests except for ones using search API
+      - name: Run tests
         uses: actions-rs/cargo@v1
         with:
           command: test
@@ -26,7 +26,7 @@ jobs:
         with:
           command: run
           args: --color always -- --version
-      - name: Build without builtin ripgrep
+      - name: Build and run without builtin ripgrep
         uses: actions-rs/cargo@v1
         with:
           command: run

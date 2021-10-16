@@ -147,7 +147,7 @@ export BAT_STYLE=numbers
   - `--follow` (`-L`): When this flag is enabled, hgrep will follow symbolic links while traversing directories
   - `--multiline` (`-U`): Enable matching across multiple lines
   - `--multiline-dotall`: Enable "dot all" in your regex pattern, which causes '.' to match newlines when multiline searching is enabled
-  - `--crlf`: about(r"When enabled, hgrep will treat CRLF (`\r\n`) as a line terminator instead of just `\n`
+  - `--crlf`: about(r"When enabled, hgrep will treat CRLF (`\r\n`) as a line terminator instead of just `\n`. This flag is useful on Windows
   - `--mmap`: Search using memory maps when possible. mmap is disabled by default unlike hgrep
   - `--max-count NUM` (`-m`): Limit the number of matching lines per file searched to NUM
   - `--max-depth NUM`: Limit the depth of directory traversal to NUM levels beyond the paths given
