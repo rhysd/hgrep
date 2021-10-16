@@ -1,5 +1,7 @@
 hgrep: Human-friendly GREP
 ==========================
+[![CI][ci-badge]][ci]
+[![crate][crates-io-badge]][crates-io]
 
 [hgrep][] is a grep tool to search files with given pattern and print the matched code snippets with human-friendly syntax
 highlighting. In short, it's a fusion of [bat][] and grep or other alternatives like [ripgrep][].
@@ -29,6 +31,8 @@ hgrep pattern ./dir
 ```
 
 Please see [the usage section](#usage) for more details.
+
+<img src="https://github.com/rhysd/ss/raw/master/hgrep/main.png" alt="screenshot" width="986" height="734" />
 
 ## Installation
 
@@ -207,3 +211,7 @@ hgrep is distributed under [the MIT license](./LICENSE.txt).
 [ag]: https://github.com/ggreer/the_silver_searcher
 [pt]: https://github.com/monochromegane/the_platinum_searcher
 [fzf]: https://github.com/junegunn/fzf
+[ci-badge]: https://github.com/rhysd/hgrep/actions/workflows/ci.yml/badge.svg
+[ci]: https://github.com/rhysd/hgrep/actions/workflows/ci.yml
+[crates-io]: https://crates.io/crates/hgrep
+[crates-io-badge]: https://img.shields.io/crates/v/hgrep.svg
