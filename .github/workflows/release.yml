@@ -5,26 +5,8 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]'
 
 jobs:
-  create_release:
-    name: Create GitHub release
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.get_version.outputs.version }}
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-    steps:
-      - id: get_version
-        # $GITHUB_REF will have a value like "refs/tags/0.3.1". Extract "0.3.1" from it
-        run: echo "::set-output name=version::${GITHUB_REF##refs/tags/}"
-      - name: Create Release
-        id: create_release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.get_version.outputs.version }}
-          draft: false
-          prerelease: false
   upload:
-    name: Upload binary
-    needs: [create_release]
+    name: Upload release binary
     strategy:
       fail-fast: false
       matrix:
@@ -40,10 +22,17 @@ jobs:
             os: windows-latest
             target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.os }}
-    env:
-      ASSET_DIR: hgrep-${{ needs.create_release.outputs.version }}-${{ matrix.target }}
-      ZIP_FILE: hgrep-${{ needs.create_release.outputs.version }}-${{ matrix.target }}.zip
     steps:
+      - id: info
+        # $GITHUB_REF will have a value like "refs/tags/0.3.1". Extract "0.3.1" from it
+        run: |
+          ver="${GITHUB_REF##refs/tags/}"
+          echo "::set-output name=version::${ver}"
+          echo "::set-output name=asset_dir::hgrep-${ver}-${TARGET}"
+          echo "::set-output name=zip::hgrep-${ver}-${TARGET}.zip"
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
@@ -62,20 +51,20 @@ jobs:
       - name: Archive files
         if: matrix.build == 'linux' || matrix.build == 'mac'
         run: |
-          mkdir $ASSET_DIR
-          cp target/${{ matrix.target }}/release/hgrep LICENSE.txt README.md $ASSET_DIR
-          zip $ZIP_FILE -r $ASSET_DIR
+          mkdir ${{ steps.info.outputs.asset_dir }}
+          cp target/${{ matrix.target }}/release/hgrep LICENSE.txt README.md ${{ steps.info.outputs.asset_dir }}
+          zip ${{ steps.info.outputs.zip }} -r ${{ steps.info.outputs.asset_dir }}
       - name: Archive files
         if: matrix.build == 'win'
         shell: bash
         run: |
-          mkdir $ASSET_DIR
-          cp target/${{ matrix.target }}/release/hgrep.exe LICENSE.txt README.md $ASSET_DIR
-          7z a $ZIP_FILE $ASSET_DIR
+          mkdir ${{ steps.info.outputs.asset_dir }}
+          cp target/${{ matrix.target }}/release/hgrep.exe LICENSE.txt README.md ${{ steps.info.outputs.asset_dir }}
+          7z a ${{ steps.info.outputs.zip }} ${{ steps.info.outputs.asset_dir }}
       - name: Upload release artifact
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ needs.create_release.outputs.version }}
+          tag_name: ${{ steps.info.outputs.version }}
           draft: false
           prerelease: false
-          files: ${{ env.ZIP_FILE }}
+          files: ${{ steps.info.outputs.zip }}
