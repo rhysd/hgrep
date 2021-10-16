@@ -5,8 +5,7 @@ jobs:
   unit-test:
     strategy:
       matrix:
-        # os: [ubuntu-latest, macos-latest, windows-latest]
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
       fail-fast: true
     runs-on: ${{ matrix.os }}
     steps:
@@ -25,7 +24,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: run
-          args: --color always -- --version
+          args: --color always -- hgrep README.md
       - name: Build and run without builtin ripgrep
         uses: actions-rs/cargo@v1
         with:
