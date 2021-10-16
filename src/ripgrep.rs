@@ -7,6 +7,7 @@ use grep_pcre2::{RegexMatcher as Pcre2Matcher, RegexMatcherBuilder as Pcre2Match
 use grep_regex::{RegexMatcher, RegexMatcherBuilder};
 use grep_searcher::{BinaryDetection, MmapChoice, Searcher, SearcherBuilder, Sink, SinkMatch};
 use ignore::overrides::OverrideBuilder;
+use ignore::types::{Types, TypesBuilder};
 use ignore::{WalkBuilder, WalkParallel, WalkState};
 use rayon::prelude::*;
 use std::ffi::OsStr;
@@ -40,6 +41,8 @@ pub struct Config<'main> {
     max_filesize: Option<u64>,
     line_regexp: bool,
     pcre2: bool,
+    types: Vec<&'main str>,
+    types_not: Vec<&'main str>,
 }
 
 impl<'main> Config<'main> {
@@ -158,6 +161,16 @@ impl<'main> Config<'main> {
         self
     }
 
+    pub fn types(&mut self, types: impl Iterator<Item = &'main str>) -> &mut Self {
+        self.types = types.collect();
+        self
+    }
+
+    pub fn types_not(&mut self, types: impl Iterator<Item = &'main str>) -> &mut Self {
+        self.types_not = types.collect();
+        self
+    }
+
     fn build_walker(&self, mut paths: impl Iterator<Item = &'main OsStr>) -> Result<WalkParallel> {
         let target = paths.next().unwrap();
 
@@ -185,7 +198,8 @@ impl<'main> Config<'main> {
             .follow_links(self.follow_symlink)
             .max_depth(self.max_depth)
             .max_filesize(self.max_filesize)
-            .overrides(overrides);
+            .overrides(overrides)
+            .types(self.build_types()?);
 
         if !self.no_ignore {
             builder.add_custom_ignore_filename(".rgignore");
@@ -267,6 +281,34 @@ impl<'main> Config<'main> {
             .multi_line(self.multiline)
             .memory_map(mmap);
         builder.build()
+    }
+
+    fn build_types(&self) -> Result<Types> {
+        let mut builder = TypesBuilder::new();
+        builder.add_defaults();
+        for ty in &self.types {
+            builder.select(ty);
+        }
+        for ty in &self.types_not {
+            builder.negate(ty);
+        }
+        Ok(builder.build()?)
+    }
+
+    pub fn print_types<W: io::Write>(&self, mut out: W) -> Result<()> {
+        let types = self.build_types()?;
+        for def in types.definitions() {
+            out.write_all(def.name().as_bytes())?;
+            out.write_all(b": ")?;
+            let mut globs = def.globs().iter();
+            out.write_all(globs.next().unwrap().as_bytes())?;
+            for glob in globs {
+                out.write_all(b", ")?;
+                out.write_all(glob.as_bytes())?;
+            }
+            out.write_all(b"\n")?;
+        }
+        Ok(())
     }
 }
 
@@ -422,6 +464,7 @@ mod tests {
     use super::*;
     use crate::chunk::File;
     use crate::test::{read_all_expected_chunks, read_expected_chunks};
+    use regex::Regex;
     use std::ffi::OsStr;
     use std::fs;
     use std::iter;
@@ -550,5 +593,18 @@ mod tests {
         let err = grep(ErrorPrinter, pat, paths, config).unwrap_err();
         let msg = format!("{}", err);
         assert_eq!(msg, "dummy error");
+    }
+
+    #[test]
+    fn test_print_types() {
+        let config = Config::default();
+        let mut buf = Vec::new();
+        config.print_types(&mut buf).unwrap();
+        let output = String::from_utf8(buf).unwrap();
+
+        let re = Regex::new(r"^\w+: .+(, .+)*$").unwrap();
+        for line in output.lines() {
+            assert!(re.is_match(line), "{:?} did not match to {:?}", line, re);
+        }
     }
 }

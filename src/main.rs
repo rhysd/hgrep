@@ -189,6 +189,29 @@ fn main() -> Result<()> {
                     .long("pcre2")
                     .about("When this flag is present, batgrep will use the PCRE2 regex engine instead of its default regex engine"),
             )
+            .arg(
+                Arg::new("type")
+                    .short('t')
+                    .long("type")
+                    .takes_value(true)
+                    .value_name("TYPE")
+                    .multiple_occurrences(true)
+                    .about("Only search files matching TYPE. This option is repeatable. --type-list can print the list of types"),
+            )
+            .arg(
+                Arg::new("type-not")
+                    .short('T')
+                    .long("type-not")
+                    .takes_value(true)
+                    .value_name("TYPE")
+                    .multiple_occurrences(true)
+                    .about("Do not search files matching TYPE. Inverse of --type. This option is repeatable. --type-list can print the list of types"),
+            )
+            .arg(
+                Arg::new("type-list")
+                    .long("type-list")
+                    .about("Show all supported file types and their corresponding globs"),
+            )
             .arg(Arg::new("PATTERN").about("Pattern to search. Regular expression is available"))
             .arg(Arg::new("PATH").about("Paths to search").multiple_values(true));
 
@@ -261,6 +284,10 @@ fn main() -> Result<()> {
             .mmap(matches.is_present("mmap"))
             .line_regexp(matches.is_present("line-regexp"));
 
+        if matches.is_present("type-list") {
+            return config.print_types(io::stdout().lock());
+        }
+
         let globs = matches.values_of("glob");
         if let Some(globs) = globs {
             config.globs(globs);
@@ -285,6 +312,16 @@ fn main() -> Result<()> {
                 .parse()
                 .context("could not parse \"max-filesize\" option value as unsigned integer")?;
             config.max_filesize(num);
+        }
+
+        let types = matches.values_of("type");
+        if let Some(types) = types {
+            config.types(types);
+        }
+
+        let types_not = matches.values_of("type-not");
+        if let Some(types_not) = types_not {
+            config.types_not(types_not);
         }
 
         match (pattern, paths) {
