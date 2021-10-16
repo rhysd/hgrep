@@ -89,22 +89,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "batgrep"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bat",
- "clap",
- "grep-matcher",
- "grep-pcre2",
- "grep-regex",
- "grep-searcher",
- "ignore",
- "rayon",
- "regex",
-]
-
-[[package]]
 name = "bincode"
 version = "1.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -518,6 +502,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62b467343b94ba476dcb2500d242dadbb39557df889310ac77c5d99100aaac33"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "hgrep"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bat",
+ "clap",
+ "grep-matcher",
+ "grep-pcre2",
+ "grep-regex",
+ "grep-searcher",
+ "ignore",
+ "rayon",
+ "regex",
 ]
 
 [[package]]

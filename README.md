@@ -1,34 +1,31 @@
-bat + grep = batgrep
-====================
+hgrep: Human-friendly GREP
+==========================
 
-[batgrep][] is a grep tool to search files with given pattern and print the matched code snippets with syntax highlighting.
-In short, it's a fusion of [bat][] and grep or other alternatives like [ripgrep][].
+[hgrep][] is a grep tool to search files with given pattern and print the matched code snippets with human-friendly syntax
+highlighting. In short, it's a fusion of [bat][] and grep or other alternatives like [ripgrep][].
 
-This is similar to `-C` option of `grep` command, but its output is enhanced with syntax highlighting. It focuses on human
-readable outputs. batgrep is useful to survey the matches with contexts around them. When some matches are near enough, batgrep
-prints the lines within one code snippet.
-
-batgrep takes matched results via stdin and prints them with syntax highlighted snippets. Ensure to give `-n -H` option to the
-`grep` command.
+This is similar to `-C` option of `grep` command, but hgrep focuses on human readable outputs. hgrep is useful to survey the
+matches with contexts around them. When some matches are near enough, hgrep prints the lines within one code snippet. Unlike
+`grep -C`, hgrep adopts some heuristics around blank lines to determine efficient number of context lines.
 
 Example:
 
 ```sh
 # With standard grep
-grep -nH pattern -R ./dir | batgrep
+grep -nH pattern -R ./dir | hgrep
 
 # With grep alternative tools
-rg -nH pattern ./dir | batgrep
+rg -nH pattern ./dir | hgrep
 ```
 
-As an optional feature, batgrep has builtin grep implementation thanks to ripgrep as library. It's a subset of `rg` command. And
+As an optional feature, hgrep has builtin grep implementation thanks to ripgrep as library. It's a subset of `rg` command. And
 it's faster when there are so many matches since everything is done in the same process.
 
 Example:
 
 ```sh
 # Use builtin subset of ripgrep
-batgrep pattern ./dir
+hgrep pattern ./dir
 ```
 
 Please see [the usage section](#usage) for more details.
@@ -38,66 +35,76 @@ Please see [the usage section](#usage) for more details.
 Via [cargo][] package manager, which is included in Rust toolchain.
 
 ```sh
-cargo install batgrep
+cargo install hgrep
 ```
 
-If you always use batgrep with reading the grep output from stdin and don't want the builtin ripgrep feature, it can be omitted.
+If you always use hgrep with reading the grep output from stdin and don't want the builtin ripgrep feature, it can be omitted.
 This reduces the number of dependencies, installation time, and the binary size.
 
 ```sh
-cargo install batgrep --no-default-features
+cargo install hgrep --no-default-features
 ```
 
 ## Usage
 
 ### Eat `grep -nH` output
 
-batgrep takes grep results via stdin. Since batgrep expects file paths and line numbers in each line of the output, `-nH` is
+hgrep takes grep results via stdin. Since hgrep expects file paths and line numbers in each line of the output, `-nH` is
 necessary at `grep` command.
 
 ```sh
-grep -nH pattern -R paths... | batgrep
+grep -nH pattern -R paths... | hgrep
 ```
 
 `grep` alternative tools like [ripgrep][], [ag][], [pt][], ... are also available because they can output results compatible with
 `grep -nH`.
 
 ```sh
-rg -nH pattern paths... | batgrep
+rg -nH pattern paths... | hgrep
 ```
 
 When you want a pager, please use external commands like `less`.
 
 ```sh
-grep -nH pattern -R paths... | batgrep | less -R
+grep -nH pattern -R paths... | hgrep | less -R
+```
+
+By default, hgrep shows at least 5 lines and at most 5 lines as context of a match. How many context lines is determined by some
+heuristics around blank lines for efficiency. Minimum context lines can be specified by `-c` and Maximum context lines can be
+specified by `-C`. If you don't want the heuristics, specify the same value to the options like `-c 10 -C 10`.
+
+```sh
+# At least 10 context lines and at most 20 context lines
+grep -nH pattern -R paths... | hgrep -c 10 -C 20
 ```
 
 ### Builtin ripgrep
 
-Optionally batgrep provides builtin grep implementation. It is a subset of ripgrep since it's built using ripgrep as library. And
+Optionally hgrep provides builtin grep implementation. It is a subset of ripgrep since it's built using ripgrep as library. And
 it's faster when there are so many matches because everything is done in the same process. The builtin grep feature is enabled by
 default and can be omitted by installing it with `--no-default-features`.
 
 ```sh
-batgrep pattern paths...
+hgrep pattern paths...
 ```
 
 Since it is a subset, there are some restrictions against ripgrep. If you need full functionalities, use `rg` command and eat its
-output by batgrep.
+output by hgrep.
 
 - Some functionalities (e.g. preprocessor) are not supported
 - Memory map is not used until `--mmap` flag is specified
 - Context option is `-c`, not `-C`, and set to 10 by default
+- Adding/Removing file types are not supported. Only default file types are supported (see `--type-list`)
 
 ### Change color theme and layout
 
 Default color theme is `Monokai Extended` respecting `bat` command's default. Other theme can be specified via `--theme` option.
 
 ```sh
-grep -nH ... | batgrep --theme Nord
+grep -nH ... | hgrep --theme Nord
 ```
 
-And batgrep respects `BAT_THEME` environment variable.
+And hgrep respects `BAT_THEME` environment variable.
 
 ```sh
 export BAT_THEME=OneHalfDark
@@ -107,11 +114,10 @@ Default layout is 'grid' respecting `bat` command's default. To print the matche
 available.
 
 ```sh
-grep -nH ... | batgrep --no-grid
+grep -nH ... | hgrep --no-grid
 ```
 
-And batgrep respencts `BAT_STYLE` environment variable. When `plain` or `header` or `numbers` is set, batgrep removes border
-lines.
+And hgrep respects `BAT_STYLE` environment variable. When `plain` or `header` or `numbers` is set, hgrep removes border lines.
 
 ```sh
 export BAT_STYLE=numbers
@@ -120,35 +126,39 @@ export BAT_STYLE=numbers
 ### Command options
 
 - Common options
-  - `--context` (`-c`): Lines of leading and trailing context surrounding each match
+  - `--min-context NUM` (`-c`): Minimum lines of leading and trailing context surrounding each match. Default value is 5
+  - `--max-context NUM` (`-C`): Maximum lines of leading and trailing context surrounding each match. Default value is 5
   - `--no-grid` (`-G`): Remove border lines for more compact output
-  - `--tab`: Number of spaces for tab character
-  - `--theme`: Theme for syntax highlighting
+  - `--tab NUM`: Number of spaces for tab character
+  - `--theme THEME`: Theme for syntax highlighting
   - `--list-themes`: List all theme names available for --theme option
 - Only for builtin ripgrep
   - `--no-ignore`: Don't respect ignore files (.gitignore, .ignore, etc.)
   - `--ignore-case` (`-i`): When this flag is provided, the given patterns will be searched case insensitively
   - `--smart-case` (`-S`): Search case insensitively if the pattern is all lowercase. Search case sensitively otherwise
-  - `--glob` (`-g`): Include or exclude files and directories for searching that match the given glob
+  - `--glob GLOB...` (`-g`): Include or exclude files and directories for searching that match the given glob
   - `--glob-case-insensitive`: Process glob patterns given with the -g/--glob flag case insensitively
   - `--fixed-strings` (`-F`): Treat the pattern as a literal string instead of a regular expression
   - `--word-regexp` (`-w`): Only show matches surrounded by word boundaries
-  - `--follow` (`-L`): When this flag is enabled, batgrep will follow symbolic links while traversing directories
+  - `--follow` (`-L`): When this flag is enabled, hgrep will follow symbolic links while traversing directories
   - `--multiline` (`-U`): Enable matching across multiple lines
   - `--multiline-dotall`: Enable "dot all" in your regex pattern, which causes '.' to match newlines when multiline searching is enabled
-  - `--crlf`: about(r"When enabled, batgrep will treat CRLF (`\r\n`) as a line terminator instead of just `\n`
-  - `--mmap`: Search using memory maps when possible. mmap is disabled by default unlike batgrep
-  - `--max-count` (`-m`): Limit the number of matching lines per file searched to NUM
-  - `--max-depth`: Limit the depth of directory traversal to NUM levels beyond the paths given
-  - `--max-filesize`: Ignore files larger than NUM in size
+  - `--crlf`: about(r"When enabled, hgrep will treat CRLF (`\r\n`) as a line terminator instead of just `\n`
+  - `--mmap`: Search using memory maps when possible. mmap is disabled by default unlike hgrep
+  - `--max-count NUM` (`-m`): Limit the number of matching lines per file searched to NUM
+  - `--max-depth NUM`: Limit the depth of directory traversal to NUM levels beyond the paths given
+  - `--max-filesize NUM`: Ignore files larger than NUM in size
   - `--line-regexp` (`-x`): Only show matches surrounded by line boundaries. This is equivalent to putting ^...$ around all of the search patterns
-  - `--pcre2` (`-P`): When this flag is present, batgrep will use the PCRE2 regex engine instead of its default regex engine
+  - `--pcre2` (`-P`): When this flag is present, hgrep will use the PCRE2 regex engine instead of its default regex engine
+  - `--type TYPE` (`-t`): Only search files matching TYPE. This option is repeatable
+  - `--type-not TYPE` (`-T`): Do not search files matching TYPE. Inverse of --type. This option is repeatable
+  - `--type-list`: Show all supported file types and their corresponding globs
 
 See `--help` for full list of options.
 
 ## Alternatives
 
-Some other alternatives instead of using batgrep.
+Some other alternatives instead of using hgrep.
 
 ### Small ShellScript to combine `ripgrep` and `bat`
 
@@ -166,11 +176,12 @@ grep -nH ... | while IFS= read -r line; do
 done
 ```
 
-It works fine but batgrep is more optimized for this usage.
+It works fine but hgrep is more optimized for this usage.
 
 - When the matches are near enough, the lines are printed in one snippet.
 - Performance is better than running `bat` process per matched line.
-- batgrep is available where ShellScript is unavailable (e.g. PowerShell).
+- hgrep computes efficient context lines based on some heuristics.
+- hgrep is available where ShellScript is unavailable (e.g. PowerShell).
 
 ### Fuzzy finder like `fzf` with `bat` preview window
 
@@ -183,13 +194,13 @@ grep -nH ... | \
 
 This usage is great when you need the incremental search, but you need to check each preview of matches one by one.
 
-batgrep focuses on surveying all the matches.
+hgrep focuses on surveying all the matches.
 
 ## License
 
-batgrep is distributed under [the MIT license](./LICENSE.txt).
+hgrep is distributed under [the MIT license](./LICENSE.txt).
 
-[batgrep]: https://github.com/rhysd/batgrep
+[hgrep]: https://github.com/rhysd/hgrep
 [ripgrep]: https://github.com/BurntSushi/ripgrep
 [bat]: https://github.com/sharkdp/bat
 [cargo]: https://github.com/rust-lang/cargo

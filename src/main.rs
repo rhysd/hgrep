@@ -19,13 +19,13 @@ use printer::{BatPrinter, Printer};
 fn main() -> Result<()> {
     use anyhow::Context;
 
-    let app = App::new("batgrep")
+    let app = App::new("hgrep")
         .version(env!("CARGO_PKG_VERSION"))
         .about(
-            "batgrep is like grep, but uses bat to print the results. It eats results of `grep -nH` and prints the matches with \
-            syntax highlighting.\n\n\
-            $ grep -nH pattern -R . | batgrep\n\n\
-            For more details, visit https://github.com/rhysd/batgrep"
+            "hgrep is grep with human-friendly search output. It eats an output of `grep -nH` and prints the matches \
+            with syntax-highlighted code snippets.\n\n\
+            $ grep -nH pattern -R . | hgrep\n\n\
+            For more details, visit https://github.com/rhysd/hgrep"
         )
         .global_setting(AppSettings::ColoredHelp)
         .arg(
@@ -75,14 +75,14 @@ fn main() -> Result<()> {
     #[cfg(feature = "ripgrep")]
     let app = app
             .about(
-                "batgrep is like grep, but uses bat to print the results. It eats results of `grep -nH` and prints the matches \
-                with syntax highlighting.\n\n\
-                $ grep -nH pattern -R . | batgrep\n\n\
-                batgrep has its builtin grep implementation. It's subset of ripgrep and faster when many matches are found.\n\n\
-                $ batgrep pattern\n\n\
-                For more details, visit https://github.com/rhysd/batgrep"
+                "hgrep is grep with human-friendly search output. It eats an output of `grep -nH` and prints the \
+                matches with syntax-highlighted code snippets.\n\n\
+                $ grep -nH pattern -R . | hgrep\n\n\
+                hgrep has its builtin grep implementation. It's subset of ripgrep and faster when many matches are found.\n\n\
+                $ hgrep pattern\n\n\
+                For more details, visit https://github.com/rhysd/hgrep"
             )
-            .override_usage("batgrep [FLAGS] [OPTIONS] [PATTERN [PATH...]]")
+            .override_usage("hgrep [FLAGS] [OPTIONS] [PATTERN [PATH...]]")
             .arg(
                 Arg::new("no-ignore")
                     .long("no-ignore")
@@ -132,7 +132,7 @@ fn main() -> Result<()> {
                 Arg::new("follow-symlink")
                     .short('L')
                     .long("follow")
-                    .about("When this flag is enabled, batgrep will follow symbolic links while traversing directories"),
+                    .about("When this flag is enabled, hgrep will follow symbolic links while traversing directories"),
             )
             .arg(
                 Arg::new("multiline")
@@ -148,12 +148,12 @@ fn main() -> Result<()> {
             .arg(
                 Arg::new("crlf")
                     .long("crlf")
-                    .about(r"When enabled, batgrep will treat CRLF ('\r\n') as a line terminator instead of just '\n'"),
+                    .about(r"When enabled, hgrep will treat CRLF ('\r\n') as a line terminator instead of just '\n'"),
             )
             .arg(
                 Arg::new("mmap")
                     .long("mmap")
-                    .about("Search using memory maps when possible. mmap is disabled by default unlike batgrep"),
+                    .about("Search using memory maps when possible. mmap is disabled by default unlike ripgrep"),
             )
             .arg(
                 Arg::new("max-count")
@@ -187,7 +187,7 @@ fn main() -> Result<()> {
                 Arg::new("pcre2")
                     .short('P')
                     .long("pcre2")
-                    .about("When this flag is present, batgrep will use the PCRE2 regex engine instead of its default regex engine"),
+                    .about("When this flag is present, hgrep will use the PCRE2 regex engine instead of its default regex engine"),
             )
             .arg(
                 Arg::new("type")

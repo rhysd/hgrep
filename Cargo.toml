@@ -1,25 +1,23 @@
 [package]
-name = "batgrep"
+name = "hgrep"
 version = "0.1.0"
 edition = "2018"
 authors = ["rhysd <lin90162@yahoo.co.jp>"]
 description = """
-if bat && (ripgrep || grep) { \"awesome\" }
-
-batgrep is like grep, but uses bat to print the results. It eats results of
-`grep -nH` and prints the matches with syntax highlighting.
+hgrep is a grep tool with human-friendly search output. It eats results of
+`grep -nH` and prints the matched position with code snippets.
 
 This is similar to `-C` option of `grep` command, but its output is enhanced
-with syntax highlighting. It focuses on human readable outputs. batgrep is
-useful to survey the matches with contexts around them. When some matches are
-near enough, batgrep prints the lines within one code snippet.
+with syntax highlighting. It focuses on human readable outputs. hgrep is useful
+to survey the matches with contexts around them. When some matches are near
+enough, hgrep prints the lines within one code snippet. To show contexts
+efficiently, hgrep adopt some heuristics around empty lines.
 
-batgrep provides a builtin subset implementation of ripgrep as optional
-feature.
+hgrep provides a builtin subset implementation of ripgrep as optional feature.
 """
 license = "MIT"
-homepage = "https://github.com/rhysd/batgrep#readme"
-repository = "https://github.com/rhysd/batgrep"
+homepage = "https://github.com/rhysd/hgrep#readme"
+repository = "https://github.com/rhysd/hgrep"
 readme = "README.md"
 include = [
     "/src",
@@ -28,8 +26,6 @@ include = [
 ]
 categories = ["command-line-utilities", "text-processing"]
 keywords = ["grep", "search", "syntax-highlighting", "ripgrep", "bat"]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
 default = ["ripgrep"]
