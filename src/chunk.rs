@@ -184,10 +184,7 @@ impl<I: Iterator<Item = Result<Match>>> Iterator for Files<I> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test::{
-        read_expected_chunks_from_test_files, read_matches_from_test_file,
-        read_matches_from_test_files,
-    };
+    use crate::test;
     use anyhow::Error;
     use std::fmt;
     use std::path::Path;
@@ -195,11 +192,11 @@ mod tests {
     fn test_success_case(inputs: &[&str]) {
         let dir = Path::new("testdata").join("chunk");
 
-        let matches = read_matches_from_test_files(&dir, inputs);
+        let matches = test::read_all_matches(&dir, inputs);
         let got: Vec<_> = Files::new(matches.into_iter(), 3, 6)
             .collect::<Result<_>>()
             .unwrap();
-        let expected = read_expected_chunks_from_test_files(&dir, inputs);
+        let expected = test::read_all_expected_chunks(&dir, inputs);
 
         assert_eq!(got, expected);
     }
@@ -264,7 +261,7 @@ mod tests {
     #[test]
     fn test_same_min_ctx_and_max_ctx() {
         let dir = Path::new("testdata").join("chunk");
-        let matches = read_matches_from_test_file(&dir, "single_max");
+        let matches = test::read_matches(&dir, "single_max");
         let got: Vec<_> = Files::new(matches.into_iter(), 3, 3)
             .collect::<Result<_>>()
             .unwrap();
@@ -284,7 +281,7 @@ mod tests {
     #[test]
     fn test_zero_context() {
         let dir = Path::new("testdata").join("chunk");
-        let matches = read_matches_from_test_file(&dir, "single_max");
+        let matches = test::read_matches(&dir, "single_max");
         let got: Vec<_> = Files::new(matches.into_iter(), 0, 0)
             .collect::<Result<_>>()
             .unwrap();

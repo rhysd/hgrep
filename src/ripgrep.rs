@@ -416,3 +416,89 @@ where
             .try_for_each(|path| self.grep_file(path))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::chunk::File;
+    use crate::test::{read_all_expected_chunks, read_expected_chunks};
+    use std::ffi::OsStr;
+    use std::fs;
+    use std::iter;
+    use std::path::Path;
+    use std::sync::Mutex;
+
+    #[derive(Default)]
+    struct DummyPrinter(Mutex<Vec<File>>);
+    impl Printer for &DummyPrinter {
+        fn print(&self, file: File) -> Result<()> {
+            self.0.lock().unwrap().push(file);
+            Ok(())
+        }
+    }
+
+    fn read_all_inputs(dir: &Path) -> Vec<String> {
+        let mut inputs = Vec::new();
+        for entry in fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension() == Some(OsStr::new("in")) {
+                inputs.push(path.file_stem().unwrap().to_string_lossy().to_string());
+            }
+        }
+        inputs
+    }
+
+    #[test]
+    fn test_grep_each_file() {
+        let dir = Path::new("testdata").join("chunk");
+        let inputs = read_all_inputs(&dir);
+
+        for input in inputs.iter() {
+            let printer = DummyPrinter::default();
+            let pat = r"\*$";
+            let file = dir.join(format!("{}.in", input));
+            let paths = iter::once(OsStr::new(&file));
+            let mut config = Config::default();
+            config.min_context(3).max_context(6);
+
+            grep(&printer, pat, paths, config).unwrap();
+
+            let expected = read_expected_chunks(&dir, input)
+                .map(|f| vec![f])
+                .unwrap_or_else(Vec::new);
+
+            assert_eq!(
+                expected,
+                printer.0.into_inner().unwrap(),
+                "test file: {:?}",
+                file
+            );
+        }
+    }
+
+    #[test]
+    fn test_grep_all_files_at_once() {
+        let dir = Path::new("testdata").join("chunk");
+        let inputs = read_all_inputs(&dir);
+
+        let printer = DummyPrinter::default();
+        let pat = r"\*$";
+        let mut config = Config::default();
+        config.min_context(3).max_context(6);
+        let paths = inputs
+            .iter()
+            .map(|s| dir.join(format!("{}.in", s)).into_os_string())
+            .collect::<Vec<_>>();
+        let paths = paths.iter().map(AsRef::as_ref);
+
+        grep(&printer, pat, paths, config).unwrap();
+
+        let mut got = printer.0.into_inner().unwrap();
+        got.sort_by(|a, b| a.path.cmp(&b.path));
+
+        let mut expected = read_all_expected_chunks(&dir, &inputs);
+        expected.sort_by(|a, b| a.path.cmp(&b.path));
+
+        assert_eq!(expected, got);
+    }
+}
