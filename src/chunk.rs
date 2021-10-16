@@ -58,8 +58,10 @@ impl<I: Iterator<Item = Result<Match>>> Files<I> {
 
         let mut range_start = before_start;
         let mut range_end = after_end;
+        let mut last_lnum = None;
 
         for Line(line, lnum) in lines {
+            last_lnum = Some(lnum);
             assert!(lnum <= after_end, "line {} > chunk {}", lnum, after_end);
 
             let in_before = before_start <= lnum && lnum < before_end;
@@ -77,6 +79,9 @@ impl<I: Iterator<Item = Result<Match>>> Files<I> {
             if lnum == after_end {
                 break; // Do not consume next line from `lines` for next chunk
             }
+        }
+        if let Some(n) = last_lnum {
+            range_end = cmp::min(range_end, n); // Make end of chunk fit to end of file
         }
 
         (range_start, range_end)
@@ -110,9 +115,14 @@ impl<I: Iterator<Item = Result<Match>>> Iterator for Files<I> {
         };
         // Assumes that matched lines are sorted by source location
         let mut lines = contents
-            .split(|b| *b == b'\n')
+            .split_inclusive(|b| *b == b'\n')
             .enumerate()
-            .map(|(n, l)| Line(l, n as u64 + 1));
+            .map(|(n, mut l)| {
+                if l.ends_with(&[b'\n']) {
+                    l = &l[..l.len() - 1];
+                }
+                Line(l, n as u64 + 1)
+            });
         let mut lnums = vec![line_number];
         let mut chunks = Vec::new();
 
@@ -181,7 +191,7 @@ mod tests {
                 let infile = dir.join(format!("{}.in", input));
                 fs::read_to_string(&infile)
                     .unwrap()
-                    .split('\n')
+                    .lines()
                     .enumerate()
                     .filter_map(|(idx, line)| {
                         line.ends_with('*').then(|| {
@@ -204,7 +214,7 @@ mod tests {
                 let outfile = dir.join(format!("{}.out", input));
                 let (chunks, lnums) = fs::read_to_string(&outfile)
                     .unwrap()
-                    .split('\n')
+                    .lines()
                     .filter(|s| !s.is_empty())
                     .map(|line| {
                         let mut s = line.split(',');
