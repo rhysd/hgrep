@@ -41,10 +41,17 @@ pub struct BatPrinter<'main> {
 
 impl<'main> BatPrinter<'main> {
     pub fn new() -> Self {
+        let styles = &[
+            StyleComponent::LineNumbers,
+            StyleComponent::Snip,
+            StyleComponent::Header,
+            StyleComponent::Grid,
+        ];
         let config = Config {
             colored_output: true,
             true_color: true,
             term_width: Term::stdout().size().1 as usize,
+            style_components: StyleComponents::new(styles),
             ..Default::default()
         };
         Self {
@@ -62,8 +69,9 @@ impl<'main> BatPrinter<'main> {
         self.config.theme = theme.to_string();
     }
 
-    pub fn grid(&mut self, enabled: bool) {
-        self.grid = enabled;
+    pub fn no_grid(&mut self) {
+        self.grid = false;
+        self.config.style_components.0.remove(&StyleComponent::Grid);
     }
 }
 
@@ -75,7 +83,7 @@ impl<'a> Printer for BatPrinter<'a> {
 
         // XXX: We don't use `bat::PrettyPrinter`.
         //
-        // `bat::PrettyPrinter` is an API exposed by bat and intended to be used by other Rust prgoram.
+        // `bat::PrettyPrinter` is an API exposed by bat and intended to be used by other Rust programs.
         // However this does not fit to hgrep implementation.
         //
         // 1. `bat::PrettyPrinter` cannot be shared across threads even if it is guarded with `Mutex<T>`
@@ -86,19 +94,11 @@ impl<'a> Printer for BatPrinter<'a> {
         //    at once. But it does not provide a way to specify the highlighted lines per file. The same
         //    lines are highlighted in all files and it is not fit to hgrep use case.
         // 3. To avoid 1. and 2., we created `bat::PrettyPrinter` instance per `BatPrinter::print()` call.
-        //    It worked but is very slow. It is 3.3x slower than current implementation. See commit
-        //    8655b801b40f8b3f7d4d343cae185604fa918d5b for more details.
+        //    It worked but was very slow since it loaded syntax highlighting assets each time. It was
+        //    3.3x slower than current implementation. See commit 8655b801b40f8b3f7d4d343cae185604fa918d5b
+        //    for more details.
 
         let mut config = self.config.clone();
-
-        let mut styles = Vec::with_capacity(4);
-        styles.push(StyleComponent::LineNumbers);
-        styles.push(StyleComponent::Snip);
-        styles.push(StyleComponent::Header);
-        if self.grid {
-            styles.push(StyleComponent::Grid);
-        }
-        config.style_components = StyleComponents::new(&styles);
 
         let ranges = file
             .chunks

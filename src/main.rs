@@ -296,10 +296,10 @@ fn app() -> Result<bool> {
     }
 
     if let Ok("plain" | "header" | "numbers") = env::var("BAT_STYLE").as_ref().map(String::as_str) {
-        printer.grid(false);
+        printer.no_grid();
     }
     if matches.is_present("no-grid") {
-        printer.grid(false);
+        printer.no_grid();
     }
 
     #[cfg(feature = "ripgrep")]
