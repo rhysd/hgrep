@@ -32,7 +32,7 @@ hgrep pattern ./dir
 
 Please see [the usage section](#usage) for more details.
 
-<img src="https://github.com/rhysd/ss/raw/master/hgrep/main.png" alt="screenshot" width="986" height="734" />
+<img src="https://github.com/rhysd/ss/raw/master/hgrep/main.png" alt="screenshot" width="986" height="836" />
 
 ## Installation
 
@@ -137,7 +137,7 @@ export BAT_STYLE=numbers
 
 - Common options
   - `--min-context NUM` (`-c`): Minimum lines of leading and trailing context surrounding each match. Default value is 5
-  - `--max-context NUM` (`-C`): Maximum lines of leading and trailing context surrounding each match. Default value is 5
+  - `--max-context NUM` (`-C`): Maximum lines of leading and trailing context surrounding each match. Default value is 10
   - `--no-grid` (`-G`): Remove border lines for more compact output
   - `--tab NUM`: Number of spaces for tab character. Set 0 to pass tabs through. Default value is 4
   - `--theme THEME`: Theme for syntax highlighting. Default value is the same as `bat` command
@@ -188,7 +188,7 @@ Some other alternatives instead of using hgrep.
 ripgrep and bat are well-designed tools so they can be used as building parts of small script.
 
 ```sh
-grep -nH ... | while IFS= read -r line; do
+rg -nH ... | while IFS= read -r line; do
   # Parse $line and calculate the range of snippet and highlighted lines
   file=...
   lines=...
@@ -208,7 +208,7 @@ It works fine but hgrep is more optimized for this usage.
 
 ### Fuzzy finder like `fzf` with `bat` preview window
 
-Fuzzy finder like [fzf][] privides a preview window functionality and `bat` can print the match previews.
+Fuzzy finder like [fzf][] provides a preview window functionality and `bat` can print the match in the preview window.
 
 ```sh
 grep -nH ... | \
