@@ -123,7 +123,7 @@ impl<'a> Printer for BatPrinter<'a> {
 
         let controller = Controller::new(&config, &self.assets);
         // Note: controller.run() returns true when no error
-        // XXX: bat's Error type cannot be converted to anyhow::Error due to lack of some type bounds
+        // XXX: bat's Error type cannot be converted to anyhow::Error since it does not implement Sync
         match controller.run(vec![input]) {
             Ok(true) => Ok(()),
             Ok(false) => Err(Error::new(PrintError {
@@ -135,5 +135,44 @@ impl<'a> Printer for BatPrinter<'a> {
                 cause: Some(format!("{}", err)),
             })),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_file() -> File {
+        let path = PathBuf::from("test.rs");
+        let lnums = vec![1];
+        let chunks = vec![(1, 2)];
+        let contents = "fn main() {\n    println!(\"hello\");\n}\n"
+            .as_bytes()
+            .to_vec();
+        File::new(path, lnums, chunks, contents)
+    }
+
+    #[test]
+    fn test_print_default() {
+        let p = BatPrinter::new();
+        let f = sample_file();
+        p.print(f).unwrap();
+    }
+
+    #[test]
+    fn test_print_with_flags() {
+        let mut p = BatPrinter::new();
+        p.tab_width(2);
+        p.theme("Nord");
+        p.no_grid();
+        let f = sample_file();
+        p.print(f).unwrap();
+    }
+
+    #[test]
+    fn test_print_nothing() {
+        let p = BatPrinter::new();
+        let f = File::new(PathBuf::from("x.txt"), vec![], vec![], vec![]);
+        p.print(f).unwrap();
     }
 }
