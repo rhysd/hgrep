@@ -36,10 +36,25 @@ Please see [the usage section](#usage) for more details.
 
 ## Installation
 
-### Releases
+### Binary releases
 
 Visit [the releases page][releases] and download the zip file for your platform. Unarchive the file and put the executable file
-in some `$PATH` directory. Currently x86_64 Linux/macOS/Windows binaries are supported.
+in some `$PATH` directory. Currently the following targets are supported. If you want a binary for some other platform, feel free
+to make an issue to request it.
+
+- Linux (x86_64)
+- macOS (x86_64)
+- Windows (x86_64)
+
+### Via [Homebrew][homebrew]
+
+By adding hgrep repository as Homebrew tap, `hgrep` command can be installed and managed via Homebrew. Currently only for x86_64
+macOS and Linux.
+
+```sh
+brew tap "rhysd/hgrep" "https://github.com/rhysd/hgrep"
+brew install hgrep
+```
 
 ### Via [cargo][] package manager
 
@@ -62,20 +77,20 @@ hgrep takes grep results via stdin. Since hgrep expects file paths and line numb
 necessary at `grep` command.
 
 ```sh
-grep -nH pattern -R paths... | hgrep
+grep -nH pattern -R paths... | hgrep [options...]
 ```
 
 `grep` alternative tools like [ripgrep][], [ag][], [pt][], ... are also available because they can output results compatible with
 `grep -nH`.
 
 ```sh
-rg -nH pattern paths... | hgrep
+rg -nH pattern paths... | hgrep [options...]
 ```
 
 When you want a pager, please use external commands like `less`.
 
 ```sh
-grep -nH pattern -R paths... | hgrep | less -R
+grep -nH pattern -R paths... | hgrep [options...] | less -R
 ```
 
 By default, hgrep shows at least 5 lines and at most 5 lines as context of a match. How many context lines is determined by some
@@ -94,13 +109,13 @@ it's faster when there are so many matches because everything is done in the sam
 default and can be omitted by installing it with `--no-default-features`.
 
 ```sh
-hgrep pattern paths...
+hgrep [options...] pattern paths...
 ```
 
-Since it is a subset, there are some restrictions compared with ripgrep. If you need full functionalities, use `rg` command and
-eat its output by hgrep via stdin.
+Though almost all useful options are implemented, the builtin grep implementation is a subset of ripgrep. If you need full
+functionalities, use `rg` command and eat its output by hgrep via stdin. Currently there are the following restrictions.
 
-- Preprocessor not supported (e.g. search zip files)
+- Preprocessor is not supported (e.g. search zip files)
 - Memory map is not used until `--mmap` flag is specified
 - Adding/Removing file types are not supported. Only default file types are supported (see `--type-list`)
 - `.ripgreprc` config file is not supported
@@ -218,6 +233,10 @@ This usage is great when you need the incremental search, but you need to check 
 
 hgrep focuses on surveying all the matches.
 
+## Bug reporting
+
+Please [make an issue on GitHub][new-issue]. Ensure to describe how to reproduce the bug.
+
 ## License
 
 hgrep is distributed under [the MIT license](./LICENSE.txt).
@@ -239,3 +258,5 @@ hgrep is distributed under [the MIT license](./LICENSE.txt).
 [fish]: https://fishshell.com/
 [pwsh]: https://docs.microsoft.com/en-us/powershell/
 [elvish]: https://elv.sh/
+[homebrew]: https://brew.sh/
+[new-issue]: https://github.com/rhysd/hgrep/issues/new
