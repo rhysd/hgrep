@@ -303,8 +303,7 @@ fn app() -> Result<bool> {
     }
 
     #[cfg(feature = "ripgrep")]
-    {
-        let pattern = matches.value_of("PATTERN");
+    if let Some(pattern) = matches.value_of("PATTERN") {
         let paths = matches.values_of_os("PATH");
         let mut config = ripgrep::Config::default();
         config
@@ -366,14 +365,12 @@ fn app() -> Result<bool> {
             config.types_not(types_not);
         }
 
-        match (pattern, paths) {
-            (Some(pat), Some(paths)) => return ripgrep::grep(printer, pat, paths, config),
-            (Some(pat), None) => {
-                let cwd = env::current_dir()?;
-                let paths = std::iter::once(cwd.as_os_str());
-                return ripgrep::grep(printer, pat, paths, config);
-            }
-            _ => { /* fall through */ }
+        if let Some(paths) = paths {
+            return ripgrep::grep(printer, pattern, paths, config);
+        } else {
+            let cwd = env::current_dir()?;
+            let paths = std::iter::once(cwd.as_os_str());
+            return ripgrep::grep(printer, pattern, paths, config);
         }
     }
 
