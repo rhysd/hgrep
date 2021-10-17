@@ -166,6 +166,19 @@ export BAT_STYLE=numbers
 
 See `--help` for full list of options.
 
+### Generate completion scripts
+
+Shell completion script for `hgrep` command is available. `--generate-completion-script` option generates completion script and
+prints it to stdout. [Bash][bash], [Zsh][zsh], [Fish][fish], [PowerShell][pwsh], [Elvish][elvish] are supported. See `--help` for
+argument of the option.
+
+This is example to setup the script completion script on Zsh.
+
+```sh
+# Let's say we set comps=~/.zsh/site-functions
+hgrep --generate-completion-script zsh > ~/.zsh/site-functions/_hgrep
+```
+
 ## Alternatives
 
 Some other alternatives instead of using hgrep.
@@ -222,3 +235,8 @@ hgrep is distributed under [the MIT license](./LICENSE.txt).
 [crates-io]: https://crates.io/crates/hgrep
 [crates-io-badge]: https://img.shields.io/crates/v/hgrep.svg
 [releases]: https://github.com/rhysd/hgrep/releases
+[bash]: https://www.gnu.org/software/bash/
+[zsh]: https://www.zsh.org/
+[fish]: https://fishshell.com/
+[pwsh]: https://docs.microsoft.com/en-us/powershell/
+[elvish]: https://elv.sh/

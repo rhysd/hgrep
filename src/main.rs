@@ -1,6 +1,6 @@
 use anyhow::Result;
 use bat::PrettyPrinter;
-use clap::{App, AppSettings, Arg};
+use clap::{App, AppSettings, Arg, ValueHint};
 use std::cmp;
 use std::env;
 use std::io;
@@ -17,9 +17,7 @@ mod test;
 use grep::BufReadExt;
 use printer::{BatPrinter, Printer};
 
-fn app() -> Result<bool> {
-    use anyhow::Context;
-
+fn cli<'a>() -> App<'a> {
     let app = App::new("hgrep")
         .version(env!("CARGO_PKG_VERSION"))
         .about(
@@ -72,6 +70,13 @@ fn app() -> Result<bool> {
             Arg::new("list-themes")
                 .long("list-themes")
                 .about("List all theme names available for --theme option"),
+        )
+        .arg(
+            Arg::new("generate-completion-script")
+                .long("generate-completion-script")
+                .takes_value(true)
+                .value_name("SHELL")
+                .about("Print completion script for SHELL to stdout. SHELL must be one of 'bash', 'zsh', 'powershell', 'fish', or 'elvish'"),
         );
 
     #[cfg(feature = "ripgrep")]
@@ -214,15 +219,50 @@ fn app() -> Result<bool> {
                     .long("type-list")
                     .about("Show all supported file types and their corresponding globs"),
             )
-            .arg(Arg::new("PATTERN").about("Pattern to search. Regular expression is available"))
-            .arg(Arg::new("PATH").about("Paths to search").multiple_values(true));
+            .arg(
+                Arg::new("PATTERN")
+                    .about("Pattern to search. Regular expression is available"),
+            )
+            .arg(
+                Arg::new("PATH")
+                    .about("Paths to search")
+                    .multiple_values(true)
+                    .value_hint(ValueHint::AnyPath),
+            );
 
-    let matches = app.get_matches();
+    app
+}
 
+fn generate_completion_script(shell: &str) -> Result<()> {
+    use clap_generate::generate;
+    use clap_generate::generators::*;
+
+    let mut app = cli();
+    let stdout = io::stdout();
+    let mut stdout = stdout.lock();
+    match shell.to_lowercase().as_str() {
+        "bash" => generate::<Bash, _>(&mut app, "hgrep", &mut stdout),
+        "zsh" => generate::<Zsh, _>(&mut app, "hgrep", &mut stdout),
+        "powershell" => generate::<PowerShell, _>(&mut app, "hgrep", &mut stdout),
+        "fish" => generate::<Fish, _>(&mut app, "hgrep", &mut stdout),
+        "elvish" => generate::<Elvish, _>(&mut app, "hgrep", &mut stdout),
+        s => anyhow::bail!("Unknown shell '{}'. Supported shells are 'bash', 'zsh', 'powershell', 'fish', or 'elvish'", s),
+    }
+    Ok(())
+}
+
+fn app() -> Result<bool> {
+    use anyhow::Context;
+
+    let matches = cli().get_matches();
     if matches.is_present("list-themes") {
         for theme in PrettyPrinter::new().themes() {
             println!("{}", theme);
         }
+        return Ok(true);
+    }
+    if let Some(shell) = matches.value_of("generate-completion-script") {
+        generate_completion_script(shell)?;
         return Ok(true);
     }
 

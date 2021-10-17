@@ -43,6 +43,7 @@ ripgrep = [
 anyhow = "1"
 bat = { version = "^0.18.3", default-features = false, features = ["regex-onig"] }
 clap = { version = "3.0.0-beta", default-features = false, features = ["std", "color", "suggestions"] }
+clap_generate = "3.0.0-beta"
 grep-regex = { version = "0.1.9", optional = true }
 grep-searcher = { version = "0.1.8", optional = true }
 rayon = { version = "1", optional = true }
