@@ -4,6 +4,7 @@ use clap::{App, AppSettings, Arg};
 use std::cmp;
 use std::env;
 use std::io;
+use std::process;
 
 mod chunk;
 mod grep;
@@ -16,7 +17,7 @@ mod test;
 use grep::BufReadExt;
 use printer::{BatPrinter, Printer};
 
-fn main() -> Result<()> {
+fn app() -> Result<bool> {
     use anyhow::Context;
 
     let app = App::new("hgrep")
@@ -222,7 +223,7 @@ fn main() -> Result<()> {
         for theme in PrettyPrinter::new().themes() {
             println!("{}", theme);
         }
-        return Ok(());
+        return Ok(true);
     }
 
     let min_context = matches
@@ -285,7 +286,8 @@ fn main() -> Result<()> {
             .line_regexp(matches.is_present("line-regexp"));
 
         if matches.is_present("type-list") {
-            return config.print_types(io::stdout().lock());
+            config.print_types(io::stdout().lock())?;
+            return Ok(true);
         }
 
         let globs = matches.values_of("glob");
@@ -335,6 +337,7 @@ fn main() -> Result<()> {
         }
     }
 
+    let mut found = false;
     // XXX: io::stdin().lock() is not available since bat's implementation internally takes lock of stdin
     // *even if* it does not use stdin.
     // https://github.com/sharkdp/bat/issues/1902
@@ -343,7 +346,20 @@ fn main() -> Result<()> {
         .chunks_per_file(min_context, max_context)
     {
         printer.print(f?)?;
+        found = true;
     }
 
-    Ok(())
+    Ok(found)
+}
+
+fn main() {
+    let status = match app() {
+        Ok(true) => 0,
+        Ok(false) => 1,
+        Err(err) => {
+            eprintln!("{}", err);
+            2
+        }
+    };
+    process::exit(status);
 }

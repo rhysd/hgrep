@@ -320,10 +320,10 @@ pub fn grep<'main, P: Printer + Send>(
     pat: &str,
     paths: impl Iterator<Item = &'main OsStr>,
     config: Config<'main>,
-) -> Result<()> {
+) -> Result<bool> {
     let paths = walk(paths, &config)?;
     if paths.is_empty() {
-        return Ok(());
+        return Ok(false);
     }
 
     if config.pcre2 {
@@ -445,20 +445,23 @@ where
         Ok(matches.buf)
     }
 
-    fn grep_file(&self, path: PathBuf) -> Result<()> {
+    fn grep_file(&self, path: PathBuf) -> Result<bool> {
         let matches = self.search(path)?;
         let printer = self.printer.lock().unwrap();
         let (min, max) = (self.config.min_context, self.config.max_context);
+        let mut found = false;
         for file in Files::new(matches.into_iter().map(Ok), min, max) {
             printer.print(file?)?;
+            found = true;
         }
-        Ok(())
+        Ok(found)
     }
 
-    fn grep(&self, paths: Vec<PathBuf>) -> Result<()> {
+    fn grep(&self, paths: Vec<PathBuf>) -> Result<bool> {
         paths
             .into_par_iter()
-            .try_for_each(|path| self.grep_file(path))
+            .map(|path| self.grep_file(path))
+            .try_reduce(|| false, |a, b| Ok(a || b))
     }
 }
 
@@ -510,12 +513,13 @@ mod tests {
                 config.crlf(true);
             }
 
-            grep(&printer, pat, paths, config).unwrap();
+            let found = grep(&printer, pat, paths, config).unwrap();
 
             let expected = read_expected_chunks(&dir, input)
                 .map(|f| vec![f])
                 .unwrap_or_else(Vec::new);
 
+            assert_eq!(found, !expected.is_empty(), "test file: {:?}", file);
             assert_eq!(
                 expected,
                 printer.0.into_inner().unwrap(),
@@ -543,7 +547,7 @@ mod tests {
             .collect::<Vec<_>>();
         let paths = paths.iter().map(AsRef::as_ref);
 
-        grep(&printer, pat, paths, config).unwrap();
+        let found = grep(&printer, pat, paths, config).unwrap();
 
         let mut got = printer.0.into_inner().unwrap();
         got.sort_by(|a, b| a.path.cmp(&b.path));
@@ -551,6 +555,7 @@ mod tests {
         let mut expected = read_all_expected_chunks(&dir, &inputs);
         expected.sort_by(|a, b| a.path.cmp(&b.path));
 
+        assert!(found);
         assert_eq!(expected, got);
     }
 
@@ -565,8 +570,9 @@ mod tests {
         if cfg!(target_os = "windows") {
             config.crlf(true);
         }
-        grep(&printer, pat, paths, config).unwrap();
+        let found = grep(&printer, pat, paths, config).unwrap();
         let files = printer.0.into_inner().unwrap();
+        assert!(!found, "result: {:?}", files);
         assert!(files.is_empty(), "result: {:?}", files);
     }
 
