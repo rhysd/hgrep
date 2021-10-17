@@ -1,7 +1,12 @@
 use crate::chunk::File;
 use anyhow::{Error, Result};
-use bat::line_range::{LineRange, LineRanges};
-use bat::{Input, PrettyPrinter};
+use bat::assets::HighlightingAssets;
+use bat::config::{Config, VisibleLines};
+use bat::controller::Controller;
+use bat::input::Input;
+use bat::line_range::{HighlightedLineRanges, LineRange, LineRanges};
+use bat::style::{StyleComponent, StyleComponents};
+use console::Term;
 use std::fmt;
 use std::path::PathBuf;
 
@@ -28,27 +33,33 @@ pub trait Printer {
     fn print(&self, file: File) -> Result<()>;
 }
 
-pub struct BatPrinter<'a> {
-    theme: Option<&'a str>,
-    tab_width: Option<usize>,
+pub struct BatPrinter<'main> {
     grid: bool,
+    config: Config<'main>,
+    assets: HighlightingAssets,
 }
 
-impl<'a> BatPrinter<'a> {
+impl<'main> BatPrinter<'main> {
     pub fn new() -> Self {
+        let config = Config {
+            colored_output: true,
+            true_color: true,
+            term_width: Term::stdout().size().1 as usize,
+            ..Default::default()
+        };
         Self {
-            theme: None,
-            tab_width: None,
             grid: true,
+            assets: HighlightingAssets::from_binary(),
+            config,
         }
     }
 
     pub fn tab_width(&mut self, width: usize) {
-        self.tab_width = Some(width);
+        self.config.tab_width = width;
     }
 
-    pub fn theme(&mut self, theme: &'a str) {
-        self.theme = Some(theme);
+    pub fn theme(&mut self, theme: &str) {
+        self.config.theme = theme.to_string();
     }
 
     pub fn grid(&mut self, enabled: bool) {
@@ -62,45 +73,42 @@ impl<'a> Printer for BatPrinter<'a> {
             return Ok(()); // Ensure to print some match
         }
 
-        // XXX: PrettyPrinter instance must be created for each print() call because there is no way
-        // to clear line_ranges in the instance.
-        let mut pp = PrettyPrinter::new();
+        let mut config = self.config.clone();
 
-        let input = Input::from_bytes(&file.contents)
-            .name(&file.path)
-            .kind("File");
-        pp.input(input);
-
-        pp.line_numbers(true);
-        pp.grid(self.grid);
-        pp.header(true);
-        pp.snip(true);
-        if let Some(theme) = self.theme {
-            pp.theme(theme);
+        let mut styles = Vec::with_capacity(4);
+        styles.push(StyleComponent::LineNumbers);
+        styles.push(StyleComponent::Snip);
+        styles.push(StyleComponent::Header);
+        if self.grid {
+            styles.push(StyleComponent::Grid);
         }
-        if let Some(tab) = self.tab_width {
-            pp.tab_width(Some(tab));
-        }
+        config.style_components = StyleComponents::new(&styles);
 
         let ranges = file
             .chunks
             .iter()
             .map(|(s, e)| LineRange::new(*s as usize, *e as usize))
             .collect();
+        config.visible_lines = VisibleLines::Ranges(LineRanges::from(ranges));
 
-        pp.line_ranges(LineRanges::from(ranges));
+        let input =
+            Input::from_reader(Box::new(file.contents.as_ref())).with_name(Some(&file.path));
 
-        for lnum in file.line_numbers.iter().copied() {
-            pp.highlight(lnum as usize);
-        }
+        let ranges = file
+            .line_numbers
+            .iter()
+            .map(|n| LineRange::new(*n as usize, *n as usize))
+            .collect();
+        config.highlighted_lines = HighlightedLineRanges(LineRanges::from(ranges));
 
         if !self.grid {
             print!("\n\n"); // Empty lines as files separator
         }
 
-        // Note: print() returns true when no error
-        // Note: bat's Error type cannot be converted to anyhow::Error due to lack of some type bounds
-        match pp.print() {
+        let controller = Controller::new(&config, &self.assets);
+        // Note: controller.run() returns true when no error
+        // XXX: bat's Error type cannot be converted to anyhow::Error due to lack of some type bounds
+        match controller.run(vec![input]) {
             Ok(true) => Ok(()),
             Ok(false) => Err(Error::new(PrintError {
                 path: file.path,

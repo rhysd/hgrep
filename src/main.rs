@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bat::PrettyPrinter;
+use bat::assets::HighlightingAssets;
 use clap::{App, AppSettings, Arg, ValueHint};
 use std::cmp;
 use std::env;
@@ -256,7 +256,7 @@ fn app() -> Result<bool> {
 
     let matches = cli().get_matches();
     if matches.is_present("list-themes") {
-        for theme in PrettyPrinter::new().themes() {
+        for theme in HighlightingAssets::from_binary().themes() {
             println!("{}", theme);
         }
         return Ok(true);
