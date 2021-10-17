@@ -1,6 +1,6 @@
 use anyhow::Result;
 use bat::assets::HighlightingAssets;
-use clap::{App, AppSettings, Arg, ValueHint};
+use clap::{App, AppSettings, Arg};
 use std::cmp;
 use std::env;
 use std::io;
@@ -227,7 +227,7 @@ fn cli<'a>() -> App<'a> {
                 Arg::new("PATH")
                     .about("Paths to search")
                     .multiple_values(true)
-                    .value_hint(ValueHint::AnyPath),
+                    .value_hint(clap::ValueHint::AnyPath),
             );
 
     app
