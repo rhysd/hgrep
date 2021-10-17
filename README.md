@@ -97,12 +97,11 @@ default and can be omitted by installing it with `--no-default-features`.
 hgrep pattern paths...
 ```
 
-Since it is a subset, there are some restrictions against ripgrep. If you need full functionalities, use `rg` command and eat its
-output by hgrep.
+Since it is a subset, there are some restrictions compared with ripgrep. If you need full functionalities, use `rg` command and
+eat its output by hgrep via stdin.
 
-- Some functionalities (e.g. preprocessor) are not supported
+- Preprocessor not supported (e.g. search zip files)
 - Memory map is not used until `--mmap` flag is specified
-- Context option is `-c`, not `-C`, and set to 10 by default
 - Adding/Removing file types are not supported. Only default file types are supported (see `--type-list`)
 - `.ripgreprc` config file is not supported
 
