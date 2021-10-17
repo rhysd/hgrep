@@ -73,6 +73,22 @@ impl<'a> Printer for BatPrinter<'a> {
             return Ok(()); // Ensure to print some match
         }
 
+        // XXX: We don't use `bat::PrettyPrinter`.
+        //
+        // `bat::PrettyPrinter` is an API exposed by bat and intended to be used by other Rust prgoram.
+        // However this does not fit to hgrep implementation.
+        //
+        // 1. `bat::PrettyPrinter` cannot be shared across threads even if it is guarded with `Mutex<T>`
+        //    since it keeps `dyn io::Read` value. hgrep processes each files in `rayon::ParallelIterator`,
+        //    a printer instance must be used by each threads.
+        // 2. `bat::PrettyPrinter` does not provide a way to clear highlighted lines. So the printer
+        //    instance cannot be reused for the next file. `bat::PrettyPrinter` can print multiple files
+        //    at once. But it does not provide a way to specify the highlighted lines per file. The same
+        //    lines are highlighted in all files and it is not fit to hgrep use case.
+        // 3. To avoid 1. and 2., we created `bat::PrettyPrinter` instance per `BatPrinter::print()` call.
+        //    It worked but is very slow. It is 3.3x slower than current implementation. See commit
+        //    8655b801b40f8b3f7d4d343cae185604fa918d5b for more details.
+
         let mut config = self.config.clone();
 
         let mut styles = Vec::with_capacity(4);
