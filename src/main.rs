@@ -1,21 +1,15 @@
 use anyhow::Result;
 use bat::assets::HighlightingAssets;
 use clap::{App, AppSettings, Arg};
+use hgrep::grep::BufReadExt;
+use hgrep::printer::{BatPrinter, Printer};
 use std::cmp;
 use std::env;
 use std::io;
 use std::process;
 
-mod chunk;
-mod grep;
-mod printer;
 #[cfg(feature = "ripgrep")]
-mod ripgrep;
-#[cfg(test)]
-mod test;
-
-use grep::BufReadExt;
-use printer::{BatPrinter, Printer};
+use hgrep::ripgrep;
 
 fn cli<'a>() -> App<'a> {
     let app = App::new("hgrep")

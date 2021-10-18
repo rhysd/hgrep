@@ -27,6 +27,10 @@ include = [
 categories = ["command-line-utilities", "text-processing"]
 keywords = ["grep", "search", "syntax-highlighting", "ripgrep", "bat"]
 
+[[bin]]
+name = "hgrep"
+path = "src/main.rs"
+
 [features]
 default = ["ripgrep"]
 ripgrep = [
