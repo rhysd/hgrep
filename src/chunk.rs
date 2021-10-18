@@ -1,5 +1,6 @@
 use crate::grep::Match;
 use anyhow::Result;
+use memchr::{memchr_iter, Memchr};
 use std::cmp;
 use std::fs;
 use std::iter::Peekable;
@@ -43,6 +44,50 @@ impl<I: Iterator> Files<I> {
 }
 
 struct Line<'a>(&'a [u8], u64);
+struct Lines<'a> {
+    lnum: usize,
+    prev: usize,
+    buf: &'a [u8],
+    iter: Memchr<'a>,
+}
+impl<'a> Lines<'a> {
+    fn new(buf: &'a [u8]) -> Self {
+        Self {
+            lnum: 1,
+            prev: 0,
+            buf,
+            iter: memchr_iter(b'\n', buf),
+        }
+    }
+}
+impl<'a> Iterator for Lines<'a> {
+    type Item = Line<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(idx) = self.iter.next() {
+            let lnum = self.lnum;
+            let end = idx + 1;
+            let mut line = &self.buf[self.prev..end - 1];
+            if line.ends_with(b"\r") {
+                line = &line[..line.len() - 1];
+            }
+            self.prev = end;
+            self.lnum += 1;
+            Some(Line(line, lnum as u64))
+        } else if self.prev == self.buf.len() {
+            None
+        } else {
+            let mut line = &self.buf[self.prev..];
+            if line.ends_with(b"\n") {
+                line = &line[..line.len() - 1];
+            }
+            if line.ends_with(b"\r") {
+                line = &line[..line.len() - 1];
+            }
+            self.prev = self.buf.len();
+            Some(Line(line, self.lnum as u64))
+        }
+    }
+}
 
 impl<I: Iterator<Item = Result<Match>>> Files<I> {
     fn calculate_chunk_range<'contents>(
@@ -114,18 +159,7 @@ impl<I: Iterator<Item = Result<Match>>> Iterator for Files<I> {
             }
         };
         // Assumes that matched lines are sorted by source location
-        let mut lines = contents
-            .split_inclusive(|b| *b == b'\n')
-            .enumerate()
-            .map(|(n, mut l)| {
-                if l.ends_with(&[b'\n']) {
-                    l = &l[..l.len() - 1];
-                }
-                if l.ends_with(&[b'\r']) {
-                    l = &l[..l.len() - 1]; // \r\n
-                }
-                Line(l, n as u64 + 1)
-            });
+        let mut lines = Lines::new(&contents);
         let mut lnums = vec![line_number];
         let mut chunks = Vec::new();
 
