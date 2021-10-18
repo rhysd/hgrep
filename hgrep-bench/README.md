@@ -1,6 +1,13 @@
 Benchmarks
 ==========
 
+## Prerequisites
+
+[npm][] is necessary since we use:
+
+- `package-lock.json` as example for large file
+- `node_modules` black hole as example for large directory
+
 ## Run benchmarks
 
 ```sh
@@ -31,3 +38,4 @@ critcmp base change
 ```
 
 [critcmp]: https://github.com/BurntSushi/critcmp
+[npm]: https://www.npmjs.com/

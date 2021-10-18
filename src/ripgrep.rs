@@ -46,6 +46,12 @@ pub struct Config<'main> {
 }
 
 impl<'main> Config<'main> {
+    pub fn new(min: u64, max: u64) -> Self {
+        let mut config = Self::default();
+        config.min_context(min).max_context(max);
+        config
+    }
+
     pub fn min_context(&mut self, num: u64) -> &mut Self {
         self.min_context = num;
         self
@@ -507,8 +513,7 @@ mod tests {
             let pat = r"\*$";
             let file = dir.join(format!("{}.in", input));
             let paths = iter::once(OsStr::new(&file));
-            let mut config = Config::default();
-            config.min_context(3).max_context(6);
+            let mut config = Config::new(3, 6);
             if cfg!(target_os = "windows") {
                 config.crlf(true);
             }
@@ -536,8 +541,7 @@ mod tests {
 
         let printer = DummyPrinter::default();
         let pat = r"\*$";
-        let mut config = Config::default();
-        config.min_context(3).max_context(6);
+        let mut config = Config::new(3, 6);
         if cfg!(target_os = "windows") {
             config.crlf(true);
         }
@@ -565,8 +569,7 @@ mod tests {
         let paths = iter::once(path.as_os_str());
         let printer = DummyPrinter::default();
         let pat = "^this does not match to any line!!!!!!$";
-        let mut config = Config::default();
-        config.min_context(3).max_context(6);
+        let mut config = Config::new(3, 6);
         if cfg!(target_os = "windows") {
             config.crlf(true);
         }
@@ -587,8 +590,7 @@ mod tests {
             let paths = iter::once(path.as_os_str());
             let printer = DummyPrinter::default();
             let pat = ".*";
-            let mut config = Config::default();
-            config.min_context(3).max_context(6);
+            let mut config = Config::new(3, 6);
             if cfg!(target_os = "windows") {
                 config.crlf(true);
             }
@@ -609,8 +611,7 @@ mod tests {
         let path = Path::new("testdata").join("chunk").join("single_max.in");
         let paths = iter::once(path.as_os_str());
         let pat = ".*";
-        let mut config = Config::default();
-        config.min_context(3).max_context(6);
+        let mut config = Config::new(3, 6);
         if cfg!(target_os = "windows") {
             config.crlf(true);
         }

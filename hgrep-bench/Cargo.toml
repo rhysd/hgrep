@@ -17,3 +17,7 @@ criterion = "0.3"
 [[bench]]
 name = "chunk"
 harness = false
+
+[[bench]]
+name = "ripgrep"
+harness = false

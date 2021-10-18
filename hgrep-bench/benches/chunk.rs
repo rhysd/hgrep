@@ -48,16 +48,15 @@ fn testdata_dir(c: &mut Criterion) {
 }
 
 fn large_file(c: &mut Criterion) {
-    const FILE: &str = "large.txt";
     let mut buf_per_10_lines = String::new();
     let mut buf_per_100_lines = String::new();
     let mut buf_per_1000_lines = String::new();
-    let mut buf_per_5000_lines = String::new();
-    let contents = match fs::read_to_string(FILE) {
+    let mut buf_per_3000_lines = String::new();
+    let contents = match fs::read_to_string("package-lock.json") {
         Ok(s) => s,
         Err(err) => panic!(
-            "put large file as {:?} at root of hgrep-bench directory: {}",
-            FILE, err,
+            "put large file as \"package-lock.json\" at root of hgrep-bench directory by `npm install`: {}",
+            err,
         ),
     };
     for (idx, line) in contents.lines().enumerate() {
@@ -65,7 +64,7 @@ fn large_file(c: &mut Criterion) {
         if n % 10 != 0 {
             continue;
         }
-        let input = format!("{}:{}:{}\n", FILE, n, line);
+        let input = format!("pacakge-lock.json:{}:{}\n", n, line);
         buf_per_10_lines += &input;
 
         if n % 100 == 0 {
@@ -74,14 +73,14 @@ fn large_file(c: &mut Criterion) {
         if n % 1000 == 0 {
             buf_per_1000_lines += &input;
         }
-        if n % 5000 == 0 {
-            buf_per_5000_lines += &input;
+        if n % 3000 == 0 {
+            buf_per_3000_lines += &input;
         }
     }
     let data_per_10_lines = buf_per_10_lines.into_bytes();
     let data_per_100_lines = buf_per_100_lines.into_bytes();
     let data_per_1000_lines = buf_per_1000_lines.into_bytes();
-    let data_per_5000_lines = buf_per_5000_lines.into_bytes();
+    let data_per_3000_lines = buf_per_3000_lines.into_bytes();
 
     c.bench_function("large_file_per_10_lines", |b| {
         b.iter(|| black_box(count_chunks(&data_per_10_lines, 2, 4)))
@@ -92,8 +91,8 @@ fn large_file(c: &mut Criterion) {
     c.bench_function("large_file_per_1000_lines", |b| {
         b.iter(|| black_box(count_chunks(&data_per_1000_lines, 2, 4)))
     });
-    c.bench_function("large_file_per_5000_lines", |b| {
-        b.iter(|| black_box(count_chunks(&data_per_5000_lines, 2, 4)))
+    c.bench_function("large_file_per_3000_lines", |b| {
+        b.iter(|| black_box(count_chunks(&data_per_3000_lines, 2, 4)))
     });
 }
 
