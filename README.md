@@ -123,6 +123,7 @@ functionalities, use `rg` command and eat its output by hgrep via stdin. Current
 ### Change color theme and layout
 
 Default color theme is `Monokai Extended` respecting `bat` command's default. Other theme can be specified via `--theme` option.
+To know names of themes, try `--list-themes` flag.
 
 ```sh
 grep -nH ... | hgrep --theme Nord
@@ -152,7 +153,7 @@ export BAT_STYLE=numbers
 - Common options
   - `--min-context NUM` (`-c`): Minimum lines of leading and trailing context surrounding each match. Default value is 5
   - `--max-context NUM` (`-C`): Maximum lines of leading and trailing context surrounding each match. Default value is 10
-  - `--no-grid` (`-G`): Remove border lines for more compact output
+  - `--no-grid` (`-G`): Remove border lines for more compact output. `--grid` flag is an opposite of this flag
   - `--tab NUM`: Number of spaces for tab character. Set 0 to pass tabs through. Default value is 4
   - `--theme THEME`: Theme for syntax highlighting. Default value is the same as `bat` command
   - `--list-themes`: List all theme names available for --theme option
@@ -186,7 +187,7 @@ Shell completion script for `hgrep` command is available. `--generate-completion
 prints it to stdout. [Bash][bash], [Zsh][zsh], [Fish][fish], [PowerShell][pwsh], [Elvish][elvish] are supported. See `--help` for
 argument of the option.
 
-This is example to setup the script completion script on Zsh.
+This is an example to setup the completion script on Zsh.
 
 ```sh
 # Let's say we set comps=~/.zsh/site-functions

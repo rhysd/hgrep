@@ -52,6 +52,11 @@ fn cli<'a>() -> App<'a> {
                 .about("Remove border lines for more compact output"),
         )
         .arg(
+            Arg::new("grid")
+                .long("grid")
+                .about("Add border lines to output. This flag is an opposite of --no-grid"),
+        )
+        .arg(
             Arg::new("tab")
                 .long("tab")
                 .takes_value(true)
@@ -64,7 +69,7 @@ fn cli<'a>() -> App<'a> {
                 .long("theme")
                 .takes_value(true)
                 .value_name("THEME")
-                .about("Theme for syntax highlighting"),
+                .about("Theme for syntax highlighting. Use --list-themes flag to print the theme list"),
         )
         .arg(
             Arg::new("list-themes")
@@ -298,7 +303,7 @@ fn app() -> Result<bool> {
     if let Ok("plain" | "header" | "numbers") = env::var("BAT_STYLE").as_ref().map(String::as_str) {
         printer.no_grid();
     }
-    if matches.is_present("no-grid") {
+    if matches.is_present("no-grid") && !matches.is_present("grid") {
         printer.no_grid();
     }
 
