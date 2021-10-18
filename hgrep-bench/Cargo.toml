@@ -5,6 +5,9 @@ edition = "2018"
 publish = false
 license = "MIT"
 
+[lib]
+bench = false
+
 [dependencies]
 hgrep = { path = ".." }
 
