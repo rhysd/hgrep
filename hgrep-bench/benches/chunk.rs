@@ -26,7 +26,7 @@ fn count_chunks(data: &[u8], min: u64, max: u64) -> usize {
         let f = f.unwrap();
         assert!(!f.line_numbers.is_empty());
         assert!(!f.chunks.is_empty());
-        total += 1;
+        total += f.chunks.len();
     }
     total
 }
@@ -49,7 +49,10 @@ fn testdata_dir(c: &mut Criterion) {
 
 fn large_file(c: &mut Criterion) {
     const FILE: &str = "large.txt";
-    let mut buf = String::new();
+    let mut buf_per_10_lines = String::new();
+    let mut buf_per_100_lines = String::new();
+    let mut buf_per_1000_lines = String::new();
+    let mut buf_per_5000_lines = String::new();
     let contents = match fs::read_to_string(FILE) {
         Ok(s) => s,
         Err(err) => panic!(
@@ -57,16 +60,41 @@ fn large_file(c: &mut Criterion) {
             FILE, err,
         ),
     };
-    // Match per 10 lines
     for (idx, line) in contents.lines().enumerate() {
         let n = idx + 1;
-        if n % 10 == 0 {
-            buf += &format!("{}:{}:{}\n", FILE, n, line);
+        if n % 10 != 0 {
+            continue;
+        }
+        let input = format!("{}:{}:{}\n", FILE, n, line);
+        buf_per_10_lines += &input;
+
+        if n % 100 == 0 {
+            buf_per_100_lines += &input;
+        }
+        if n % 1000 == 0 {
+            buf_per_1000_lines += &input;
+        }
+        if n % 5000 == 0 {
+            buf_per_5000_lines += &input;
         }
     }
-    let data = buf.into_bytes();
+    let data_per_10_lines = buf_per_10_lines.into_bytes();
+    let data_per_100_lines = buf_per_100_lines.into_bytes();
+    let data_per_1000_lines = buf_per_1000_lines.into_bytes();
+    let data_per_5000_lines = buf_per_5000_lines.into_bytes();
 
-    c.bench_function(FILE, |b| b.iter(|| black_box(count_chunks(&data, 2, 4))));
+    c.bench_function("large_file_per_10_lines", |b| {
+        b.iter(|| black_box(count_chunks(&data_per_10_lines, 2, 4)))
+    });
+    c.bench_function("large_file_per_100_lines", |b| {
+        b.iter(|| black_box(count_chunks(&data_per_100_lines, 2, 4)))
+    });
+    c.bench_function("large_file_per_1000_lines", |b| {
+        b.iter(|| black_box(count_chunks(&data_per_1000_lines, 2, 4)))
+    });
+    c.bench_function("large_file_per_5000_lines", |b| {
+        b.iter(|| black_box(count_chunks(&data_per_5000_lines, 2, 4)))
+    });
 }
 
 criterion_group!(chunk, testdata_dir, large_file);
