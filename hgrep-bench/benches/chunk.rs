@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use hgrep::grep::BufReadExt;
 use std::fs;
 use std::path::Path;
@@ -19,45 +19,55 @@ fn prepare() -> Vec<u8> {
     buf.into_bytes()
 }
 
-fn read_chunk_testdata(c: &mut Criterion) {
+#[inline]
+fn count_chunks(data: &[u8], min: u64, max: u64) -> usize {
+    let mut total = 0;
+    for f in data.grep_lines().chunks_per_file(min, max) {
+        let f = f.unwrap();
+        assert!(!f.line_numbers.is_empty());
+        assert!(!f.chunks.is_empty());
+        total += 1;
+    }
+    total
+}
+
+fn testdata_dir(c: &mut Criterion) {
     let data = prepare();
     c.bench_function("min_1_max_1", |b| {
-        b.iter(|| {
-            for f in data.grep_lines().chunks_per_file(1, 1) {
-                let f = f.unwrap();
-                assert!(!f.line_numbers.is_empty());
-                assert!(!f.chunks.is_empty());
-            }
-        })
+        b.iter(|| black_box(count_chunks(&data, 1, 1)))
     });
     c.bench_function("min_3_max_6", |b| {
-        b.iter(|| {
-            for f in data.grep_lines().chunks_per_file(3, 6) {
-                let f = f.unwrap();
-                assert!(!f.line_numbers.is_empty());
-                assert!(!f.chunks.is_empty());
-            }
-        })
+        b.iter(|| black_box(count_chunks(&data, 3, 6)))
     });
     c.bench_function("min_6_max_12", |b| {
-        b.iter(|| {
-            for f in data.grep_lines().chunks_per_file(6, 12) {
-                let f = f.unwrap();
-                assert!(!f.line_numbers.is_empty());
-                assert!(!f.chunks.is_empty());
-            }
-        })
+        b.iter(|| black_box(count_chunks(&data, 6, 12)))
     });
     c.bench_function("min_5_max_5", |b| {
-        b.iter(|| {
-            for f in data.grep_lines().chunks_per_file(5, 5) {
-                let f = f.unwrap();
-                assert!(!f.line_numbers.is_empty());
-                assert!(!f.chunks.is_empty());
-            }
-        })
+        b.iter(|| black_box(count_chunks(&data, 5, 5)))
     });
 }
 
-criterion_group!(chunk, read_chunk_testdata);
+fn large_file(c: &mut Criterion) {
+    const FILE: &str = "large.txt";
+    let mut buf = String::new();
+    let contents = match fs::read_to_string(FILE) {
+        Ok(s) => s,
+        Err(err) => panic!(
+            "put large file as {:?} at root of hgrep-bench directory: {}",
+            FILE, err,
+        ),
+    };
+    // Match per 10 lines
+    for (idx, line) in contents.lines().enumerate() {
+        let n = idx + 1;
+        if n % 10 == 0 {
+            buf += &format!("{}:{}:{}\n", FILE, n, line);
+        }
+    }
+    let data = buf.into_bytes();
+
+    c.bench_function(FILE, |b| b.iter(|| black_box(count_chunks(&data, 2, 4))));
+}
+
+criterion_group!(chunk, testdata_dir, large_file);
 criterion_main!(chunk);
