@@ -62,6 +62,11 @@ Let's say we're releasing v1.2.3.
    git push
    ```
 
+## Benchmarking
+
+Benchmarks are put in [a separate crate](./hgrep-bench) to avoid adding criterion as test dependencies. To run benchmarks,
+see [the benchmark README file](./hgrep-bench/README.md).
+
 [new-issue]: https://github.com/rhysd/hgrep/issues/new
 [new-pr]: https://github.com/rhysd/hgrep/pulls
 [clippy]: https://github.com/rust-lang/rust-clippy

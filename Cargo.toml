@@ -56,3 +56,8 @@ ignore = { version = "0.4", optional = true }
 regex = { version = "1", optional = true }
 grep-matcher = { version = "0.1.5", optional = true }
 grep-pcre2 = { version = "0.1.5", optional = true }
+
+[workspace]
+members = [
+    "hgrep-bench",
+]

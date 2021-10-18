@@ -1,0 +1,16 @@
+[package]
+name = "hgrep-bench"
+version = "0.0.0"
+edition = "2018"
+publish = false
+license = "MIT"
+
+[dependencies]
+hgrep = { path = ".." }
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "chunk"
+harness = false
