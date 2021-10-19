@@ -1,3 +1,15 @@
+<a name="v0.1.3"></a>
+# [v0.1.3](https://github.com/rhysd/batgrep/releases/tag/v0.1.3) - 19 Oct 2021
+
+- Heuristics on calculating context lines is 1.3x faster by using optimized [memchr](https://docs.rs/memchr/2.4.1/memchr/) implementation
+- [Homebrew](http://brew.sh/) is now supported for managing `hgrep` command on macOS or Linux. See [the installation instruction](https://github.com/rhysd/hgrep#via-homebrew) for more details
+- Add `--grid` flag as an opposite of `--no-grid` flag
+- Add [CONTRIBUTING.md](https://github.com/rhysd/hgrep/blob/main/CONTRIBUTING.md) which describes the development of this project
+- (Dev) Add [some benchmark suites](https://github.com/rhysd/hgrep/tree/main/hgrep-bench) for each parts of this program to track performance
+
+[Changes][v0.1.3]
+
+
 <a name="v0.1.2"></a>
 # [v0.1.2](https://github.com/rhysd/batgrep/releases/tag/v0.1.2) - 17 Oct 2021
 
@@ -19,6 +31,7 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [Changes][v0.1.1]
 
 
+[v0.1.3]: https://github.com/rhysd/batgrep/compare/v0.1.2...v0.1.3
 [v0.1.2]: https://github.com/rhysd/batgrep/compare/v0.1.1...v0.1.2
 [v0.1.1]: https://github.com/rhysd/batgrep/tree/v0.1.1
 
