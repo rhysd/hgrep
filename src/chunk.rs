@@ -48,15 +48,15 @@ impl<I: Iterator> Files<I> {
     }
 }
 
-struct Line<'a>(&'a [u8], u64);
-struct Lines<'a> {
+pub struct Line<'a>(pub &'a [u8], pub u64);
+pub struct Lines<'a> {
     lnum: usize,
     prev: usize,
     buf: &'a [u8],
     iter: Memchr<'a>,
 }
 impl<'a> Lines<'a> {
-    fn new(buf: &'a [u8]) -> Self {
+    pub fn new(buf: &'a [u8]) -> Self {
         Self {
             lnum: 1,
             prev: 0,

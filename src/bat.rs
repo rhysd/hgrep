@@ -1,5 +1,5 @@
 use crate::chunk::File;
-use crate::printer::Printer;
+use crate::printer::{Printer, PrinterOptions};
 use anyhow::{Error, Result};
 use bat::assets::HighlightingAssets;
 use bat::config::{Config, VisibleLines};
@@ -13,14 +13,14 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 #[derive(Debug)]
-pub struct PrintError {
+pub struct BatPrintError {
     path: PathBuf,
     cause: Option<String>,
 }
 
-impl std::error::Error for PrintError {}
+impl std::error::Error for BatPrintError {}
 
-impl fmt::Display for PrintError {
+impl fmt::Display for BatPrintError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Could not print file {:?}", &self.path)?;
         if let Some(cause) = &self.cause {
@@ -38,39 +38,41 @@ pub struct BatPrinter<'main> {
 }
 
 impl<'main> BatPrinter<'main> {
-    pub fn new() -> Self {
-        let styles = &[
-            StyleComponent::LineNumbers,
-            StyleComponent::Snip,
-            StyleComponent::Header,
-            StyleComponent::Grid,
-        ];
-        let config = Config {
+    pub fn new(opts: PrinterOptions<'main>) -> Self {
+        let styles = if opts.grid {
+            &[
+                StyleComponent::LineNumbers,
+                StyleComponent::Snip,
+                StyleComponent::Header,
+                StyleComponent::Grid,
+            ][..]
+        } else {
+            &[
+                StyleComponent::LineNumbers,
+                StyleComponent::Snip,
+                StyleComponent::Header,
+            ][..]
+        };
+
+        let mut config = Config {
             colored_output: true,
             true_color: true,
             term_width: Term::stdout().size().1 as usize,
             style_components: StyleComponents::new(styles),
+            tab_width: opts.tab_width,
             ..Default::default()
         };
+
+        if let Some(theme) = &opts.theme {
+            config.theme = theme.to_string();
+        }
+
         Self {
-            grid: true,
+            grid: opts.grid,
             assets: HighlightingAssets::from_binary(),
             config,
             print_mutex: Mutex::new(()),
         }
-    }
-
-    pub fn tab_width(&mut self, width: usize) {
-        self.config.tab_width = width;
-    }
-
-    pub fn theme(&mut self, theme: &str) {
-        self.config.theme = theme.to_string();
-    }
-
-    pub fn no_grid(&mut self) {
-        self.grid = false;
-        self.config.style_components.0.remove(&StyleComponent::Grid);
     }
 
     pub fn themes(&self) -> impl Iterator<Item = &str> {
@@ -78,7 +80,7 @@ impl<'main> BatPrinter<'main> {
     }
 }
 
-impl<'a> Printer for BatPrinter<'a> {
+impl<'main> Printer for BatPrinter<'main> {
     fn print(&self, file: File) -> Result<()> {
         if file.chunks.is_empty() || file.line_numbers.is_empty() {
             return Ok(()); // Ensure to print some match
@@ -131,11 +133,11 @@ impl<'a> Printer for BatPrinter<'a> {
         // XXX: bat's Error type cannot be converted to anyhow::Error since it does not implement Sync
         match controller.run(vec![input]) {
             Ok(true) => Ok(()),
-            Ok(false) => Err(Error::new(PrintError {
+            Ok(false) => Err(Error::new(BatPrintError {
                 path: file.path,
                 cause: None,
             })),
-            Err(err) => Err(Error::new(PrintError {
+            Err(err) => Err(Error::new(BatPrintError {
                 path: file.path,
                 cause: Some(format!("{}", err)),
             })),

@@ -637,6 +637,7 @@ dependencies = [
  "pathdiff",
  "rayon",
  "regex",
+ "syntect",
 ]
 
 [[package]]

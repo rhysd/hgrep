@@ -10,6 +10,7 @@ use ignore::overrides::OverrideBuilder;
 use ignore::types::{Types, TypesBuilder};
 use ignore::{WalkBuilder, WalkParallel, WalkState};
 use rayon::prelude::*;
+use std::env;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io;
@@ -324,10 +325,17 @@ impl<'main> Config<'main> {
 pub fn grep<'main, P: Printer + Sync>(
     printer: P,
     pat: &str,
-    paths: impl Iterator<Item = &'main OsStr>,
+    paths: Option<impl Iterator<Item = &'main OsStr>>,
     config: Config<'main>,
 ) -> Result<bool> {
-    let paths = walk(paths, &config)?;
+    let paths = if let Some(paths) = paths {
+        walk(paths, &config)?
+    } else {
+        let cwd = env::current_dir()?;
+        let paths = std::iter::once(cwd.as_os_str());
+        walk(paths, &config)?
+    };
+
     if paths.is_empty() {
         return Ok(false);
     }
@@ -517,7 +525,7 @@ mod tests {
                 config.crlf(true);
             }
 
-            let found = grep(&printer, pat, paths, config).unwrap();
+            let found = grep(&printer, pat, Some(paths), config).unwrap();
 
             let expected = read_expected_chunks(&dir, input)
                 .map(|f| vec![f])
@@ -550,7 +558,7 @@ mod tests {
             .collect::<Vec<_>>();
         let paths = paths.iter().map(AsRef::as_ref);
 
-        let found = grep(&printer, pat, paths, config).unwrap();
+        let found = grep(&printer, pat, Some(paths), config).unwrap();
 
         let mut got = printer.0.into_inner().unwrap();
         got.sort_by(|a, b| a.path.cmp(&b.path));
@@ -572,7 +580,7 @@ mod tests {
         if cfg!(target_os = "windows") {
             config.crlf(true);
         }
-        let found = grep(&printer, pat, paths, config).unwrap();
+        let found = grep(&printer, pat, Some(paths), config).unwrap();
         let files = printer.0.into_inner().unwrap();
         assert!(!found, "result: {:?}", files);
         assert!(files.is_empty(), "result: {:?}", files);
@@ -593,7 +601,7 @@ mod tests {
             if cfg!(target_os = "windows") {
                 config.crlf(true);
             }
-            grep(&printer, pat, paths, config).unwrap_err();
+            grep(&printer, pat, Some(paths), config).unwrap_err();
             assert!(printer.0.into_inner().unwrap().is_empty());
         }
     }
@@ -614,7 +622,7 @@ mod tests {
         if cfg!(target_os = "windows") {
             config.crlf(true);
         }
-        let err = grep(ErrorPrinter, pat, paths, config).unwrap_err();
+        let err = grep(ErrorPrinter, pat, Some(paths), config).unwrap_err();
         let msg = format!("{}", err);
         assert_eq!(msg, "dummy error");
     }
