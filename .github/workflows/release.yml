@@ -3,6 +3,8 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]'
+  # Currently only dry-run is supported
+  workflow_dispatch:
 
 jobs:
   upload:
@@ -28,7 +30,11 @@ jobs:
       - id: info
         # $GITHUB_REF will have a value like "refs/tags/0.3.1". Extract "0.3.1" from it
         run: |
-          ver="${GITHUB_REF##refs/tags/}"
+          if ${{ github.event_name == 'workflow_dispatch' }}; then
+            ver="v0.0.0"
+          else
+            ver="${GITHUB_REF##refs/tags/}"
+          fi
           echo "::set-output name=version::${ver}"
           echo "::set-output name=asset_dir::hgrep-${ver}-${TARGET}"
           echo "::set-output name=zip::hgrep-${ver}-${TARGET}.zip"
@@ -70,6 +76,7 @@ jobs:
           draft: false
           prerelease: false
           files: ${{ steps.info.outputs.zip }}
+        if: ${{ github.event_name != 'workflow_dispatch' }}
   homebrew:
     name: Update Homebrew formula
     needs: [upload]
@@ -87,3 +94,4 @@ jobs:
           git -c user.email='41898282+github-actions[bot]@users.noreply.github.com' -c user.name='github-actions[bot]' commit -m "Homebrew formula to ${{ needs.upload.outputs.version }}"
           git log -n 1
           git push
+        if: ${{ github.event_name != 'workflow_dispatch' }}
