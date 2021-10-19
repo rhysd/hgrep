@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{App, AppSettings, Arg};
+use clap::{App, Arg};
 use hgrep::grep::BufReadExt;
 use hgrep::printer::{BatPrinter, Printer};
 use std::cmp;
@@ -19,7 +19,6 @@ fn cli<'a>() -> App<'a> {
             $ grep -nH pattern -R . | hgrep\n\n\
             For more details, visit https://github.com/rhysd/hgrep"
         )
-        .global_setting(AppSettings::ColoredHelp)
         .arg(
             Arg::new("min-context")
                 .short('c')
@@ -239,11 +238,11 @@ fn generate_completion_script(shell: &str) -> Result<()> {
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
     match shell.to_lowercase().as_str() {
-        "bash" => generate::<Bash, _>(&mut app, "hgrep", &mut stdout),
-        "zsh" => generate::<Zsh, _>(&mut app, "hgrep", &mut stdout),
-        "powershell" => generate::<PowerShell, _>(&mut app, "hgrep", &mut stdout),
-        "fish" => generate::<Fish, _>(&mut app, "hgrep", &mut stdout),
-        "elvish" => generate::<Elvish, _>(&mut app, "hgrep", &mut stdout),
+        "bash" => generate(Bash, &mut app, "hgrep", &mut stdout),
+        "zsh" => generate(Zsh, &mut app, "hgrep", &mut stdout),
+        "powershell" => generate(PowerShell, &mut app, "hgrep", &mut stdout),
+        "fish" => generate(Fish, &mut app, "hgrep", &mut stdout),
+        "elvish" => generate(Elvish, &mut app, "hgrep", &mut stdout),
         s => anyhow::bail!("Unknown shell '{}'. Supported shells are 'bash', 'zsh', 'powershell', 'fish', or 'elvish'", s),
     }
     Ok(())
