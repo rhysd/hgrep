@@ -7,6 +7,7 @@ use std::iter::Peekable;
 use std::path::PathBuf;
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
+#[derive(Clone)]
 pub struct File {
     pub path: PathBuf,
     pub line_numbers: Box<[u64]>,

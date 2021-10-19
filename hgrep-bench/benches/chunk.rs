@@ -64,7 +64,7 @@ fn large_file(c: &mut Criterion) {
         if n % 10 != 0 {
             continue;
         }
-        let input = format!("pacakge-lock.json:{}:{}\n", n, line);
+        let input = format!("package-lock.json:{}:{}\n", n, line);
         buf_per_10_lines += &input;
 
         if n % 100 == 0 {
