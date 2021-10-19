@@ -9,6 +9,7 @@ use bat::style::{StyleComponent, StyleComponents};
 use console::Term;
 use std::fmt;
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 #[derive(Debug)]
 pub struct PrintError {
@@ -37,6 +38,7 @@ pub struct BatPrinter<'main> {
     grid: bool,
     config: Config<'main>,
     assets: HighlightingAssets,
+    print_mutex: Mutex<()>,
 }
 
 impl<'main> BatPrinter<'main> {
@@ -58,6 +60,7 @@ impl<'main> BatPrinter<'main> {
             grid: true,
             assets: HighlightingAssets::from_binary(),
             config,
+            print_mutex: Mutex::new(()),
         }
     }
 
@@ -126,6 +129,8 @@ impl<'a> Printer for BatPrinter<'a> {
         }
 
         let controller = Controller::new(&config, &self.assets);
+        let _lock = self.print_mutex.lock().unwrap(); // Serialize printing results not to mess up stdout
+
         // Note: controller.run() returns true when no error
         // XXX: bat's Error type cannot be converted to anyhow::Error since it does not implement Sync
         match controller.run(vec![input]) {

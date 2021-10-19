@@ -321,7 +321,7 @@ impl<'main> Config<'main> {
     }
 }
 
-pub fn grep<'main, P: Printer + Send>(
+pub fn grep<'main, P: Printer + Sync>(
     printer: P,
     pat: &str,
     paths: impl Iterator<Item = &'main OsStr>,
@@ -400,20 +400,20 @@ impl<'a> Sink for Matches<'a> {
     }
 }
 
-struct Ripgrep<'main, M: Matcher, P: Printer + Send> {
+struct Ripgrep<'main, M: Matcher, P: Printer> {
     config: Config<'main>,
     matcher: M,
     count: Option<Mutex<u64>>,
-    printer: Mutex<P>,
+    printer: P,
 }
 
-impl<'main, P: Printer + Send> Ripgrep<'main, RegexMatcher, P> {
+impl<'main, P: Printer + Sync> Ripgrep<'main, RegexMatcher, P> {
     fn with_regex(pat: &str, config: Config<'main>, printer: P) -> Result<Self> {
         Ok(Self::new(config.build_regex_matcher(pat)?, config, printer))
     }
 }
 
-impl<'main, P: Printer + Send> Ripgrep<'main, Pcre2Matcher, P> {
+impl<'main, P: Printer + Sync> Ripgrep<'main, Pcre2Matcher, P> {
     fn with_pcre2(pat: &str, config: Config<'main>, printer: P) -> Result<Self> {
         Ok(Self::new(config.build_pcre2_matcher(pat)?, config, printer))
     }
@@ -422,13 +422,13 @@ impl<'main, P: Printer + Send> Ripgrep<'main, Pcre2Matcher, P> {
 impl<'main, M, P> Ripgrep<'main, M, P>
 where
     M: Matcher + Sync,
-    P: Printer + Send,
+    P: Printer + Sync,
 {
     fn new(matcher: M, config: Config<'main>, printer: P) -> Self {
         Self {
             count: config.max_count.map(Mutex::new),
             matcher,
-            printer: Mutex::new(printer),
+            printer,
             config,
         }
     }
@@ -453,11 +453,10 @@ where
 
     fn grep_file(&self, path: PathBuf) -> Result<bool> {
         let matches = self.search(path)?;
-        let printer = self.printer.lock().unwrap();
         let (min, max) = (self.config.min_context, self.config.max_context);
         let mut found = false;
         for file in Files::new(matches.into_iter().map(Ok), min, max) {
-            printer.print(file?)?;
+            self.printer.print(file?)?;
             found = true;
         }
         Ok(found)
