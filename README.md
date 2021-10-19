@@ -56,6 +56,15 @@ brew tap "rhysd/hgrep" "https://github.com/rhysd/hgrep"
 brew install hgrep
 ```
 
+### Via [MacPorts][macports]
+
+On macOS, you can install `hgrep` with the following commands through MacPorts:
+
+```sh
+sudo port selfupdate
+sudo port install hgrep
+```
+
 ### Via [cargo][] package manager
 
 ```sh
@@ -260,4 +269,5 @@ hgrep is distributed under [the MIT license](./LICENSE.txt).
 [pwsh]: https://docs.microsoft.com/en-us/powershell/
 [elvish]: https://elv.sh/
 [homebrew]: https://brew.sh/
+[macports]: https://www.macports.org/
 [new-issue]: https://github.com/rhysd/hgrep/issues/new
