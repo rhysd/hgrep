@@ -1,7 +1,8 @@
 use anyhow::Result;
 use clap::{App, Arg};
+use hgrep::bat::BatPrinter;
 use hgrep::grep::BufReadExt;
-use hgrep::printer::{BatPrinter, Printer};
+use hgrep::printer::Printer;
 use std::cmp;
 use std::env;
 use std::io;

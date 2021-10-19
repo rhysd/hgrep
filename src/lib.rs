@@ -1,5 +1,6 @@
 #![allow(clippy::new_without_default)]
 
+pub mod bat;
 pub mod chunk;
 pub mod grep;
 pub mod printer;
