@@ -12,6 +12,16 @@ if [[ "$1" == "" || "$1" == "-h" || "$1" == "--help" ]]; then
     exit 1
 fi
 
+
+case "$OSTYPE" in
+    darwin*|freebsd*)
+        i_opt="-i ''"
+    ;;
+    *)
+        i_opt="-i"
+    ;;
+esac
+
 cd ./HomebrewFormula
 
 VERSION="$1"
@@ -31,7 +41,7 @@ echo "Downloading ${MAC_ZIP}..."
 curl -LO "$MAC_URL"
 MAC_SHA="$(shasum -a 256 "$MAC_ZIP" | cut -f 1 -d ' ')"
 echo "Mac sha256: ${MAC_SHA}"
-sed -i '' -E "s/    sha256 '[0-9a-f]*' # mac/    sha256 '${MAC_SHA}' # mac/" hgrep.rb
+sed $i_opt -E "s/    sha256 '[0-9a-f]*' # mac/    sha256 '${MAC_SHA}' # mac/" hgrep.rb
 
 
 LINUX_ZIP="hgrep-${VERSION}-x86_64-unknown-linux-gnu.zip"
@@ -41,10 +51,10 @@ echo "Downloading ${LINUX_ZIP}..."
 curl -LO "$LINUX_URL"
 LINUX_SHA="$(shasum -a 256 "$LINUX_ZIP" | cut -f 1 -d ' ')"
 echo "Linux sha256: ${LINUX_SHA}"
-sed -i '' -E "s/    sha256 '[0-9a-f]*' # linux/    sha256 '${LINUX_SHA}' # linux/" hgrep.rb
+sed $i_opt -E "s/    sha256 '[0-9a-f]*' # linux/    sha256 '${LINUX_SHA}' # linux/" hgrep.rb
 
 echo "Version: ${VERSION}"
-sed -i '' -E "s/  version '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*'/  version '${VERSION#v}'/" hgrep.rb
+sed $i_opt -E "s/  version '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*'/  version '${VERSION#v}'/" hgrep.rb
 
 echo "Clean up zip files"
 rm -rf ./*.zip
