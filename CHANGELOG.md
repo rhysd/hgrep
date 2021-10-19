@@ -1,7 +1,15 @@
+<a name="v0.1.4"></a>
+# [v0.1.4](https://github.com/rhysd/batgrep/releases/tag/v0.1.4) - 19 Oct 2021
+
+- Fix compile error on `cargo install` due to new release of `clap` crate v3.0.0-beta.5 (#2)
+
+[Changes][v0.1.4]
+
+
 <a name="v0.1.3"></a>
 # [v0.1.3](https://github.com/rhysd/batgrep/releases/tag/v0.1.3) - 19 Oct 2021
 
-- Heuristics on calculating context lines is 1.3x faster by using optimized [memchr](https://docs.rs/memchr/2.4.1/memchr/) implementation
+- Heuristics on calculating context lines is 1.3x faster by using optimized [memchr](https://docs.rs/memchr/2.4.1/memchr/) implementation when the searched file is large
 - [Homebrew](http://brew.sh/) is now supported for managing `hgrep` command on macOS or Linux. See [the installation instruction](https://github.com/rhysd/hgrep#via-homebrew) for more details
 - Add `--grid` flag as an opposite of `--no-grid` flag
 - Add [CONTRIBUTING.md](https://github.com/rhysd/hgrep/blob/main/CONTRIBUTING.md) which describes the development of this project
@@ -31,6 +39,7 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [Changes][v0.1.1]
 
 
+[v0.1.4]: https://github.com/rhysd/batgrep/compare/v0.1.3...v0.1.4
 [v0.1.3]: https://github.com/rhysd/batgrep/compare/v0.1.2...v0.1.3
 [v0.1.2]: https://github.com/rhysd/batgrep/compare/v0.1.1...v0.1.2
 [v0.1.1]: https://github.com/rhysd/batgrep/tree/v0.1.1
