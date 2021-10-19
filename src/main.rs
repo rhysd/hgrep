@@ -1,5 +1,4 @@
 use anyhow::Result;
-use bat::assets::HighlightingAssets;
 use clap::{App, AppSettings, Arg};
 use hgrep::grep::BufReadExt;
 use hgrep::printer::{BatPrinter, Printer};
@@ -254,14 +253,16 @@ fn app() -> Result<bool> {
     use anyhow::Context;
 
     let matches = cli().get_matches();
-    if matches.is_present("list-themes") {
-        for theme in HighlightingAssets::from_binary().themes() {
-            println!("{}", theme);
-        }
-        return Ok(true);
-    }
     if let Some(shell) = matches.value_of("generate-completion-script") {
         generate_completion_script(shell)?;
+        return Ok(true);
+    }
+
+    let mut printer = BatPrinter::new();
+    if matches.is_present("list-themes") {
+        for theme in printer.themes() {
+            println!("{}", theme);
+        }
         return Ok(true);
     }
 
@@ -276,8 +277,6 @@ fn app() -> Result<bool> {
         .parse()
         .context("could not parse \"max-context\" option value as unsigned integer")?;
     let max_context = cmp::max(min_context, max_context);
-
-    let mut printer = BatPrinter::new();
 
     let tab_width = matches
         .value_of("tab")

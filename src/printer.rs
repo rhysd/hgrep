@@ -73,6 +73,10 @@ impl<'main> BatPrinter<'main> {
         self.grid = false;
         self.config.style_components.0.remove(&StyleComponent::Grid);
     }
+
+    pub fn themes(&self) -> impl Iterator<Item = &str> {
+        self.assets.themes()
+    }
 }
 
 impl<'a> Printer for BatPrinter<'a> {
