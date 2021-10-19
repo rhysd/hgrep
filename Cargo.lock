@@ -633,6 +633,7 @@ dependencies = [
  "grep-searcher",
  "ignore",
  "memchr",
+ "pathdiff",
  "rayon",
  "regex",
 ]
@@ -862,6 +863,12 @@ checksum = "05ef02f6342ac01d8a93b65f96db53fe68a92a15f41144f97fb00a9e669633c3"
 dependencies = [
  "std_prelude",
 ]
+
+[[package]]
+name = "pathdiff"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8835116a5c179084a830efb3adc117ab007512b535bc1a21c991d3b32a6b44dd"
 
 [[package]]
 name = "pcre2"

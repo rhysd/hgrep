@@ -1,7 +1,9 @@
 use crate::grep::Match;
 use anyhow::Result;
 use memchr::{memchr_iter, Memchr};
+use pathdiff::diff_paths;
 use std::cmp;
+use std::env;
 use std::fs;
 use std::iter::Peekable;
 use std::path::PathBuf;
@@ -31,6 +33,7 @@ pub struct Files<I: Iterator> {
     min_context: u64,
     max_context: u64,
     saw_error: bool,
+    cwd: Option<PathBuf>,
 }
 
 impl<I: Iterator> Files<I> {
@@ -40,6 +43,7 @@ impl<I: Iterator> Files<I> {
             min_context,
             max_context,
             saw_error: false,
+            cwd: env::current_dir().ok(),
         }
     }
 }
@@ -132,6 +136,17 @@ impl<I: Iterator<Item = Result<Match>>> Files<I> {
 
         (range_start, range_end)
     }
+
+    fn relative_path(&self, path: PathBuf) -> PathBuf {
+        if !path.is_relative() {
+            if let Some(cwd) = &self.cwd {
+                if let Some(diff) = diff_paths(&path, cwd) {
+                    return diff;
+                }
+            }
+        }
+        path
+    }
 }
 
 impl<I: Iterator<Item = Result<Match>>> Iterator for Files<I> {
@@ -215,6 +230,8 @@ impl<I: Iterator<Item = Result<Match>>> Iterator for Files<I> {
             assert!(lnums.is_empty());
             return None;
         }
+
+        let path = self.relative_path(path);
         Some(Ok(File::new(path, lnums, chunks, contents)))
     }
 }
