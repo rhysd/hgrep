@@ -43,22 +43,14 @@ Let's say we're releasing v1.2.3.
    git tag v1.2.3
    git push origin v1.2.3
    ```
-2. [CI][release-ci] automatically creates a release page and uploads release binaries at [the releases page][releases].
+2. [CI][release-ci] automatically creates a release page, uploads release binaries at [the releases page][releases], and updates
+   [the Homebrew formula][formula] with `HomebrewFormula/update.bash`.
 3. Write up the release note at the release page.
 4. Update changelog by [changelog-from-release][]
    ```sh
    changelog-from-release > CHANGELOG.md
    git add CHANGELOG.md
    git commit -m 'update chagnelog for v1.2.3 changes'
-   ```
-5. Update [the Homebrew formula][formula] by script
-   ```sh
-   ./HomebrewFormula/update.bash v1.2.3
-   git add ./HomebrewFormula/hgrep.rb
-   git commit -m 'update Homebrew formula to v1.2.3'
-   ```
-6. Push the changelog and formula updates
-   ```sh
    git push
    ```
 

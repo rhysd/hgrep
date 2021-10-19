@@ -22,6 +22,8 @@ jobs:
             os: windows-latest
             target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.os }}
+    outputs:
+      version: ${{ steps.info.outputs.version }}
     steps:
       - id: info
         # $GITHUB_REF will have a value like "refs/tags/0.3.1". Extract "0.3.1" from it
@@ -68,3 +70,20 @@ jobs:
           draft: false
           prerelease: false
           files: ${{ steps.info.outputs.zip }}
+  homebrew:
+    name: Update Homebrew formula
+    needs: [upload]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Run update.bash
+        run: ./HomebrewFormula/update.bash ${{ needs.upload.outputs.version }}
+      - name: Push to remote
+        run: |
+          git add ./HomebrewFormula
+          git -c user.email='41898282+github-actions[bot]@users.noreply.github.com' -c user.name='github-actions[bot]' commit -m "Homebrew formula to ${{ needs.upload.outputs.version }}"
+          git log -n 1
+          git push
