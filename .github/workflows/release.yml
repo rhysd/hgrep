@@ -88,6 +88,12 @@ jobs:
           prerelease: false
           files: ${{ steps.info.outputs.zip }}
         if: ${{ github.event_name != 'workflow_dispatch' }}
+      - name: Upload release artifact for dry-run
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ steps.info.outputs.zip }}
+          path: ${{ steps.info.outputs.zip }}
+        if: ${{ github.event_name == 'workflow_dispatch' }}
   homebrew:
     name: Update Homebrew formula
     needs: [upload]
