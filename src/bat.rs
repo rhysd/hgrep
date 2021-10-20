@@ -34,7 +34,6 @@ pub struct BatPrinter<'main> {
     grid: bool,
     config: Config<'main>,
     assets: HighlightingAssets,
-    print_mutex: Mutex<()>,
 }
 
 impl<'main> BatPrinter<'main> {
@@ -71,17 +70,14 @@ impl<'main> BatPrinter<'main> {
             grid: opts.grid,
             assets: HighlightingAssets::from_binary(),
             config,
-            print_mutex: Mutex::new(()),
         }
     }
 
     pub fn themes(&self) -> impl Iterator<Item = &str> {
         self.assets.themes()
     }
-}
 
-impl<'main> Printer for BatPrinter<'main> {
-    fn print(&self, file: File) -> Result<()> {
+    pub fn print(&self, file: File) -> Result<()> {
         if file.chunks.is_empty() || file.line_numbers.is_empty() {
             return Ok(()); // Ensure to print some match
         }
@@ -127,7 +123,6 @@ impl<'main> Printer for BatPrinter<'main> {
         }
 
         let controller = Controller::new(&config, &self.assets);
-        let _lock = self.print_mutex.lock().unwrap(); // Serialize printing results not to mess up stdout
 
         // Note: controller.run() returns true when no error
         // XXX: bat's Error type cannot be converted to anyhow::Error since it does not implement Sync
@@ -142,6 +137,12 @@ impl<'main> Printer for BatPrinter<'main> {
                 cause: Some(format!("{}", err)),
             })),
         }
+    }
+}
+
+impl<'main> Printer for Mutex<BatPrinter<'main>> {
+    fn print(&self, file: File) -> Result<()> {
+        self.lock().unwrap().print(file)
     }
 }
 
@@ -161,24 +162,25 @@ mod tests {
 
     #[test]
     fn test_print_default() {
-        let p = BatPrinter::new();
+        let p = BatPrinter::new(PrinterOptions::default());
         let f = sample_file();
         p.print(f).unwrap();
     }
 
     #[test]
     fn test_print_with_flags() {
-        let mut p = BatPrinter::new();
-        p.tab_width(2);
-        p.theme("Nord");
-        p.no_grid();
+        let mut opts = PrinterOptions::default();
+        opts.tab_width = 2;
+        opts.theme = Some("Nord");
+        opts.grid = false;
+        let mut p = BatPrinter::new(opts);
         let f = sample_file();
         p.print(f).unwrap();
     }
 
     #[test]
     fn test_print_nothing() {
-        let p = BatPrinter::new();
+        let p = BatPrinter::new(PrinterOptions::default());
         let f = File::new(PathBuf::from("x.txt"), vec![], vec![], vec![]);
         p.print(f).unwrap();
     }

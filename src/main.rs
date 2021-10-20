@@ -7,6 +7,7 @@ use std::cmp;
 use std::env;
 use std::io;
 use std::process;
+use std::sync::Mutex;
 
 #[cfg(feature = "ripgrep")]
 use hgrep::ripgrep;
@@ -389,7 +390,7 @@ fn app() -> Result<bool> {
             return ripgrep::grep(printer, pattern, paths, config);
         }
 
-        let printer = BatPrinter::new(printer_opts);
+        let printer = Mutex::new(BatPrinter::new(printer_opts));
         return ripgrep::grep(printer, pattern, paths, config);
     }
 
