@@ -1,7 +1,17 @@
+<a name="v0.1.5"></a>
+# [v0.1.5](https://github.com/rhysd/batgrep/releases/tag/v0.1.5) - 20 Oct 2021
+
+- Always use a relative path in header of output
+- Fix an output is broken due to ANSI color sequence on Windows
+
+[Changes][v0.1.5]
+
+
 <a name="v0.1.4"></a>
 # [v0.1.4](https://github.com/rhysd/batgrep/releases/tag/v0.1.4) - 19 Oct 2021
 
 - Fix compile error on `cargo install` due to new release of `clap` crate v3.0.0-beta.5 (#2)
+- Add how to install `hgrep` command with [MacPorts](https://www.macports.org/). See [the document](https://github.com/rhysd/hgrep#via-macports) for more details (thanks @herbygillot, #1)
 
 [Changes][v0.1.4]
 
@@ -39,6 +49,7 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [Changes][v0.1.1]
 
 
+[v0.1.5]: https://github.com/rhysd/batgrep/compare/v0.1.4...v0.1.5
 [v0.1.4]: https://github.com/rhysd/batgrep/compare/v0.1.3...v0.1.4
 [v0.1.3]: https://github.com/rhysd/batgrep/compare/v0.1.2...v0.1.3
 [v0.1.2]: https://github.com/rhysd/batgrep/compare/v0.1.1...v0.1.2
