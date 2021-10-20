@@ -10,6 +10,7 @@ use std::path::Path;
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{Style, ThemeSet};
 use syntect::parsing::{SyntaxReference, SyntaxSet};
+use unicode_width::UnicodeWidthStr;
 
 enum HighlightedLine<'file> {
     Lossless(u64, Vec<(Style, &'file str)>),
@@ -30,11 +31,17 @@ struct Writer<'file, W: Write> {
     lines: Vec<HighlightedLine<'file>>,
     out: W,
     grid: bool,
+    tab_width: u16,
     term_width: u16,
     lnum_width: u16,
 }
 
 impl<'file, W: Write> Writer<'file, W> {
+    #[inline]
+    fn gutter_width(&self) -> u16 {
+        self.lnum_width + 3
+    }
+
     fn write_reset(&mut self) -> Result<()> {
         self.out.write_all(b"\x1b[0m")?;
         Ok(())
@@ -46,8 +53,16 @@ impl<'file, W: Write> Writer<'file, W> {
         for _ in 0..(self.lnum_width - width) {
             self.out.write_all(b" ")?;
         }
-        write!(self.out, "{}: ", lnum)?;
+        write!(self.out, " {}: ", lnum)?;
         Ok(())
+    }
+
+    fn write_text(&mut self, text: &str) -> Result<u16> {
+        if self.tab_width == 0 {
+            write!(self.out, "{}", text)?;
+            return Ok(text.width_cjk() as u16);
+        }
+        unimplemented!()
     }
 
     fn write_line_body<'b>(&mut self, parts: impl Iterator<Item = (Style, &'b str)>) -> Result<()> {
@@ -187,6 +202,7 @@ impl<'main> SyntectPrinter<'main> {
             grid: self.opts.grid,
             term_width: self.term_width,
             lnum_width,
+            tab_width: self.opts.tab_width as u16,
         }
     }
 }

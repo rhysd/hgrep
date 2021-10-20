@@ -45,6 +45,7 @@ ripgrep = [
 syntect-printer = [
     "syntect",
     "rayon",
+    "unicode-width",
 ]
 
 [dependencies]
@@ -64,6 +65,7 @@ grep-matcher = { version = "0.1.5", optional = true }
 grep-pcre2 = { version = "0.1.5", optional = true }
 syntect = { version = "4.6", optional = true }
 rayon = { version = "1", optional = true }
+unicode-width = { version = "0.1.9", optional = true }
 
 [workspace]
 members = [
