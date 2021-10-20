@@ -50,6 +50,7 @@ clap = { version = "3.0.0-beta", default-features = false, features = ["std", "c
 clap_generate = "3.0.0-beta"
 console = "0.15"
 memchr = "2"
+ansi_term = "0.12"
 grep-regex = { version = "0.1.9", optional = true }
 grep-searcher = { version = "0.1.8", optional = true }
 rayon = { version = "1", optional = true }

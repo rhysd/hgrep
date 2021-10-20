@@ -387,6 +387,11 @@ fn app() -> Result<bool> {
 }
 
 fn main() {
+    #[cfg(windows)]
+    {
+        ansi_term::enable_ansi_support().unwrap();
+    }
+
     let status = match app() {
         Ok(true) => 0,
         Ok(false) => 1,
