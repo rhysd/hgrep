@@ -14,16 +14,16 @@ use syntect::parsing::{SyntaxReference, SyntaxSet};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 enum HighlightedLine<'file> {
-    Lossless(u64, Vec<(Style, &'file str)>),
-    Loss(u64, Vec<(Style, String)>),
+    Lossless(u64, bool, Vec<(Style, &'file str)>),
+    Loss(u64, bool, Vec<(Style, String)>),
     // TODO: Add snip separator
 }
 
 impl<'file> HighlightedLine<'file> {
     fn line_number(&self) -> u64 {
         match self {
-            HighlightedLine::Lossless(n, _) => *n,
-            HighlightedLine::Loss(n, _) => *n,
+            HighlightedLine::Lossless(n, _, _) => *n,
+            HighlightedLine::Loss(n, _, _) => *n,
         }
     }
 }
@@ -38,6 +38,7 @@ struct Writer<'file, W: Write> {
     lnum_width: u16,
     background: bool,
     gutter_color: Color,
+    match_color: Option<Color>,
 }
 
 impl<'file, W: Write> Writer<'file, W> {
@@ -50,6 +51,7 @@ impl<'file, W: Write> Writer<'file, W> {
         }
     }
 
+    // TODO: 256 colors terminal support
     fn write_bg(&mut self, c: Color) -> Result<()> {
         write!(self.out, "\x1b[48;2;{};{};{}m", c.r, c.g, c.b)?;
         Ok(())
@@ -138,7 +140,6 @@ impl<'file, W: Write> Writer<'file, W> {
         &mut self,
         parts: impl Iterator<Item = (Style, &'a str)>,
     ) -> Result<()> {
-        // TODO: 256 colors terminal support
         let gutter_width = self.gutter_width() as usize;
         let mut width = gutter_width;
         for (style, text) in parts {
@@ -178,18 +179,49 @@ impl<'file, W: Write> Writer<'file, W> {
         }
     }
 
-    fn write_line(&mut self, line: HighlightedLine<'file>) -> Result<()> {
-        match line {
-            HighlightedLine::Lossless(lnum, parts) => {
-                self.write_line_number(lnum)?;
-                self.write_line_body(parts.into_iter())?;
-            }
-            HighlightedLine::Loss(lnum, parts) => {
-                self.write_line_number(lnum)?;
-                self.write_line_body(parts.iter().map(|(s, t)| (*s, t.as_str())))?;
+    fn write_line_body_with_bg<'a>(
+        &mut self,
+        bg: Color,
+        parts: impl Iterator<Item = (Style, &'a str)>,
+    ) -> Result<()> {
+        let gutter_width = self.gutter_width() as usize;
+        self.write_bg(bg)?;
+        let mut width = gutter_width;
+        for (style, text) in parts {
+            self.write_fg(style.foreground)?;
+            width += self.write_text(text)?;
+        }
+        let term_width = self.term_width as usize;
+        if width < term_width {
+            for _ in 0..term_width - width {
+                self.out.write_all(b" ")?;
             }
         }
-        Ok(())
+        self.write_reset()
+    }
+
+    fn write_line(&mut self, line: HighlightedLine<'file>) -> Result<()> {
+        match line {
+            HighlightedLine::Lossless(lnum, matched, parts) => {
+                self.write_line_number(lnum)?;
+                if matched {
+                    if let Some(bg) = self.match_color {
+                        return self.write_line_body_with_bg(bg, parts.into_iter());
+                    }
+                }
+                self.write_line_body(parts.into_iter())
+            }
+            HighlightedLine::Loss(lnum, matched, parts) => {
+                self.write_line_number(lnum)?;
+                let parts = parts.iter().map(|(s, t)| (*s, t.as_str()));
+                if matched {
+                    if let Some(bg) = self.match_color {
+                        return self.write_line_body_with_bg(bg, parts);
+                    }
+                }
+                self.write_line_body(parts)
+            }
+        }
     }
 
     fn write_lines(&mut self) -> Result<()> {
@@ -257,6 +289,7 @@ impl<'main> SyntectPrinter<'main> {
         // TODO: Consider capacity. It would be able to be calculated by {num of chunks} * {min context lines}
         let mut lines = vec![];
 
+        let mut matched = file.line_numbers.as_ref();
         let mut chunks = file.chunks.iter();
         let mut chunk = chunks.next().unwrap(); // OK since chunks is not empty
 
@@ -268,10 +301,17 @@ impl<'main> SyntectPrinter<'main> {
                 continue;
             }
             if start <= lnum && lnum <= end {
+                let matched = match matched.first().copied() {
+                    Some(n) if n == lnum => {
+                        matched = &matched[1..];
+                        true
+                    }
+                    _ => false,
+                };
                 match std::str::from_utf8(bytes) {
                     Ok(line) => {
                         let ranges = hl.highlight(line, &self.syntaxes);
-                        lines.push(HighlightedLine::Lossless(lnum, ranges));
+                        lines.push(HighlightedLine::Lossless(lnum, matched, ranges));
                     }
                     Err(_) => {
                         let line = String::from_utf8_lossy(bytes);
@@ -281,7 +321,7 @@ impl<'main> SyntectPrinter<'main> {
                             .into_iter()
                             .map(|(n, text)| (n, text.to_string()))
                             .collect();
-                        lines.push(HighlightedLine::Loss(lnum, ranges));
+                        lines.push(HighlightedLine::Loss(lnum, matched, ranges));
                     }
                 }
                 if lnum == end {
@@ -319,6 +359,8 @@ impl<'main> SyntectPrinter<'main> {
             tab_width: self.opts.tab_width as u16,
             background: self.opts.background_color,
             gutter_color,
+            match_color: theme.settings.line_highlight.or(theme.settings.background),
+            // match_color: theme.settings.line_highlight.or(theme.settings.background),
             out: self.stdout.lock(), // Take lock here to print files in serial from multiple threads
         }
     }
