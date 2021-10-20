@@ -4,7 +4,7 @@ use crate::printer::{Printer, PrinterOptions};
 use anyhow::Result;
 use console::Term;
 use std::cmp;
-use std::ffi::OsStr;
+use std::fmt;
 use std::io;
 use std::io::BufWriter;
 use std::io::Write;
@@ -14,17 +14,46 @@ use syntect::highlighting::{Color, Style, Theme, ThemeSet};
 use syntect::parsing::{SyntaxReference, SyntaxSet};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
+const SYNTAX_SET_BIN: &[u8] = include_bytes!("../assets/bat/assets/syntaxes.bin");
+const THEME_SET_BIN: &[u8] = include_bytes!("../assets/bat/assets/themes.bin");
+
+#[derive(Debug)]
+pub struct PrintError {
+    message: String,
+}
+
+impl PrintError {
+    fn new<S: Into<String>>(msg: S) -> Self {
+        Self {
+            message: msg.into(),
+        }
+    }
+}
+
+impl std::error::Error for PrintError {}
+
+impl fmt::Display for PrintError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Error while printing output with syntect: {}",
+            &self.message
+        )
+    }
+}
+
 enum HighlightedLine<'file> {
     Lossless(u64, bool, Vec<(Style, &'file str)>),
     Loss(u64, bool, Vec<(Style, String)>),
-    // TODO: Add snip separator
+    Separator,
 }
 
 impl<'file> HighlightedLine<'file> {
-    fn line_number(&self) -> u64 {
+    fn line_number(&self) -> Option<u64> {
         match self {
-            HighlightedLine::Lossless(n, _, _) => *n,
-            HighlightedLine::Loss(n, _, _) => *n,
+            HighlightedLine::Lossless(n, _, _) => Some(*n),
+            HighlightedLine::Loss(n, _, _) => Some(*n),
+            HighlightedLine::Separator => None,
         }
     }
 }
@@ -110,6 +139,27 @@ impl<'file, W: Write> Writer<'file, W> {
         self.write_bg_color()?;
         write!(self.out, " ")?;
         Ok(()) // Do not reset color because another color text will follow
+    }
+
+    fn write_seprator_line(&mut self) -> Result<()> {
+        self.write_fg(self.gutter_color)?;
+        // + 1 for left margin and - 3 for length of "..."
+        let left_margin = self.lnum_width + 1 - 3;
+        for _ in 0..left_margin {
+            self.out.write_all(b" ")?;
+        }
+        let gutter_width = if self.grid {
+            write!(self.out, "... │")?;
+            5
+        } else {
+            write!(self.out, "...")?;
+            3
+        };
+        let body_width = self.term_width - left_margin - gutter_width; // This crashes when terminal width is smaller than gutter
+        for _ in 0..body_width / 2 {
+            self.out.write_all(b" -")?;
+        }
+        Ok(()) // We don't need to reset color for next line
     }
 
     fn write_text(&mut self, text: &str) -> Result<usize> {
@@ -222,6 +272,7 @@ impl<'file, W: Write> Writer<'file, W> {
                 }
                 self.write_line_body(parts)
             }
+            HighlightedLine::Separator => self.write_seprator_line(),
         }
     }
 
@@ -262,16 +313,27 @@ pub struct SyntectPrinter<'main> {
 }
 
 impl<'main> SyntectPrinter<'main> {
-    pub fn new(opts: PrinterOptions<'main>) -> Self {
-        let syntaxes = SyntaxSet::load_defaults_newlines();
-        let themes = ThemeSet::load_defaults();
-        Self {
+    pub fn new(opts: PrinterOptions<'main>) -> Result<Self> {
+        let syntaxes: SyntaxSet =
+            bincode::deserialize_from(flate2::read::ZlibDecoder::new(SYNTAX_SET_BIN))?;
+        let themes: ThemeSet =
+            bincode::deserialize_from(flate2::read::ZlibDecoder::new(THEME_SET_BIN))?;
+        if let Some(theme) = &opts.theme {
+            if !themes.themes.contains_key(*theme) {
+                return Err(PrintError::new(format!(
+                    "Unknown theme '{}'. See --list-themes output",
+                    theme
+                ))
+                .into());
+            }
+        }
+        Ok(Self {
             stdout: io::stdout(),
             syntaxes,
             themes,
             opts,
             term_width: Term::stdout().size().1,
-        }
+        })
     }
 
     pub fn themes(&self) -> impl Iterator<Item = &str> {
@@ -327,6 +389,7 @@ impl<'main> SyntectPrinter<'main> {
                 }
                 if lnum == end {
                     if let Some(c) = chunks.next() {
+                        lines.push(HighlightedLine::Separator);
                         chunk = c;
                     } else {
                         break;
@@ -343,7 +406,7 @@ impl<'main> SyntectPrinter<'main> {
         lines: Vec<HighlightedLine<'file>>,
         theme: &'file Theme,
     ) -> Writer<'file, impl Write + '_> {
-        let last_lnum = lines[lines.len() - 1].line_number();
+        let last_lnum = lines[lines.len() - 1].line_number().unwrap(); // Separator is never at the end of line
         let lnum_width = cmp::max((last_lnum as f64).log10() as u16 + 1, 3); // Consider '...' in gutter
         let gutter_color = theme.settings.gutter_foreground.unwrap_or(Color {
             r: 128,
@@ -365,6 +428,11 @@ impl<'main> SyntectPrinter<'main> {
             out: BufWriter::new(self.stdout.lock()), // Take lock here to print files in serial from multiple threads
         }
     }
+
+    fn theme(&self) -> &Theme {
+        let name = self.opts.theme.unwrap_or("Monokai Extended");
+        &self.themes.themes[name]
+    }
 }
 
 impl<'main> Printer for SyntectPrinter<'main> {
@@ -373,20 +441,15 @@ impl<'main> Printer for SyntectPrinter<'main> {
             return Ok(());
         }
 
-        if let Some(syntax) = file
-            .path
-            .extension()
-            .and_then(OsStr::to_str)
-            .and_then(|ext| self.syntaxes.find_syntax_by_extension(ext))
-        {
-            let theme = &self.themes.themes["base16-ocean.dark"]; // TODO: Theme
-            let highlighted = self.parse_highlights(&file, syntax, theme);
-            let mut writer = self.build_writer(highlighted, theme);
-            writer.write_header(&file.path)?;
-            writer.write_lines()?;
-            writer.write_footer()
-        } else {
-            unimplemented!()
-        }
+        let syntax = self
+            .syntaxes
+            .find_syntax_for_file(&file.path)?
+            .unwrap_or_else(|| self.syntaxes.find_syntax_plain_text());
+        let theme = self.theme();
+        let highlighted = self.parse_highlights(&file, syntax, theme);
+        let mut writer = self.build_writer(highlighted, theme); // Lock is acquired here
+        writer.write_header(&file.path)?;
+        writer.write_lines()?;
+        writer.write_footer()
     }
 }

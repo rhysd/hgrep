@@ -276,7 +276,10 @@ fn app() -> Result<bool> {
     if matches.is_present("list-themes") {
         #[cfg(feature = "syntect-printer")]
         if matches.is_present("syntect") {
-            for theme in SyntectPrinter::new(PrinterOptions::default()).themes() {
+            for theme in SyntectPrinter::new(PrinterOptions::default())
+                .unwrap()
+                .themes()
+            {
                 println!("{}", theme);
             }
             return Ok(true);
@@ -395,7 +398,7 @@ fn app() -> Result<bool> {
 
         #[cfg(feature = "syntect-printer")]
         if matches.is_present("syntect") {
-            let printer = SyntectPrinter::new(printer_opts);
+            let printer = SyntectPrinter::new(printer_opts)?;
             return ripgrep::grep(printer, pattern, paths, config);
         }
 
@@ -406,7 +409,7 @@ fn app() -> Result<bool> {
     #[cfg(feature = "syntect-printer")]
     if matches.is_present("syntect") {
         use rayon::prelude::*;
-        let printer = SyntectPrinter::new(printer_opts);
+        let printer = SyntectPrinter::new(printer_opts)?;
         return io::BufReader::new(io::stdin())
             .grep_lines()
             .chunks_per_file(min_context, max_context)

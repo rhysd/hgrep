@@ -20,6 +20,8 @@ homepage = "https://github.com/rhysd/hgrep#readme"
 repository = "https://github.com/rhysd/hgrep"
 readme = "README.md"
 include = [
+    "/assets/bat/assets/themes.bin",
+    "/assets/bat/assets/syntaxes.bin",
     "/src",
     "/LICENSE.txt",
     "/README.md",
@@ -46,6 +48,8 @@ syntect-printer = [
     "syntect",
     "rayon",
     "unicode-width",
+    "bincode",
+    "flate2",
 ]
 
 [dependencies]
@@ -66,6 +70,8 @@ grep-pcre2 = { version = "0.1.5", optional = true }
 syntect = { version = "4.6", optional = true }
 rayon = { version = "1", optional = true }
 unicode-width = { version = "0.1.9", optional = true }
+bincode = { version = "1.3", optional = true }
+flate2 = { version = "1", optional = true }
 
 [workspace]
 members = [
