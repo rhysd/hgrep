@@ -8,9 +8,9 @@ use std::io;
 use std::io::Write;
 use std::path::Path;
 use syntect::easy::HighlightLines;
-use syntect::highlighting::{Style, ThemeSet};
+use syntect::highlighting::{Style, Theme, ThemeSet};
 use syntect::parsing::{SyntaxReference, SyntaxSet};
-use unicode_width::UnicodeWidthStr;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 enum HighlightedLine<'file> {
     Lossless(u64, Vec<(Style, &'file str)>),
@@ -29,11 +29,13 @@ impl<'file> HighlightedLine<'file> {
 
 struct Writer<'file, W: Write> {
     lines: Vec<HighlightedLine<'file>>,
+    theme: &'file Theme,
     out: W,
     grid: bool,
     tab_width: u16,
     term_width: u16,
     lnum_width: u16,
+    background: bool,
 }
 
 impl<'file, W: Write> Writer<'file, W> {
@@ -47,8 +49,14 @@ impl<'file, W: Write> Writer<'file, W> {
         Ok(())
     }
 
+    fn write_tab(&mut self) -> Result<()> {
+        for _ in 0..self.tab_width {
+            self.out.write_all(b" ")?;
+        }
+        Ok(())
+    }
+
     fn write_line_number(&mut self, lnum: u64) -> Result<()> {
-        self.write_reset()?;
         let width = (lnum as f64).log10() as u16;
         for _ in 0..(self.lnum_width - width) {
             self.out.write_all(b" ")?;
@@ -57,30 +65,85 @@ impl<'file, W: Write> Writer<'file, W> {
         Ok(())
     }
 
-    fn write_text(&mut self, text: &str) -> Result<u16> {
+    fn write_text(&mut self, text: &str) -> Result<usize> {
         if self.tab_width == 0 {
             write!(self.out, "{}", text)?;
-            return Ok(text.width_cjk() as u16);
+            return Ok(text.width_cjk()); // XXX: This does not consider width of \t in terminal
         }
-        unimplemented!()
+        let mut width = 0;
+        let mut start_idx = 0;
+        for (i, c) in text.char_indices() {
+            if c == '\t' {
+                write!(self.out, "{}", &text[start_idx..i])?;
+                self.write_tab()?;
+                start_idx = i + 1;
+                width += self.tab_width as usize;
+            } else {
+                width += c.width_cjk().unwrap_or(0);
+            }
+        }
+        let rest = &text[start_idx..];
+        write!(self.out, "{}", rest)?;
+        width = rest.width_cjk();
+        Ok(width)
     }
 
-    fn write_line_body<'b>(&mut self, parts: impl Iterator<Item = (Style, &'b str)>) -> Result<()> {
+    fn write_line_body_bg<'a>(
+        &mut self,
+        parts: impl Iterator<Item = (Style, &'a str)>,
+    ) -> Result<()> {
         // TODO: 256 colors terminal support
+        let gutter_width = self.gutter_width() as usize;
+        let mut width = gutter_width;
         for (style, text) in parts {
             write!(
                 self.out,
-                "\x1b[48;2;{};{};{}m\x1b[38;2;{};{};{}m{}",
+                "\x1b[48;2;{};{};{}m\x1b[38;2;{};{};{}m",
                 style.background.r,
                 style.background.g,
                 style.background.b,
                 style.foreground.r,
                 style.foreground.g,
                 style.foreground.b,
-                text
+            )?;
+            width += self.write_text(text)?;
+        }
+
+        if width == gutter_width {
+            if let Some(bg) = self.theme.settings.background {
+                write!(self.out, "\x1b[48;2;{};{};{}m", bg.r, bg.g, bg.b,)?; // For empty line
+            }
+        }
+
+        let term_width = self.term_width as usize;
+        if width < term_width {
+            for _ in 0..term_width - width - 1 {
+                self.out.write_all(b" ")?;
+            }
+        }
+        self.write_reset()
+    }
+
+    fn write_line_body_no_bg<'a>(
+        &mut self,
+        parts: impl Iterator<Item = (Style, &'a str)>,
+    ) -> Result<()> {
+        for (style, text) in parts {
+            write!(
+                self.out,
+                "\x1b[38;2;{};{};{}m{}",
+                style.foreground.r, style.foreground.g, style.foreground.b, text,
             )?;
         }
-        Ok(())
+        self.write_reset()
+    }
+
+    fn write_line_body<'a>(&mut self, parts: impl Iterator<Item = (Style, &'a str)>) -> Result<()> {
+        if self.background {
+            self.write_line_body_bg(parts)
+        } else {
+            self.write_line_body_no_bg(parts)
+        }
     }
 
     fn write_line(&mut self, line: HighlightedLine<'file>) -> Result<()> {
@@ -104,7 +167,7 @@ impl<'file, W: Write> Writer<'file, W> {
             self.write_line(line)?;
             writeln!(self.out)?;
         }
-        self.write_reset()
+        Ok(())
     }
 
     fn write_header(&mut self, path: &Path) -> Result<()> {
@@ -143,9 +206,10 @@ impl<'main> SyntectPrinter<'main> {
         &self,
         file: &'file File,
         syntax: &SyntaxReference,
+        theme: &Theme,
     ) -> Vec<HighlightedLine<'file>> {
         assert!(!file.chunks.is_empty());
-        let mut hl = HighlightLines::new(syntax, &self.themes.themes["base16-ocean.dark"]); // TODO: theme
+        let mut hl = HighlightLines::new(syntax, theme);
 
         // TODO: Consider capacity. It would be able to be calculated by {num of chunks} * {min context lines}
         let mut lines = vec![];
@@ -193,16 +257,19 @@ impl<'main> SyntectPrinter<'main> {
     fn build_writer<'file>(
         &self,
         lines: Vec<HighlightedLine<'file>>,
+        theme: &'file Theme,
     ) -> Writer<'file, io::StdoutLock<'_>> {
         let last_lnum = lines[lines.len() - 1].line_number();
         let lnum_width = (last_lnum as f64).log10() as u16;
         Writer {
             lines,
-            out: self.stdout.lock(), // Take lock here to print files in serial from multiple threads
+            theme,
             grid: self.opts.grid,
             term_width: self.term_width,
             lnum_width,
             tab_width: self.opts.tab_width as u16,
+            background: false,
+            out: self.stdout.lock(), // Take lock here to print files in serial from multiple threads
         }
     }
 }
@@ -219,8 +286,9 @@ impl<'main> Printer for SyntectPrinter<'main> {
             .and_then(OsStr::to_str)
             .and_then(|ext| self.syntaxes.find_syntax_by_extension(ext))
         {
-            let highlighted = self.parse_highlights(&file, syntax);
-            let mut writer = self.build_writer(highlighted);
+            let theme = &self.themes.themes["base16-ocean.dark"]; // TODO: Theme
+            let highlighted = self.parse_highlights(&file, syntax, theme);
+            let mut writer = self.build_writer(highlighted, theme);
             writer.write_header(&file.path)?;
             writer.write_lines()
         } else {
