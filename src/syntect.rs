@@ -3,12 +3,13 @@ use crate::chunk::{Line, Lines};
 use crate::printer::{Printer, PrinterOptions};
 use anyhow::Result;
 use console::Term;
+use std::cmp;
 use std::ffi::OsStr;
 use std::io;
 use std::io::Write;
 use std::path::Path;
 use syntect::easy::HighlightLines;
-use syntect::highlighting::{Style, Theme, ThemeSet};
+use syntect::highlighting::{Color, Style, Theme, ThemeSet};
 use syntect::parsing::{SyntaxReference, SyntaxSet};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
@@ -36,12 +37,55 @@ struct Writer<'file, W: Write> {
     term_width: u16,
     lnum_width: u16,
     background: bool,
+    gutter_color: Color,
 }
 
 impl<'file, W: Write> Writer<'file, W> {
     #[inline]
     fn gutter_width(&self) -> u16 {
-        self.lnum_width + 3
+        if self.grid {
+            self.lnum_width + 5
+        } else {
+            self.lnum_width + 3
+        }
+    }
+
+    fn write_bg(&mut self, c: Color) -> Result<()> {
+        write!(self.out, "\x1b[48;2;{};{};{}m", c.r, c.g, c.b)?;
+        Ok(())
+    }
+
+    fn write_fg(&mut self, c: Color) -> Result<()> {
+        write!(self.out, "\x1b[38;2;{};{};{}m", c.r, c.g, c.b)?;
+        Ok(())
+    }
+
+    fn write_bg_color(&mut self) -> Result<()> {
+        if self.background {
+            if let Some(bg) = self.theme.settings.background {
+                self.write_bg(bg)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn write_style(&mut self, s: Style) -> Result<()> {
+        self.write_bg(s.background)?;
+        self.write_fg(s.foreground)?;
+        Ok(())
+    }
+
+    fn write_horizontal_line(&mut self, sep: &str) -> Result<()> {
+        self.write_fg(self.gutter_color)?;
+        let gutter_width = self.gutter_width();
+        for _ in 0..gutter_width - 3 {
+            self.out.write_all("─".as_bytes())?;
+        }
+        self.out.write_all(sep.as_bytes())?;
+        for _ in 0..self.term_width - gutter_width + 2 {
+            self.out.write_all("─".as_bytes())?;
+        }
+        self.write_reset()
     }
 
     fn write_reset(&mut self) -> Result<()> {
@@ -49,20 +93,20 @@ impl<'file, W: Write> Writer<'file, W> {
         Ok(())
     }
 
-    fn write_tab(&mut self) -> Result<()> {
-        for _ in 0..self.tab_width {
-            self.out.write_all(b" ")?;
-        }
-        Ok(())
-    }
-
     fn write_line_number(&mut self, lnum: u64) -> Result<()> {
-        let width = (lnum as f64).log10() as u16;
+        self.write_fg(self.gutter_color)?;
+        let width = (lnum as f64).log10() as u16 + 1;
         for _ in 0..(self.lnum_width - width) {
             self.out.write_all(b" ")?;
         }
-        write!(self.out, " {}: ", lnum)?;
-        Ok(())
+        if self.grid {
+            write!(self.out, " {} │", lnum)?;
+        } else {
+            write!(self.out, " {}", lnum)?;
+        }
+        self.write_bg_color()?;
+        write!(self.out, " ")?;
+        Ok(()) // Do not reset color because another color text will follow
     }
 
     fn write_text(&mut self, text: &str) -> Result<usize> {
@@ -75,7 +119,9 @@ impl<'file, W: Write> Writer<'file, W> {
         for (i, c) in text.char_indices() {
             if c == '\t' {
                 write!(self.out, "{}", &text[start_idx..i])?;
-                self.write_tab()?;
+                for _ in 0..self.tab_width {
+                    self.out.write_all(b" ")?;
+                }
                 start_idx = i + 1;
                 width += self.tab_width as usize;
             } else {
@@ -96,28 +142,17 @@ impl<'file, W: Write> Writer<'file, W> {
         let gutter_width = self.gutter_width() as usize;
         let mut width = gutter_width;
         for (style, text) in parts {
-            write!(
-                self.out,
-                "\x1b[48;2;{};{};{}m\x1b[38;2;{};{};{}m",
-                style.background.r,
-                style.background.g,
-                style.background.b,
-                style.foreground.r,
-                style.foreground.g,
-                style.foreground.b,
-            )?;
+            self.write_style(style)?;
             width += self.write_text(text)?;
         }
 
         if width == gutter_width {
-            if let Some(bg) = self.theme.settings.background {
-                write!(self.out, "\x1b[48;2;{};{};{}m", bg.r, bg.g, bg.b,)?; // For empty line
-            }
+            self.write_bg_color()?; // For empty line
         }
 
         let term_width = self.term_width as usize;
         if width < term_width {
-            for _ in 0..term_width - width - 1 {
+            for _ in 0..term_width - width {
                 self.out.write_all(b" ")?;
             }
         }
@@ -129,11 +164,8 @@ impl<'file, W: Write> Writer<'file, W> {
         parts: impl Iterator<Item = (Style, &'a str)>,
     ) -> Result<()> {
         for (style, text) in parts {
-            write!(
-                self.out,
-                "\x1b[38;2;{};{};{}m{}",
-                style.foreground.r, style.foreground.g, style.foreground.b, text,
-            )?;
+            self.write_fg(style.foreground)?;
+            self.out.write_all(text.as_bytes())?;
         }
         self.write_reset()
     }
@@ -171,8 +203,19 @@ impl<'file, W: Write> Writer<'file, W> {
     }
 
     fn write_header(&mut self, path: &Path) -> Result<()> {
-        writeln!(self.out)?;
-        writeln!(self.out, "{:?}", path)?;
+        self.write_horizontal_line("─")?;
+        writeln!(self.out, "\x1b[1m {}", path.as_os_str().to_string_lossy())?;
+        self.write_reset()?;
+        if self.grid {
+            self.write_horizontal_line("┬")?;
+        }
+        Ok(())
+    }
+
+    fn write_footer(&mut self) -> Result<()> {
+        if self.grid {
+            self.write_horizontal_line("┴")?;
+        }
         Ok(())
     }
 }
@@ -260,7 +303,13 @@ impl<'main> SyntectPrinter<'main> {
         theme: &'file Theme,
     ) -> Writer<'file, io::StdoutLock<'_>> {
         let last_lnum = lines[lines.len() - 1].line_number();
-        let lnum_width = (last_lnum as f64).log10() as u16;
+        let lnum_width = cmp::max((last_lnum as f64).log10() as u16 + 1, 3); // Consider '...' in gutter
+        let gutter_color = theme.settings.gutter_foreground.unwrap_or(Color {
+            r: 128,
+            g: 128,
+            b: 128,
+            a: 0,
+        });
         Writer {
             lines,
             theme,
@@ -268,7 +317,8 @@ impl<'main> SyntectPrinter<'main> {
             term_width: self.term_width,
             lnum_width,
             tab_width: self.opts.tab_width as u16,
-            background: false,
+            background: self.opts.background_color,
+            gutter_color,
             out: self.stdout.lock(), // Take lock here to print files in serial from multiple threads
         }
     }
@@ -290,7 +340,8 @@ impl<'main> Printer for SyntectPrinter<'main> {
             let highlighted = self.parse_highlights(&file, syntax, theme);
             let mut writer = self.build_writer(highlighted, theme);
             writer.write_header(&file.path)?;
-            writer.write_lines()
+            writer.write_lines()?;
+            writer.write_footer()
         } else {
             unimplemented!()
         }

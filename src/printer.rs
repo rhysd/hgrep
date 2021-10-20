@@ -5,6 +5,7 @@ pub struct PrinterOptions<'main> {
     pub tab_width: usize,
     pub theme: Option<&'main str>,
     pub grid: bool,
+    pub background_color: bool,
 }
 
 impl<'main> Default for PrinterOptions<'main> {
@@ -13,6 +14,7 @@ impl<'main> Default for PrinterOptions<'main> {
             tab_width: 4,
             theme: None,
             grid: true,
+            background_color: false,
         }
     }
 }

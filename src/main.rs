@@ -82,11 +82,15 @@ fn cli<'a>() -> App<'a> {
         );
 
     #[cfg(feature = "syntect-printer")]
-    let app = app.arg(
-        Arg::new("syntect")
-            .long("syntect")
-            .about("Use experimental syntect printer instead of bat printer"),
-    );
+    let app = app
+        .arg(
+            Arg::new("syntect")
+                .long("syntect")
+                .about("Use experimental syntect printer instead of bat printer"),
+        )
+        .arg(Arg::new("background").long("background").about(
+            "Enable background color in code highlights. Only available for syntect printer",
+        ));
 
     #[cfg(feature = "ripgrep")]
     let app = app
@@ -319,6 +323,11 @@ fn app() -> Result<bool> {
     }
     if matches.is_present("no-grid") && !is_grid {
         printer_opts.grid = false;
+    }
+
+    #[cfg(feature = "syntect-printer")]
+    if matches.is_present("background") {
+        printer_opts.background_color = true;
     }
 
     #[cfg(feature = "ripgrep")]
