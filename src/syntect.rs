@@ -6,6 +6,7 @@ use console::Term;
 use std::cmp;
 use std::ffi::OsStr;
 use std::io;
+use std::io::BufWriter;
 use std::io::Write;
 use std::path::Path;
 use syntect::easy::HighlightLines;
@@ -341,7 +342,7 @@ impl<'main> SyntectPrinter<'main> {
         &self,
         lines: Vec<HighlightedLine<'file>>,
         theme: &'file Theme,
-    ) -> Writer<'file, io::StdoutLock<'_>> {
+    ) -> Writer<'file, impl Write + '_> {
         let last_lnum = lines[lines.len() - 1].line_number();
         let lnum_width = cmp::max((last_lnum as f64).log10() as u16 + 1, 3); // Consider '...' in gutter
         let gutter_color = theme.settings.gutter_foreground.unwrap_or(Color {
@@ -361,7 +362,7 @@ impl<'main> SyntectPrinter<'main> {
             gutter_color,
             match_color: theme.settings.line_highlight.or(theme.settings.background),
             // match_color: theme.settings.line_highlight.or(theme.settings.background),
-            out: self.stdout.lock(), // Take lock here to print files in serial from multiple threads
+            out: BufWriter::new(self.stdout.lock()), // Take lock here to print files in serial from multiple threads
         }
     }
 }
