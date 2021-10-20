@@ -43,7 +43,7 @@ in some `$PATH` directory. Currently the following targets are supported. If you
 to make an issue to request it.
 
 - Linux (x86_64)
-- macOS (x86_64)
+- macOS (x86_64, aarch64)
 - Windows (x86_64)
 
 ### Via [Homebrew][homebrew]
@@ -63,6 +63,21 @@ On macOS, you can install `hgrep` with the following commands through MacPorts:
 ```sh
 sudo port selfupdate
 sudo port install hgrep
+```
+
+### For NetBSD
+
+To install pre-built binaries using the package manager, simply run:
+
+```sh
+pkgin install hgrep
+```
+
+Or, if you prefer to build from source,
+
+```sh
+cd /usr/pkgsrc/textproc/hgrep
+make install
 ```
 
 ### Via [cargo][] package manager
