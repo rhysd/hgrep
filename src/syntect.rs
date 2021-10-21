@@ -4,6 +4,7 @@ use crate::printer::{Printer, PrinterOptions};
 use anyhow::Result;
 use console::Term;
 use std::cmp;
+use std::collections::HashSet;
 use std::fmt;
 use std::io;
 use std::io::BufWriter;
@@ -326,6 +327,39 @@ impl<'file, W: Write> Writer<'file, W> {
     }
 }
 
+pub fn list_themes<W: Write>(mut out: W) -> Result<()> {
+    let mut seen = HashSet::new();
+    let bat_defaults = bincode::deserialize_from(flate2::read::ZlibDecoder::new(THEME_SET_BIN))?;
+    let defaults = ThemeSet::load_defaults();
+    for themes in &[bat_defaults, defaults] {
+        for name in themes.themes.keys() {
+            if !seen.contains(name) {
+                writeln!(out, "{}", name)?;
+                seen.insert(name);
+            }
+        }
+    }
+    Ok(())
+}
+
+fn load_themes(name: Option<&str>) -> Result<ThemeSet> {
+    let bat_defaults: ThemeSet =
+        bincode::deserialize_from(flate2::read::ZlibDecoder::new(THEME_SET_BIN))?;
+    match name {
+        None => Ok(bat_defaults),
+        Some(name) if bat_defaults.themes.contains_key(name) => Ok(bat_defaults),
+        Some(name) => {
+            let defaults = ThemeSet::load_defaults();
+            if defaults.themes.contains_key(name) {
+                Ok(defaults)
+            } else {
+                let msg = format!("Unknown theme '{}'. See --list-themes output", name);
+                Err(PrintError::new(msg).into())
+            }
+        }
+    }
+}
+
 pub struct SyntectPrinter<'main> {
     stdout: io::Stdout, // Protected with mutex because it should print file by file
     syntaxes: SyntaxSet,
@@ -336,30 +370,13 @@ pub struct SyntectPrinter<'main> {
 
 impl<'main> SyntectPrinter<'main> {
     pub fn new(opts: PrinterOptions<'main>) -> Result<Self> {
-        let syntaxes: SyntaxSet =
-            bincode::deserialize_from(flate2::read::ZlibDecoder::new(SYNTAX_SET_BIN))?;
-        let themes: ThemeSet =
-            bincode::deserialize_from(flate2::read::ZlibDecoder::new(THEME_SET_BIN))?;
-        if let Some(theme) = &opts.theme {
-            if !themes.themes.contains_key(*theme) {
-                return Err(PrintError::new(format!(
-                    "Unknown theme '{}'. See --list-themes output",
-                    theme
-                ))
-                .into());
-            }
-        }
         Ok(Self {
             stdout: io::stdout(),
-            syntaxes,
-            themes,
+            syntaxes: bincode::deserialize_from(flate2::read::ZlibDecoder::new(SYNTAX_SET_BIN))?,
+            themes: load_themes(opts.theme)?,
             opts,
             term_width: Term::stdout().size().1,
         })
-    }
-
-    pub fn themes(&self) -> impl Iterator<Item = &str> {
-        self.themes.themes.keys().map(AsRef::as_ref)
     }
 
     fn parse_highlights<'file>(

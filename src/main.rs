@@ -276,12 +276,7 @@ fn app() -> Result<bool> {
     if matches.is_present("list-themes") {
         #[cfg(feature = "syntect-printer")]
         if matches.is_present("syntect") {
-            for theme in SyntectPrinter::new(PrinterOptions::default())
-                .unwrap()
-                .themes()
-            {
-                println!("{}", theme);
-            }
+            hgrep::syntect::list_themes(io::stdout().lock())?;
             return Ok(true);
         }
 
