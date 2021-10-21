@@ -173,6 +173,7 @@ impl<'file, W: Write> Drawer<'file, W> {
             write!(self.out, "...")?;
             3
         };
+        self.set_default_bg()?;
         let body_width = self.term_width - left_margin - gutter_width; // This crashes when terminal width is smaller than gutter
         for _ in 0..body_width / 2 {
             self.out.write_all(" ━".as_bytes())?;
@@ -209,6 +210,16 @@ impl<'file, W: Write> Drawer<'file, W> {
         num_tabs * (self.tab_width.saturating_sub(1) as usize) + text.width_cjk()
     }
 
+    fn fill_rest_with_spaces(&mut self, written_width: usize) -> Result<()> {
+        let term_width = self.term_width as usize;
+        if written_width < term_width {
+            for _ in 0..term_width - written_width + 1 {
+                self.out.write_all(b" ")?;
+            }
+        }
+        self.reset_color()
+    }
+
     fn draw_code_line_bg<'a>(
         &mut self,
         parts: impl Iterator<Item = (Style, &'a str)>,
@@ -225,13 +236,7 @@ impl<'file, W: Write> Drawer<'file, W> {
             self.set_default_bg()?; // For empty line
         }
 
-        let term_width = self.term_width as usize;
-        if width < term_width {
-            for _ in 0..term_width - width {
-                self.out.write_all(b" ")?;
-            }
-        }
-        self.reset_color()
+        self.fill_rest_with_spaces(width)
     }
 
     fn draw_code_line_no_bg<'a>(
@@ -265,13 +270,7 @@ impl<'file, W: Write> Drawer<'file, W> {
             let num_tabs = self.draw_text(text)?;
             width += self.text_width(text, num_tabs);
         }
-        let term_width = self.term_width as usize;
-        if width < term_width {
-            for _ in 0..term_width - width {
-                self.out.write_all(b" ")?;
-            }
-        }
-        self.reset_color()
+        self.fill_rest_with_spaces(width)
     }
 
     fn draw_line(&mut self, line: HighlightedLine<'file>) -> Result<()> {
