@@ -15,6 +15,7 @@ use std::path::Path;
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{Color, Style, Theme, ThemeSet};
 use syntect::parsing::{SyntaxReference, SyntaxSet};
+use term::terminfo::TermInfo;
 use unicode_width::UnicodeWidthStr;
 
 // Note for lifetimes:
@@ -23,6 +24,38 @@ use unicode_width::UnicodeWidthStr;
 
 const SYNTAX_SET_BIN: &[u8] = include_bytes!("../assets/bat/assets/syntaxes.bin");
 const THEME_SET_BIN: &[u8] = include_bytes!("../assets/bat/assets/themes.bin");
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum TermColorSupport {
+    True,
+    Ansi256,
+    Ansi16,
+}
+
+impl TermColorSupport {
+    fn detect() -> Self {
+        if env::var("COLORTERM")
+            .ok()
+            .map(|v| v == "truecolor")
+            .unwrap_or(false)
+        {
+            return TermColorSupport::True;
+        }
+
+        if let Ok(info) = TermInfo::from_env() {
+            if let Some(colors) = info.numbers.get("colors") {
+                if *colors == 256 {
+                    return TermColorSupport::Ansi256;
+                } else {
+                    return TermColorSupport::Ansi16;
+                }
+            }
+        }
+
+        // Assume 256 colors by default (I'm not sure this is correct)
+        TermColorSupport::Ansi256
+    }
+}
 
 // Use u64::log10 once it is stabilized: https://github.com/rust-lang/rust/issues/70887
 #[inline]
@@ -391,7 +424,7 @@ pub struct SyntectPrinter<'main> {
     themes: ThemeSet,
     opts: PrinterOptions<'main>,
     term_width: u16,
-    true_color: bool,
+    term_support: TermColorSupport,
 }
 
 impl<'main> SyntectPrinter<'main> {
@@ -402,10 +435,7 @@ impl<'main> SyntectPrinter<'main> {
             themes: load_themes(opts.theme)?,
             opts,
             term_width: Term::stdout().size().1,
-            true_color: env::var("COLORTERM")
-                .ok()
-                .map(|v| v == "truecolor")
-                .unwrap_or(false),
+            term_support: TermColorSupport::detect(),
         })
     }
 
@@ -497,13 +527,19 @@ impl<'main> SyntectPrinter<'main> {
             background: self.opts.background_color,
             gutter_color,
             match_color: theme.settings.line_highlight.or(theme.settings.background),
-            true_color: self.true_color,
+            true_color: self.term_support == TermColorSupport::True,
             out: BufWriter::new(self.stdout.lock()), // Take lock here to print files in serial from multiple threads
         }
     }
 
     fn theme(&self) -> &Theme {
-        let name = self.opts.theme.unwrap_or("Monokai Extended");
+        let name = self.opts.theme.unwrap_or_else(|| {
+            if self.term_support == TermColorSupport::Ansi16 {
+                "ansi"
+            } else {
+                "Monokai Extended" // Our 25bit -> 8bit color conversion works really well with this colorscheme
+            }
+        });
         &self.themes.themes[name]
     }
 
