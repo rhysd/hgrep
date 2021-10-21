@@ -75,23 +75,20 @@ fn cli<'a>() -> App<'a> {
                 .about("List all theme names available for --theme option"),
         )
         .arg(
+            Arg::new("printer")
+                .short('p')
+                .long("printer")
+                .value_name("PRINTER")
+                .default_value("bat")
+                .about("Printer to print highlighted results. 'bat' or 'syntect' is available"),
+        )
+        .arg(
             Arg::new("generate-completion-script")
                 .long("generate-completion-script")
                 .takes_value(true)
                 .value_name("SHELL")
                 .about("Print completion script for SHELL to stdout. SHELL must be one of 'bash', 'zsh', 'powershell', 'fish', or 'elvish'"),
         );
-
-    #[cfg(feature = "syntect-printer")]
-    let app = app
-        .arg(
-            Arg::new("syntect")
-                .long("syntect")
-                .about("Use experimental syntect printer instead of bat printer"),
-        )
-        .arg(Arg::new("background").long("background").about(
-            "Enable background color in code highlights. Only available for syntect printer",
-        ));
 
     #[cfg(feature = "ripgrep")]
     let app = app
@@ -265,6 +262,12 @@ fn generate_completion_script(shell: &str) -> Result<()> {
     Ok(())
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PrinterKind {
+    Bat,
+    Syntect,
+}
+
 fn app() -> Result<bool> {
     use anyhow::Context;
 
@@ -274,9 +277,21 @@ fn app() -> Result<bool> {
         return Ok(true);
     }
 
+    let printer_kind = match matches.value_of("printer").unwrap() {
+        "bat" => PrinterKind::Bat,
+        #[cfg(feature = "syntect-printer")]
+        "syntect" => PrinterKind::Syntect,
+        #[cfg(not(feature = "syntect-printer"))]
+        "syntect" => anyhow::bail!("'syntect-printer' feature is disabled at compilation"),
+        p => anyhow::bail!(
+            "Unknown printer '{}', at --printer option. It must be one of 'bat' or 'syntect'",
+            p
+        ),
+    };
+
     if matches.is_present("list-themes") {
         #[cfg(feature = "syntect-printer")]
-        if matches.is_present("syntect") {
+        if printer_kind == PrinterKind::Syntect {
             hgrep::syntect::list_themes(io::stdout().lock())?;
             return Ok(true);
         }
@@ -393,7 +408,7 @@ fn app() -> Result<bool> {
         }
 
         #[cfg(feature = "syntect-printer")]
-        if matches.is_present("syntect") {
+        if printer_kind == PrinterKind::Syntect {
             let printer = SyntectPrinter::new(printer_opts)?;
             return ripgrep::grep(printer, pattern, paths, config);
         }
@@ -403,7 +418,7 @@ fn app() -> Result<bool> {
     }
 
     #[cfg(feature = "syntect-printer")]
-    if matches.is_present("syntect") {
+    if printer_kind == PrinterKind::Syntect {
         use hgrep::printer::Printer;
         use rayon::prelude::*;
         let printer = SyntectPrinter::new(printer_opts)?;
