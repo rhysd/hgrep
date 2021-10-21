@@ -96,19 +96,27 @@ impl<'file, W: Write> Drawer<'file, W> {
     }
 
     fn set_bg(&mut self, c: Color) -> Result<()> {
-        if self.true_color {
-            write!(self.out, "\x1b[48;2;{};{};{}m", c.r, c.g, c.b)?;
-        } else {
-            write!(self.out, "\x1b[48;5;{}m", rgb_to_ansi256(c.r, c.g, c.b))?;
+        // In case of c.a == 0 and c.a == 1 are handling for special colorscheme by bat for non true
+        // color terminals. Color value is encoded in R. See `to_ansi_color()` in bat/src/terminal.rs
+        match c.a {
+            0 if c.r <= 7 => write!(self.out, "\x1b[{}m", c.r + 40)?, // 16 colors; e.g. 0 => 40 (Black), 7 => 47 (White)
+            0 => write!(self.out, "\x1b[48;5;{}m", c.r)?,             // 256 colors
+            1 => { /* Pass through. Do nothing */ }
+            _ if self.true_color => write!(self.out, "\x1b[48;2;{};{};{}m", c.r, c.g, c.b)?,
+            _ => write!(self.out, "\x1b[48;5;{}m", rgb_to_ansi256(c.r, c.g, c.b))?,
         }
         Ok(())
     }
 
     fn set_fg(&mut self, c: Color) -> Result<()> {
-        if self.true_color {
-            write!(self.out, "\x1b[38;2;{};{};{}m", c.r, c.g, c.b)?;
-        } else {
-            write!(self.out, "\x1b[38;5;{}m", rgb_to_ansi256(c.r, c.g, c.b))?;
+        // In case of c.a == 0 and c.a == 1 are handling for special colorscheme by bat for non true
+        // color terminals. Color value is encoded in R. See `to_ansi_color()` in bat/src/terminal.rs
+        match c.a {
+            0 if c.r <= 7 => write!(self.out, "\x1b[{}m", c.r + 30)?, // 16 colors; e.g. 0 => 33 (Yellow), 6 => 36 (Cyan)
+            0 => write!(self.out, "\x1b[38;5;{}m", c.r)?,             // 256 colors
+            1 => { /* Pass through. Do nothing */ }
+            _ if self.true_color => write!(self.out, "\x1b[38;2;{};{};{}m", c.r, c.g, c.b)?,
+            _ => write!(self.out, "\x1b[38;5;{}m", rgb_to_ansi256(c.r, c.g, c.b))?,
         }
         Ok(())
     }
@@ -477,7 +485,7 @@ impl<'main> SyntectPrinter<'main> {
             r: 128,
             g: 128,
             b: 128,
-            a: 0,
+            a: 255,
         });
         Drawer {
             lines,
