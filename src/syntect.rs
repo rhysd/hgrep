@@ -69,7 +69,7 @@ impl<'file> HighlightedLine<'file> {
     }
 }
 
-struct Writer<'file, W: Write> {
+struct Drawer<'file, W: Write> {
     lines: Vec<HighlightedLine<'file>>,
     theme: &'file Theme,
     out: W,
@@ -82,7 +82,7 @@ struct Writer<'file, W: Write> {
     match_color: Option<Color>,
 }
 
-impl<'file, W: Write> Writer<'file, W> {
+impl<'file, W: Write> Drawer<'file, W> {
     #[inline]
     fn gutter_width(&self) -> u16 {
         if self.grid {
@@ -93,33 +93,33 @@ impl<'file, W: Write> Writer<'file, W> {
     }
 
     // TODO: 256 colors terminal support
-    fn write_bg(&mut self, c: Color) -> Result<()> {
+    fn set_bg(&mut self, c: Color) -> Result<()> {
         write!(self.out, "\x1b[48;2;{};{};{}m", c.r, c.g, c.b)?;
         Ok(())
     }
 
-    fn write_fg(&mut self, c: Color) -> Result<()> {
+    fn set_fg(&mut self, c: Color) -> Result<()> {
         write!(self.out, "\x1b[38;2;{};{};{}m", c.r, c.g, c.b)?;
         Ok(())
     }
 
-    fn write_bg_color(&mut self) -> Result<()> {
+    fn set_default_bg(&mut self) -> Result<()> {
         if self.background {
             if let Some(bg) = self.theme.settings.background {
-                self.write_bg(bg)?;
+                self.set_bg(bg)?;
             }
         }
         Ok(())
     }
 
-    fn write_style(&mut self, s: Style) -> Result<()> {
-        self.write_bg(s.background)?;
-        self.write_fg(s.foreground)?;
+    fn set_style(&mut self, s: Style) -> Result<()> {
+        self.set_bg(s.background)?;
+        self.set_fg(s.foreground)?;
         Ok(())
     }
 
-    fn write_horizontal_line(&mut self, sep: &str) -> Result<()> {
-        self.write_fg(self.gutter_color)?;
+    fn draw_horizontal_line(&mut self, sep: &str) -> Result<()> {
+        self.set_fg(self.gutter_color)?;
         let gutter_width = self.gutter_width();
         for _ in 0..gutter_width - 3 {
             self.out.write_all("─".as_bytes())?;
@@ -128,21 +128,21 @@ impl<'file, W: Write> Writer<'file, W> {
         for _ in 0..self.term_width - gutter_width + 2 {
             self.out.write_all("─".as_bytes())?;
         }
-        self.write_reset()
+        self.reset_color()
     }
 
-    fn write_reset(&mut self) -> Result<()> {
+    fn reset_color(&mut self) -> Result<()> {
         self.out.write_all(b"\x1b[0m")?;
         Ok(())
     }
 
-    fn write_line_number(&mut self, lnum: u64, matched: bool) -> Result<()> {
+    fn draw_line_number(&mut self, lnum: u64, matched: bool) -> Result<()> {
         let color = if matched {
             self.theme.settings.foreground.unwrap()
         } else {
             self.gutter_color
         };
-        self.write_fg(color)?;
+        self.set_fg(color)?;
         let width = num_digits(lnum);
         for _ in 0..(self.lnum_width - width) {
             self.out.write_all(b" ")?;
@@ -150,17 +150,17 @@ impl<'file, W: Write> Writer<'file, W> {
         write!(self.out, " {}", lnum)?;
         if self.grid {
             if matched {
-                self.write_fg(self.gutter_color)?;
+                self.set_fg(self.gutter_color)?;
             }
             self.out.write_all(" │".as_bytes())?;
         }
-        self.write_bg_color()?;
+        self.set_default_bg()?;
         write!(self.out, " ")?;
         Ok(()) // Do not reset color because another color text will follow
     }
 
-    fn write_seprator_line(&mut self) -> Result<()> {
-        self.write_fg(self.gutter_color)?;
+    fn draw_separator_line(&mut self) -> Result<()> {
+        self.set_fg(self.gutter_color)?;
         // + 1 for left margin and - 3 for length of "..."
         let left_margin = self.lnum_width + 1 - 3;
         for _ in 0..left_margin {
@@ -181,7 +181,7 @@ impl<'file, W: Write> Writer<'file, W> {
     }
 
     // Returns number of tab characters in the text
-    fn write_text(&mut self, text: &str) -> Result<usize> {
+    fn draw_text(&mut self, text: &str) -> Result<usize> {
         if self.tab_width == 0 {
             write!(self.out, "{}", text)?;
             return Ok(0); // XXX: This does not consider width of \t in terminal
@@ -209,20 +209,20 @@ impl<'file, W: Write> Writer<'file, W> {
         num_tabs * (self.tab_width.saturating_sub(1) as usize) + text.width_cjk()
     }
 
-    fn write_line_body_bg<'a>(
+    fn draw_code_line_bg<'a>(
         &mut self,
         parts: impl Iterator<Item = (Style, &'a str)>,
     ) -> Result<()> {
         let gutter_width = self.gutter_width() as usize;
         let mut width = gutter_width;
         for (style, text) in parts {
-            self.write_style(style)?;
-            let num_tabs = self.write_text(text)?;
+            self.set_style(style)?;
+            let num_tabs = self.draw_text(text)?;
             width += self.text_width(text, num_tabs);
         }
 
         if width == gutter_width {
-            self.write_bg_color()?; // For empty line
+            self.set_default_bg()?; // For empty line
         }
 
         let term_width = self.term_width as usize;
@@ -231,38 +231,38 @@ impl<'file, W: Write> Writer<'file, W> {
                 self.out.write_all(b" ")?;
             }
         }
-        self.write_reset()
+        self.reset_color()
     }
 
-    fn write_line_body_no_bg<'a>(
+    fn draw_code_line_no_bg<'a>(
         &mut self,
         parts: impl Iterator<Item = (Style, &'a str)>,
     ) -> Result<()> {
         for (style, text) in parts {
-            self.write_fg(style.foreground)?;
-            self.write_text(text)?;
+            self.set_fg(style.foreground)?;
+            self.draw_text(text)?;
         }
-        self.write_reset()
+        self.reset_color()
     }
 
-    fn write_line_body<'a>(&mut self, parts: impl Iterator<Item = (Style, &'a str)>) -> Result<()> {
+    fn draw_code_line<'a>(&mut self, parts: impl Iterator<Item = (Style, &'a str)>) -> Result<()> {
         if self.background {
-            self.write_line_body_bg(parts)
+            self.draw_code_line_bg(parts)
         } else {
-            self.write_line_body_no_bg(parts)
+            self.draw_code_line_no_bg(parts)
         }
     }
 
-    fn write_line_body_with_bg<'a>(
+    fn draw_matched_code_line<'a>(
         &mut self,
         bg: Color,
         parts: impl Iterator<Item = (Style, &'a str)>,
     ) -> Result<()> {
-        self.write_bg(bg)?;
+        self.set_bg(bg)?;
         let mut width = self.gutter_width() as usize;
         for (style, text) in parts {
-            self.write_fg(style.foreground)?;
-            let num_tabs = self.write_text(text)?;
+            self.set_fg(style.foreground)?;
+            let num_tabs = self.draw_text(text)?;
             width += self.text_width(text, num_tabs);
         }
         let term_width = self.term_width as usize;
@@ -271,57 +271,57 @@ impl<'file, W: Write> Writer<'file, W> {
                 self.out.write_all(b" ")?;
             }
         }
-        self.write_reset()
+        self.reset_color()
     }
 
-    fn write_line(&mut self, line: HighlightedLine<'file>) -> Result<()> {
+    fn draw_line(&mut self, line: HighlightedLine<'file>) -> Result<()> {
         match line {
             HighlightedLine::Lossless(lnum, matched, parts) => {
-                self.write_line_number(lnum, matched)?;
+                self.draw_line_number(lnum, matched)?;
                 if matched {
                     if let Some(bg) = self.match_color {
-                        return self.write_line_body_with_bg(bg, parts.into_iter());
+                        return self.draw_matched_code_line(bg, parts.into_iter());
                     }
                 }
-                self.write_line_body(parts.into_iter())
+                self.draw_code_line(parts.into_iter())
             }
             HighlightedLine::Loss(lnum, matched, parts) => {
-                self.write_line_number(lnum, matched)?;
+                self.draw_line_number(lnum, matched)?;
                 let parts = parts.iter().map(|(s, t)| (*s, t.as_str()));
                 if matched {
                     if let Some(bg) = self.match_color {
-                        return self.write_line_body_with_bg(bg, parts);
+                        return self.draw_matched_code_line(bg, parts);
                     }
                 }
-                self.write_line_body(parts)
+                self.draw_code_line(parts)
             }
-            HighlightedLine::Separator => self.write_seprator_line(),
+            HighlightedLine::Separator => self.draw_separator_line(),
         }
     }
 
-    fn write_lines(&mut self) -> Result<()> {
+    fn draw_lines(&mut self) -> Result<()> {
         // Move out self.lines otherwise borrowck complains mutable borrow of &mut self.out and immutable borrow of &self.lines
         let lines = std::mem::take(&mut self.lines);
         for line in lines.into_iter() {
-            self.write_line(line)?;
+            self.draw_line(line)?;
             writeln!(self.out)?;
         }
         Ok(())
     }
 
-    fn write_header(&mut self, path: &Path) -> Result<()> {
-        self.write_horizontal_line("─")?;
+    fn draw_header(&mut self, path: &Path) -> Result<()> {
+        self.draw_horizontal_line("─")?;
         writeln!(self.out, "\x1b[1m {}", path.as_os_str().to_string_lossy())?;
-        self.write_reset()?;
+        self.reset_color()?;
         if self.grid {
-            self.write_horizontal_line("┬")?;
+            self.draw_horizontal_line("┬")?;
         }
         Ok(())
     }
 
-    fn write_footer(&mut self) -> Result<()> {
+    fn draw_footer(&mut self) -> Result<()> {
         if self.grid {
-            self.write_horizontal_line("┴")?;
+            self.draw_horizontal_line("┴")?;
         }
         Ok(())
     }
@@ -440,12 +440,12 @@ impl<'main> SyntectPrinter<'main> {
         lines
     }
 
-    fn build_writer<'file>(
+    fn build_drawer<'file>(
         &self,
         lines: Vec<HighlightedLine<'file>>,
         theme: &'file Theme,
         includes_separator: bool,
-    ) -> Writer<'file, impl Write + '_> {
+    ) -> Drawer<'file, impl Write + '_> {
         let last_lnum = lines[lines.len() - 1].line_number().unwrap(); // Separator is never at the end of line
         let mut lnum_width = num_digits(last_lnum);
         if includes_separator {
@@ -457,7 +457,7 @@ impl<'main> SyntectPrinter<'main> {
             b: 128,
             a: 0,
         });
-        Writer {
+        Drawer {
             lines,
             theme,
             grid: self.opts.grid,
@@ -491,9 +491,9 @@ impl<'main> Printer for SyntectPrinter<'main> {
         let theme = self.theme();
         let highlighted = self.parse_highlights(&file, syntax, theme);
         let include_separator = file.chunks.len() > 1;
-        let mut writer = self.build_writer(highlighted, theme, include_separator); // Lock is acquired here
-        writer.write_header(&file.path)?;
-        writer.write_lines()?;
-        writer.write_footer()
+        let mut drawer = self.build_drawer(highlighted, theme, include_separator); // Lock is acquired here
+        drawer.draw_header(&file.path)?;
+        drawer.draw_lines()?;
+        drawer.draw_footer()
     }
 }
