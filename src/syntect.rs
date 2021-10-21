@@ -12,7 +12,11 @@ use std::path::Path;
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{Color, Style, Theme, ThemeSet};
 use syntect::parsing::{SyntaxReference, SyntaxSet};
-use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+use unicode_width::UnicodeWidthStr;
+
+// Note for lifetimes:
+// - 'file is a lifetime for File instance which is passed to print() method
+// - 'main is a lifetime for the scope of main function (the caller of printer)
 
 const SYNTAX_SET_BIN: &[u8] = include_bytes!("../assets/bat/assets/syntaxes.bin");
 const THEME_SET_BIN: &[u8] = include_bytes!("../assets/bat/assets/themes.bin");
@@ -162,29 +166,33 @@ impl<'file, W: Write> Writer<'file, W> {
         Ok(()) // We don't need to reset color for next line
     }
 
+    // Returns number of tab characters in the text
     fn write_text(&mut self, text: &str) -> Result<usize> {
         if self.tab_width == 0 {
             write!(self.out, "{}", text)?;
-            return Ok(text.width_cjk()); // XXX: This does not consider width of \t in terminal
+            return Ok(0); // XXX: This does not consider width of \t in terminal
         }
-        let mut width = 0;
+        let mut num_tabs = 0;
         let mut start_idx = 0;
         for (i, c) in text.char_indices() {
             if c == '\t' {
-                write!(self.out, "{}", &text[start_idx..i])?;
+                let eaten = &text[start_idx..i];
+                write!(self.out, "{}", eaten)?;
                 for _ in 0..self.tab_width {
                     self.out.write_all(b" ")?;
                 }
                 start_idx = i + 1;
-                width += self.tab_width as usize;
-            } else {
-                width += c.width_cjk().unwrap_or(0);
+                num_tabs += 1;
             }
         }
         let rest = &text[start_idx..];
         write!(self.out, "{}", rest)?;
-        width = rest.width_cjk();
-        Ok(width)
+        Ok(num_tabs)
+    }
+
+    #[inline]
+    fn text_width(&self, text: &str, num_tabs: usize) -> usize {
+        num_tabs * (self.tab_width.saturating_sub(1) as usize) + text.width_cjk()
     }
 
     fn write_line_body_bg<'a>(
@@ -195,7 +203,8 @@ impl<'file, W: Write> Writer<'file, W> {
         let mut width = gutter_width;
         for (style, text) in parts {
             self.write_style(style)?;
-            width += self.write_text(text)?;
+            let num_tabs = self.write_text(text)?;
+            width += self.text_width(text, num_tabs);
         }
 
         if width == gutter_width {
@@ -217,7 +226,7 @@ impl<'file, W: Write> Writer<'file, W> {
     ) -> Result<()> {
         for (style, text) in parts {
             self.write_fg(style.foreground)?;
-            self.out.write_all(text.as_bytes())?;
+            self.write_text(text)?;
         }
         self.write_reset()
     }
@@ -235,12 +244,12 @@ impl<'file, W: Write> Writer<'file, W> {
         bg: Color,
         parts: impl Iterator<Item = (Style, &'a str)>,
     ) -> Result<()> {
-        let gutter_width = self.gutter_width() as usize;
         self.write_bg(bg)?;
-        let mut width = gutter_width;
+        let mut width = self.gutter_width() as usize;
         for (style, text) in parts {
             self.write_fg(style.foreground)?;
-            width += self.write_text(text)?;
+            let num_tabs = self.write_text(text)?;
+            width += self.text_width(text, num_tabs);
         }
         let term_width = self.term_width as usize;
         if width < term_width {
