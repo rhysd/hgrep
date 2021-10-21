@@ -7,8 +7,7 @@ use std::cmp;
 use std::collections::HashSet;
 use std::fmt;
 use std::io;
-use std::io::BufWriter;
-use std::io::Write;
+use std::io::{BufWriter, Write};
 use std::path::Path;
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{Color, Style, Theme, ThemeSet};
@@ -323,6 +322,14 @@ impl<'file, W: Write> Drawer<'file, W> {
             self.draw_horizontal_line("┴")?;
         }
         Ok(())
+    }
+}
+
+impl<'file, W: Write> Drop for Drawer<'file, W> {
+    fn drop(&mut self) {
+        self.out
+            .flush()
+            .expect("could not flush stdout for syntect printer");
     }
 }
 
