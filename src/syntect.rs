@@ -7,6 +7,7 @@ use rgb2ansi256::rgb_to_ansi256;
 use std::cmp;
 use std::collections::HashSet;
 use std::env;
+use std::ffi::OsStr;
 use std::fmt;
 use std::io;
 use std::io::{BufWriter, Write};
@@ -497,6 +498,23 @@ impl<'main> SyntectPrinter<'main> {
         let name = self.opts.theme.unwrap_or("Monokai Extended");
         &self.themes.themes[name]
     }
+
+    fn find_syntax(&self, path: &Path) -> Result<&SyntaxReference> {
+        let name = match path.extension().and_then(OsStr::to_str) {
+            Some("fs") => Some("F#"),
+            Some("h") => Some("C++"),
+            Some("pac") => Some("JavaScript (Babel)"),
+            _ => None,
+        };
+        if let Some(syntax) = name.and_then(|n| self.syntaxes.find_syntax_by_name(n)) {
+            return Ok(syntax);
+        }
+
+        Ok(self
+            .syntaxes
+            .find_syntax_for_file(path)?
+            .unwrap_or_else(|| self.syntaxes.find_syntax_plain_text()))
+    }
 }
 
 impl<'main> Printer for SyntectPrinter<'main> {
@@ -505,11 +523,8 @@ impl<'main> Printer for SyntectPrinter<'main> {
             return Ok(());
         }
 
-        let syntax = self
-            .syntaxes
-            .find_syntax_for_file(&file.path)?
-            .unwrap_or_else(|| self.syntaxes.find_syntax_plain_text());
         let theme = self.theme();
+        let syntax = self.find_syntax(&file.path)?;
         let highlighted = self.parse_highlights(&file, syntax, theme);
         let include_separator = file.chunks.len() > 1;
         let mut drawer = self.build_drawer(highlighted, theme, include_separator); // Lock is acquired here
