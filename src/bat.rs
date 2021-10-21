@@ -173,7 +173,7 @@ mod tests {
         opts.tab_width = 2;
         opts.theme = Some("Nord");
         opts.grid = false;
-        let mut p = BatPrinter::new(opts);
+        let p = BatPrinter::new(opts);
         let f = sample_file();
         p.print(f).unwrap();
     }

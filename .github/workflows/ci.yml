@@ -8,32 +8,32 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
       fail-fast: true
     runs-on: ${{ matrix.os }}
+    env:
+      RUSTFLAGS: -D warnings
+      RUST_BACKTRACE: 1
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: true
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
           override: true
       - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --color always
+        run: cargo test --color always
       - name: Build and run
-        uses: actions-rs/cargo@v1
-        with:
-          command: run
-          args: --color always -- hgrep README.md
+        run: cargo run --color always -- hgrep README.md
       - name: Build and run without builtin ripgrep
-        uses: actions-rs/cargo@v1
-        with:
-          command: run
-          args: --color always --no-default-features -- --version
+        run: cargo run --color always --no-default-features --features syntect-printer -- --version
+      - name: Build and run with minimal features
+        run: cargo run --color always --no-default-features -- --version
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: true
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -41,11 +41,6 @@ jobs:
           components: rustfmt, clippy
           override: true
       - name: rustfmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: -- --check --color always
-      - uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --color always -- -D warnings
+        run: cargo fmt -- --check --color always
+      - name: clippy
+        run: cargo clippy --color always -- -D warnings

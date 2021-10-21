@@ -265,6 +265,7 @@ fn generate_completion_script(shell: &str) -> Result<()> {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum PrinterKind {
     Bat,
+    #[cfg(feature = "syntect-printer")]
     Syntect,
 }
 
@@ -277,6 +278,7 @@ fn app() -> Result<bool> {
         return Ok(true);
     }
 
+    #[allow(unused_variables)] // printer_kind is unused when syntect-printer is disabled for now
     let printer_kind = match matches.value_of("printer").unwrap() {
         "bat" => PrinterKind::Bat,
         #[cfg(feature = "syntect-printer")]
