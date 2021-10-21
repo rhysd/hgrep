@@ -1,5 +1,6 @@
 #![allow(clippy::new_without_default)]
 
+#[cfg(feature = "bat-printer")]
 pub mod bat;
 pub mod chunk;
 pub mod grep;

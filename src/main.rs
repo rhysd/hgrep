@@ -1,6 +1,5 @@
 use anyhow::Result;
 use clap::{App, Arg};
-use hgrep::bat::BatPrinter;
 use hgrep::grep::BufReadExt;
 use hgrep::printer::PrinterOptions;
 use std::cmp;
@@ -10,11 +9,18 @@ use std::process;
 
 #[cfg(feature = "ripgrep")]
 use hgrep::ripgrep;
-#[cfg(feature = "ripgrep")]
-use std::sync::Mutex;
+
+#[cfg(feature = "bat-printer")]
+use hgrep::bat::BatPrinter;
 
 #[cfg(feature = "syntect-printer")]
 use hgrep::syntect::SyntectPrinter;
+
+#[cfg(feature = "bat-printer")]
+const DEFAULT_PRINTER: &str = "bat";
+
+#[cfg(all(not(feature = "bat-printer"), feature = "syntect-printer"))]
+const DEFAULT_PRINTER: &str = "syntect";
 
 fn cli<'a>() -> App<'a> {
     let app = App::new("hgrep")
@@ -79,7 +85,7 @@ fn cli<'a>() -> App<'a> {
                 .short('p')
                 .long("printer")
                 .value_name("PRINTER")
-                .default_value("bat")
+                .default_value(DEFAULT_PRINTER)
                 .about("Printer to print highlighted results. 'bat' or 'syntect' is available"),
         )
         .arg(
@@ -89,6 +95,12 @@ fn cli<'a>() -> App<'a> {
                 .value_name("SHELL")
                 .about("Print completion script for SHELL to stdout. SHELL must be one of 'bash', 'zsh', 'powershell', 'fish', or 'elvish'"),
         );
+
+    #[cfg(feature = "syntect-printer")]
+    let app =
+        app.arg(Arg::new("background").long("background").about(
+            "Paint background colors. This flag is only effective when using syntect printer",
+        ));
 
     #[cfg(feature = "ripgrep")]
     let app = app
@@ -264,6 +276,7 @@ fn generate_completion_script(shell: &str) -> Result<()> {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum PrinterKind {
+    #[cfg(feature = "bat-printer")]
     Bat,
     #[cfg(feature = "syntect-printer")]
     Syntect,
@@ -280,11 +293,14 @@ fn app() -> Result<bool> {
 
     #[allow(unused_variables)] // printer_kind is unused when syntect-printer is disabled for now
     let printer_kind = match matches.value_of("printer").unwrap() {
+        #[cfg(feature = "bat-printer")]
         "bat" => PrinterKind::Bat,
+        #[cfg(not(feature = "bat-printer"))]
+        "bat" => anyhow::bail!("--printer bat is not available because 'bat-printer' feature was disabled at compilation"),
         #[cfg(feature = "syntect-printer")]
         "syntect" => PrinterKind::Syntect,
         #[cfg(not(feature = "syntect-printer"))]
-        "syntect" => anyhow::bail!("'syntect-printer' feature is disabled at compilation"),
+        "syntect" => anyhow::bail!("--printer syntect is not available because 'syntect-printer' feature was disabled at compilation"),
         p => anyhow::bail!(
             "Unknown printer '{}', at --printer option. It must be one of 'bat' or 'syntect'",
             p
@@ -298,10 +314,15 @@ fn app() -> Result<bool> {
             return Ok(true);
         }
 
-        for theme in BatPrinter::new(PrinterOptions::default()).themes() {
-            println!("{}", theme);
+        #[cfg(feature = "bat-printer")]
+        if printer_kind == PrinterKind::Bat {
+            for theme in BatPrinter::new(PrinterOptions::default()).themes() {
+                println!("{}", theme);
+            }
+            return Ok(true);
         }
-        return Ok(true);
+
+        anyhow::bail!("No printer");
     }
 
     let min_context = matches
@@ -415,8 +436,13 @@ fn app() -> Result<bool> {
             return ripgrep::grep(printer, pattern, paths, config);
         }
 
-        let printer = Mutex::new(BatPrinter::new(printer_opts));
-        return ripgrep::grep(printer, pattern, paths, config);
+        #[cfg(feature = "bat-printer")]
+        if printer_kind == PrinterKind::Bat {
+            let printer = std::sync::Mutex::new(BatPrinter::new(printer_opts));
+            return ripgrep::grep(printer, pattern, paths, config);
+        }
+
+        anyhow::bail!("No printer");
     }
 
     #[cfg(feature = "syntect-printer")]
@@ -435,19 +461,24 @@ fn app() -> Result<bool> {
             .try_reduce(|| false, |a, b| Ok(a || b));
     }
 
-    let mut found = false;
-    let printer = BatPrinter::new(printer_opts);
-    // XXX: io::stdin().lock() is not available since bat's implementation internally takes lock of stdin
-    // *even if* it does not use stdin.
-    // https://github.com/sharkdp/bat/issues/1902
-    for f in io::BufReader::new(io::stdin())
-        .grep_lines()
-        .chunks_per_file(min_context, max_context)
-    {
-        printer.print(f?)?;
-        found = true;
+    #[cfg(feature = "bat-printer")]
+    if printer_kind == PrinterKind::Bat {
+        let mut found = false;
+        let printer = BatPrinter::new(printer_opts);
+        // XXX: io::stdin().lock() is not available since bat's implementation internally takes lock of stdin
+        // *even if* it does not use stdin.
+        // https://github.com/sharkdp/bat/issues/1902
+        for f in io::BufReader::new(io::stdin())
+            .grep_lines()
+            .chunks_per_file(min_context, max_context)
+        {
+            printer.print(f?)?;
+            found = true;
+        }
+        return Ok(found);
     }
-    Ok(found)
+
+    anyhow::bail!("No printer");
 }
 
 fn main() {
