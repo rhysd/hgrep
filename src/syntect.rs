@@ -129,16 +129,23 @@ impl<'file, W: Write> Writer<'file, W> {
         Ok(())
     }
 
-    fn write_line_number(&mut self, lnum: u64) -> Result<()> {
-        self.write_fg(self.gutter_color)?;
+    fn write_line_number(&mut self, lnum: u64, matched: bool) -> Result<()> {
+        let color = if matched {
+            self.theme.settings.foreground.unwrap()
+        } else {
+            self.gutter_color
+        };
+        self.write_fg(color)?;
         let width = (lnum as f64).log10() as u16 + 1;
         for _ in 0..(self.lnum_width - width) {
             self.out.write_all(b" ")?;
         }
+        write!(self.out, " {}", lnum)?;
         if self.grid {
-            write!(self.out, " {} │", lnum)?;
-        } else {
-            write!(self.out, " {}", lnum)?;
+            if matched {
+                self.write_fg(self.gutter_color)?;
+            }
+            self.out.write_all(" │".as_bytes())?;
         }
         self.write_bg_color()?;
         write!(self.out, " ")?;
@@ -153,7 +160,7 @@ impl<'file, W: Write> Writer<'file, W> {
             self.out.write_all(b" ")?;
         }
         let gutter_width = if self.grid {
-            write!(self.out, "... │")?;
+            write!(self.out, "... ┝")?;
             5
         } else {
             write!(self.out, "...")?;
@@ -161,7 +168,7 @@ impl<'file, W: Write> Writer<'file, W> {
         };
         let body_width = self.term_width - left_margin - gutter_width; // This crashes when terminal width is smaller than gutter
         for _ in 0..body_width / 2 {
-            self.out.write_all(b" -")?;
+            self.out.write_all(" ━".as_bytes())?;
         }
         Ok(()) // We don't need to reset color for next line
     }
@@ -263,7 +270,7 @@ impl<'file, W: Write> Writer<'file, W> {
     fn write_line(&mut self, line: HighlightedLine<'file>) -> Result<()> {
         match line {
             HighlightedLine::Lossless(lnum, matched, parts) => {
-                self.write_line_number(lnum)?;
+                self.write_line_number(lnum, matched)?;
                 if matched {
                     if let Some(bg) = self.match_color {
                         return self.write_line_body_with_bg(bg, parts.into_iter());
@@ -272,7 +279,7 @@ impl<'file, W: Write> Writer<'file, W> {
                 self.write_line_body(parts.into_iter())
             }
             HighlightedLine::Loss(lnum, matched, parts) => {
-                self.write_line_number(lnum)?;
+                self.write_line_number(lnum, matched)?;
                 let parts = parts.iter().map(|(s, t)| (*s, t.as_str()));
                 if matched {
                     if let Some(bg) = self.match_color {
