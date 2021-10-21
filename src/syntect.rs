@@ -3,8 +3,10 @@ use crate::chunk::{Line, Lines};
 use crate::printer::{Printer, PrinterOptions};
 use anyhow::Result;
 use console::Term;
+use rgb2ansi256::rgb_to_ansi256;
 use std::cmp;
 use std::collections::HashSet;
+use std::env;
 use std::fmt;
 use std::io;
 use std::io::{BufWriter, Write};
@@ -79,6 +81,7 @@ struct Drawer<'file, W: Write> {
     background: bool,
     gutter_color: Color,
     match_color: Option<Color>,
+    true_color: bool,
 }
 
 impl<'file, W: Write> Drawer<'file, W> {
@@ -91,14 +94,21 @@ impl<'file, W: Write> Drawer<'file, W> {
         }
     }
 
-    // TODO: 256 colors terminal support
     fn set_bg(&mut self, c: Color) -> Result<()> {
-        write!(self.out, "\x1b[48;2;{};{};{}m", c.r, c.g, c.b)?;
+        if self.true_color {
+            write!(self.out, "\x1b[48;2;{};{};{}m", c.r, c.g, c.b)?;
+        } else {
+            write!(self.out, "\x1b[48;5;{}m", rgb_to_ansi256(c.r, c.g, c.b))?;
+        }
         Ok(())
     }
 
     fn set_fg(&mut self, c: Color) -> Result<()> {
-        write!(self.out, "\x1b[38;2;{};{};{}m", c.r, c.g, c.b)?;
+        if self.true_color {
+            write!(self.out, "\x1b[38;2;{};{};{}m", c.r, c.g, c.b)?;
+        } else {
+            write!(self.out, "\x1b[38;5;{}m", rgb_to_ansi256(c.r, c.g, c.b))?;
+        }
         Ok(())
     }
 
@@ -372,6 +382,7 @@ pub struct SyntectPrinter<'main> {
     themes: ThemeSet,
     opts: PrinterOptions<'main>,
     term_width: u16,
+    true_color: bool,
 }
 
 impl<'main> SyntectPrinter<'main> {
@@ -382,6 +393,10 @@ impl<'main> SyntectPrinter<'main> {
             themes: load_themes(opts.theme)?,
             opts,
             term_width: Term::stdout().size().1,
+            true_color: env::var("COLORTERM")
+                .ok()
+                .map(|v| v == "truecolor")
+                .unwrap_or(false),
         })
     }
 
@@ -473,7 +488,7 @@ impl<'main> SyntectPrinter<'main> {
             background: self.opts.background_color,
             gutter_color,
             match_color: theme.settings.line_highlight.or(theme.settings.background),
-            // match_color: theme.settings.line_highlight.or(theme.settings.background),
+            true_color: self.true_color,
             out: BufWriter::new(self.stdout.lock()), // Take lock here to print files in serial from multiple threads
         }
     }

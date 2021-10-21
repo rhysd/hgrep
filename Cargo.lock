@@ -639,6 +639,7 @@ dependencies = [
  "pathdiff",
  "rayon",
  "regex",
+ "rgb2ansi256",
  "syntect",
  "unicode-width",
 ]
@@ -1026,6 +1027,12 @@ name = "regex-syntax"
 version = "0.6.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b"
+
+[[package]]
+name = "rgb2ansi256"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57df9ea38d09bf37f678380bf9256f031e8542a063c75b8017efd62238baee6e"
 
 [[package]]
 name = "rustc_version"

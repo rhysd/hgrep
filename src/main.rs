@@ -2,15 +2,16 @@ use anyhow::Result;
 use clap::{App, Arg};
 use hgrep::bat::BatPrinter;
 use hgrep::grep::BufReadExt;
-use hgrep::printer::{Printer, PrinterOptions};
+use hgrep::printer::PrinterOptions;
 use std::cmp;
 use std::env;
 use std::io;
 use std::process;
-use std::sync::Mutex;
 
 #[cfg(feature = "ripgrep")]
 use hgrep::ripgrep;
+#[cfg(feature = "ripgrep")]
+use std::sync::Mutex;
 
 #[cfg(feature = "syntect-printer")]
 use hgrep::syntect::SyntectPrinter;
@@ -403,6 +404,7 @@ fn app() -> Result<bool> {
 
     #[cfg(feature = "syntect-printer")]
     if matches.is_present("syntect") {
+        use hgrep::printer::Printer;
         use rayon::prelude::*;
         let printer = SyntectPrinter::new(printer_opts)?;
         return io::BufReader::new(io::stdin())
