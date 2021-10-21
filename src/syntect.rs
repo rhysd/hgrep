@@ -21,6 +21,12 @@ use unicode_width::UnicodeWidthStr;
 const SYNTAX_SET_BIN: &[u8] = include_bytes!("../assets/bat/assets/syntaxes.bin");
 const THEME_SET_BIN: &[u8] = include_bytes!("../assets/bat/assets/themes.bin");
 
+// Use u64::log10 once it is stabilized: https://github.com/rust-lang/rust/issues/70887
+#[inline]
+fn num_digits(n: u64) -> u16 {
+    (n as f64).log10() as u16 + 1
+}
+
 #[derive(Debug)]
 pub struct PrintError {
     message: String,
@@ -136,7 +142,7 @@ impl<'file, W: Write> Writer<'file, W> {
             self.gutter_color
         };
         self.write_fg(color)?;
-        let width = (lnum as f64).log10() as u16 + 1;
+        let width = num_digits(lnum);
         for _ in 0..(self.lnum_width - width) {
             self.out.write_all(b" ")?;
         }
@@ -421,9 +427,13 @@ impl<'main> SyntectPrinter<'main> {
         &self,
         lines: Vec<HighlightedLine<'file>>,
         theme: &'file Theme,
+        includes_separator: bool,
     ) -> Writer<'file, impl Write + '_> {
         let last_lnum = lines[lines.len() - 1].line_number().unwrap(); // Separator is never at the end of line
-        let lnum_width = cmp::max((last_lnum as f64).log10() as u16 + 1, 3); // Consider '...' in gutter
+        let mut lnum_width = num_digits(last_lnum);
+        if includes_separator {
+            lnum_width = cmp::max(lnum_width, 3); // Consider '...' in gutter
+        }
         let gutter_color = theme.settings.gutter_foreground.unwrap_or(Color {
             r: 128,
             g: 128,
@@ -463,7 +473,8 @@ impl<'main> Printer for SyntectPrinter<'main> {
             .unwrap_or_else(|| self.syntaxes.find_syntax_plain_text());
         let theme = self.theme();
         let highlighted = self.parse_highlights(&file, syntax, theme);
-        let mut writer = self.build_writer(highlighted, theme); // Lock is acquired here
+        let include_separator = file.chunks.len() > 1;
+        let mut writer = self.build_writer(highlighted, theme, include_separator); // Lock is acquired here
         writer.write_header(&file.path)?;
         writer.write_lines()?;
         writer.write_footer()
