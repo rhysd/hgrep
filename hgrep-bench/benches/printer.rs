@@ -1,6 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
+use hgrep::bat::BatPrinter;
 use hgrep::chunk::File;
-use hgrep::printer::{BatPrinter, Printer};
+use hgrep::printer::{Printer, PrinterOptions};
 use std::fs;
 use std::path::PathBuf;
 
@@ -32,7 +33,7 @@ fn large_file(c: &mut Criterion) {
 
     c.bench_function("node_modules", |b| {
         b.iter(|| {
-            let printer = BatPrinter::new();
+            let printer = BatPrinter::new(PrinterOptions::default());
             for file in files.clone().into_iter() {
                 printer.print(file).unwrap();
             }

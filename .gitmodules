@@ -1,0 +1,4 @@
+[submodule "assets/bat"]
+	path = assets/bat
+	url = https://github.com/sharkdp/bat.git
+	shallow = true

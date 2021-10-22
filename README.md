@@ -30,9 +30,15 @@ Example:
 hgrep pattern ./dir
 ```
 
-Please see [the usage section](#usage) for more details.
+hgrep provides two printers to pritn match results for your use case. Please see ['`bat` printer v.s. `syntect` printer'][bat-vs-syntect]
+section for the comparison.
 
-<img src="https://github.com/rhysd/ss/raw/master/hgrep/main.png" alt="screenshot" width="986" height="836" />
+- `syntect` printer: Our own implementation of printer using [syntect][] library. Performance and output layout are more optimized
+- `bat` printer: Printer built on top of [bat][]'s pretty printer implementation, which is battle-tested and provides some unique features
+
+<img src="https://github.com/rhysd/ss/raw/master/hgrep/main.png" alt="screenshot" width="766" height="634" />
+
+Please see [the usage section](#usage) for more details.
 
 ## Installation
 
@@ -90,8 +96,22 @@ If you always use hgrep with reading the grep output from stdin and don't want t
 This reduces the number of dependencies, installation time, and the binary size.
 
 ```sh
-cargo install hgrep --no-default-features
+cargo install hgrep --no-default-features --features bat-printer,syntect-printer
 ```
+
+To customize features on installation, please see the following 'Feature flags' section for more details.
+
+### Feature flags
+
+All features are optional and enabled by default. At least `bat-printer` or `syntect-printer` needs to be enabled.
+
+| Feature           | Description                                                                                                                   |
+|-------------------|-------------------------------------------------------------------------------------------------------------------------------|
+| `ripgrep`         | Built-in grep implementation built on top of [ripgrep][] as library. Performance is better than piping `rg` in some cases.    |
+| `bat-printer`     | Printer implementation built on top of [bat][]'s pretty printer, which is battle-tested and provides some unique features.    |
+| `syntect-printer` | Our own printer implementation built with [syntect][] library. Performance and output layout are optimized for our use cases. |
+
+For the differences of `bat-printer` and `syntect-printer`, see ['`bat` printer v.s. `syntect` printer'][bat-vs-syntect] section.
 
 ## Usage
 
@@ -130,7 +150,7 @@ grep -nH pattern -R paths... | hgrep -c 10 -C 20
 
 Optionally hgrep provides builtin grep implementation. It is a subset of ripgrep since it's built using ripgrep as library. And
 it's faster when there are so many matches because everything is done in the same process. The builtin grep feature is enabled by
-default and can be omitted by installing it with `--no-default-features`.
+default and can be omitted by feature flags.
 
 ```sh
 hgrep [options...] pattern paths...
@@ -143,6 +163,46 @@ functionalities, use `rg` command and eat its output by hgrep via stdin. Current
 - Memory map is not used until `--mmap` flag is specified
 - Adding/Removing file types are not supported. Only default file types are supported (see `--type-list`)
 - `.ripgreprc` config file is not supported
+
+### `bat` printer v.s. `syntect` printer
+
+hgrep provides two printers to print match results; `bat` printer and `syntect` printer. `bat` printer is a printer
+implementation built on top of [bat][]'s pretty printer. And `syntect` printer is our own printer implementation built with
+[syntect][] library. `--printer` (or `-p`) flag can specify the printer to print results.
+
+At first, there was `bat` printer only. And then `syntect` printer was implemented for better performance and optimized layout.
+
+#### Pros of each printers are
+
+- `bat` printer
+  - Implementation is battle-tested. It is already used by many users on many platforms and terminals
+  - The same output layout as `bat` command
+- `syntect` printer
+  - Performance is much better. 2x to 4x faster (more match results gets better performance)
+  - Output layout is optimized for our use cases. For example, a line number at match is highlighted in different color
+  - Painting background color (`--background`) is supported. This is useful when the theme you want to use does not fit to your
+    terminal's background color
+  - Detection for terminal color support is better. It automatically changes the default theme to 'ansi' when the terminal only
+    supports 16 colors
+
+Currently `bat` is the default painter (unless `bat-printer` feature is disabled) because the implementation is not mature yet.
+But in 0.2 release, changing the default painter to `syntect` is planned.
+
+#### Why performance of `syntect` printer is better?
+
+Syntax highlighting is very CPU heavy task. Many regular expression matchings happen at each line. For accurate syntax
+highlighting, a highlighter needs to parse the syntax at the beginning of the file. It means that printing a match at the last
+line of file is much heavier task than printing a match of the first line of the file.
+
+Since `syntect` printer is designed for calculating syntax highlights per file in parallel, its performance is much better. It's
+2x~4x faster than `bat` printer in some experiments. More match results gets better performance.
+
+In contrast, bat is not designed for multi-threads. It's not possible to share `bat::PrettyPrinter` instance among threads. It
+means that printing match results including syntax highlighting must be done in a single thread.
+
+| `syntect` printer sequence | `bat` printer sequence |
+|----------------------------|------------------------|
+| ![](https://github.com/rhysd/ss/raw/master/hgrep/comparison_syntect.png) | ![](https://github.com/rhysd/ss/raw/master/hgrep/comparison_bat.png) |
 
 ### Change color theme and layout
 
@@ -172,6 +232,17 @@ And hgrep respects `BAT_STYLE` environment variable. When `plain` or `header` or
 export BAT_STYLE=numbers
 ```
 
+### Set default command options
+
+Wrapping `hgrep` command with shell's `alias` command works fine for setting default command options.
+
+For example, if you're using Bash, put the following line in your `.bash_profile`.
+
+```sh
+# Use syntect-printer and search hidden files by default
+alias hgrep='hgrep --printer syntect --hidden'
+```
+
 ### Command options
 
 - Common options
@@ -181,7 +252,8 @@ export BAT_STYLE=numbers
   - `--tab NUM`: Number of spaces for tab character. Set 0 to pass tabs through. Default value is 4
   - `--theme THEME`: Theme for syntax highlighting. Default value is the same as `bat` command
   - `--list-themes`: List all theme names available for --theme option
-- Only for builtin ripgrep
+  - `--printer`: Printer to print the match results. 'bat' or 'syntect' is available. Default value is 'bat'
+- Only for `ripgrep` feature
   - `--no-ignore`: Don't respect ignore files (.gitignore, .ignore, etc.)
   - `--ignore-case` (`-i`): When this flag is provided, the given patterns will be searched case insensitively
   - `--smart-case` (`-S`): Search case insensitively if the pattern is all lowercase. Search case sensitively otherwise
@@ -202,6 +274,8 @@ export BAT_STYLE=numbers
   - `--type TYPE` (`-t`): Only search files matching TYPE. This option is repeatable
   - `--type-not TYPE` (`-T`): Do not search files matching TYPE. Inverse of --type. This option is repeatable
   - `--type-list`: Show all supported file types and their corresponding globs
+- Only for `syntect-printer` feature
+  - `--background`: Paint background colors. This flag is only for syntect printer
 
 See `--help` for full list of options.
 
@@ -286,3 +360,5 @@ hgrep is distributed under [the MIT license](./LICENSE.txt).
 [homebrew]: https://brew.sh/
 [macports]: https://www.macports.org/
 [new-issue]: https://github.com/rhysd/hgrep/issues/new
+[syntect]: https://github.com/trishume/syntect
+[bat-vs-syntect]: #bat-printer-vs-syntect-printer

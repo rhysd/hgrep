@@ -21,7 +21,7 @@ fn testdata_dir(c: &mut Criterion) {
             let found = ripgrep::grep(
                 DummyPrinter,
                 r"\*$",
-                iter::once(dir.as_os_str()),
+                Some(iter::once(dir.as_os_str())),
                 ripgrep::Config::new(3, 6),
             )
             .unwrap();
@@ -43,7 +43,7 @@ fn node_modules(c: &mut Criterion) {
                 ripgrep::grep(
                     DummyPrinter,
                     r"\bparcel\b",
-                    iter::once(dir.as_os_str()),
+                    Some(iter::once(dir.as_os_str())),
                     ripgrep::Config::new(3, 6),
                 )
                 .unwrap(),

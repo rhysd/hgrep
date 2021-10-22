@@ -10,6 +10,7 @@ use ignore::overrides::OverrideBuilder;
 use ignore::types::{Types, TypesBuilder};
 use ignore::{WalkBuilder, WalkParallel, WalkState};
 use rayon::prelude::*;
+use std::env;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io;
@@ -321,13 +322,20 @@ impl<'main> Config<'main> {
     }
 }
 
-pub fn grep<'main, P: Printer + Send>(
+pub fn grep<'main, P: Printer + Sync>(
     printer: P,
     pat: &str,
-    paths: impl Iterator<Item = &'main OsStr>,
+    paths: Option<impl Iterator<Item = &'main OsStr>>,
     config: Config<'main>,
 ) -> Result<bool> {
-    let paths = walk(paths, &config)?;
+    let paths = if let Some(paths) = paths {
+        walk(paths, &config)?
+    } else {
+        let cwd = env::current_dir()?;
+        let paths = std::iter::once(cwd.as_os_str());
+        walk(paths, &config)?
+    };
+
     if paths.is_empty() {
         return Ok(false);
     }
@@ -400,20 +408,20 @@ impl<'a> Sink for Matches<'a> {
     }
 }
 
-struct Ripgrep<'main, M: Matcher, P: Printer + Send> {
+struct Ripgrep<'main, M: Matcher, P: Printer> {
     config: Config<'main>,
     matcher: M,
     count: Option<Mutex<u64>>,
-    printer: Mutex<P>,
+    printer: P,
 }
 
-impl<'main, P: Printer + Send> Ripgrep<'main, RegexMatcher, P> {
+impl<'main, P: Printer + Sync> Ripgrep<'main, RegexMatcher, P> {
     fn with_regex(pat: &str, config: Config<'main>, printer: P) -> Result<Self> {
         Ok(Self::new(config.build_regex_matcher(pat)?, config, printer))
     }
 }
 
-impl<'main, P: Printer + Send> Ripgrep<'main, Pcre2Matcher, P> {
+impl<'main, P: Printer + Sync> Ripgrep<'main, Pcre2Matcher, P> {
     fn with_pcre2(pat: &str, config: Config<'main>, printer: P) -> Result<Self> {
         Ok(Self::new(config.build_pcre2_matcher(pat)?, config, printer))
     }
@@ -422,13 +430,13 @@ impl<'main, P: Printer + Send> Ripgrep<'main, Pcre2Matcher, P> {
 impl<'main, M, P> Ripgrep<'main, M, P>
 where
     M: Matcher + Sync,
-    P: Printer + Send,
+    P: Printer + Sync,
 {
     fn new(matcher: M, config: Config<'main>, printer: P) -> Self {
         Self {
             count: config.max_count.map(Mutex::new),
             matcher,
-            printer: Mutex::new(printer),
+            printer,
             config,
         }
     }
@@ -453,11 +461,10 @@ where
 
     fn grep_file(&self, path: PathBuf) -> Result<bool> {
         let matches = self.search(path)?;
-        let printer = self.printer.lock().unwrap();
         let (min, max) = (self.config.min_context, self.config.max_context);
         let mut found = false;
         for file in Files::new(matches.into_iter().map(Ok), min, max) {
-            printer.print(file?)?;
+            self.printer.print(file?)?;
             found = true;
         }
         Ok(found)
@@ -518,7 +525,7 @@ mod tests {
                 config.crlf(true);
             }
 
-            let found = grep(&printer, pat, paths, config).unwrap();
+            let found = grep(&printer, pat, Some(paths), config).unwrap();
 
             let expected = read_expected_chunks(&dir, input)
                 .map(|f| vec![f])
@@ -551,7 +558,7 @@ mod tests {
             .collect::<Vec<_>>();
         let paths = paths.iter().map(AsRef::as_ref);
 
-        let found = grep(&printer, pat, paths, config).unwrap();
+        let found = grep(&printer, pat, Some(paths), config).unwrap();
 
         let mut got = printer.0.into_inner().unwrap();
         got.sort_by(|a, b| a.path.cmp(&b.path));
@@ -573,7 +580,7 @@ mod tests {
         if cfg!(target_os = "windows") {
             config.crlf(true);
         }
-        let found = grep(&printer, pat, paths, config).unwrap();
+        let found = grep(&printer, pat, Some(paths), config).unwrap();
         let files = printer.0.into_inner().unwrap();
         assert!(!found, "result: {:?}", files);
         assert!(files.is_empty(), "result: {:?}", files);
@@ -594,7 +601,7 @@ mod tests {
             if cfg!(target_os = "windows") {
                 config.crlf(true);
             }
-            grep(&printer, pat, paths, config).unwrap_err();
+            grep(&printer, pat, Some(paths), config).unwrap_err();
             assert!(printer.0.into_inner().unwrap().is_empty());
         }
     }
@@ -615,7 +622,7 @@ mod tests {
         if cfg!(target_os = "windows") {
             config.crlf(true);
         }
-        let err = grep(ErrorPrinter, pat, paths, config).unwrap_err();
+        let err = grep(ErrorPrinter, pat, Some(paths), config).unwrap_err();
         let msg = format!("{}", err);
         assert_eq!(msg, "dummy error");
     }

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{App, Arg};
 use hgrep::grep::BufReadExt;
-use hgrep::printer::{BatPrinter, Printer};
+use hgrep::printer::PrinterOptions;
 use std::cmp;
 use std::env;
 use std::io;
@@ -10,7 +10,19 @@ use std::process;
 #[cfg(feature = "ripgrep")]
 use hgrep::ripgrep;
 
+#[cfg(feature = "bat-printer")]
+use hgrep::bat::BatPrinter;
+
+#[cfg(feature = "syntect-printer")]
+use hgrep::syntect::SyntectPrinter;
+
 fn cli<'a>() -> App<'a> {
+    #[cfg(feature = "bat-printer")]
+    const DEFAULT_PRINTER: &str = "bat";
+
+    #[cfg(all(not(feature = "bat-printer"), feature = "syntect-printer"))]
+    const DEFAULT_PRINTER: &str = "syntect";
+
     let app = App::new("hgrep")
         .version(env!("CARGO_PKG_VERSION"))
         .about(
@@ -69,12 +81,27 @@ fn cli<'a>() -> App<'a> {
                 .about("List all theme names available for --theme option"),
         )
         .arg(
+            Arg::new("printer")
+                .short('p')
+                .long("printer")
+                .value_name("PRINTER")
+                .default_value(DEFAULT_PRINTER)
+                .about("Printer to print the match results. 'bat' or 'syntect' is available"),
+        )
+        .arg(
             Arg::new("generate-completion-script")
                 .long("generate-completion-script")
                 .takes_value(true)
                 .value_name("SHELL")
                 .about("Print completion script for SHELL to stdout. SHELL must be one of 'bash', 'zsh', 'powershell', 'fish', or 'elvish'"),
         );
+
+    #[cfg(feature = "syntect-printer")]
+    let app = app.arg(
+        Arg::new("background")
+            .long("background")
+            .about("Paint background colors. This flag is only for syntect printer"),
+    );
 
     #[cfg(feature = "ripgrep")]
     let app = app
@@ -248,6 +275,14 @@ fn generate_completion_script(shell: &str) -> Result<()> {
     Ok(())
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PrinterKind {
+    #[cfg(feature = "bat-printer")]
+    Bat,
+    #[cfg(feature = "syntect-printer")]
+    Syntect,
+}
+
 fn app() -> Result<bool> {
     use anyhow::Context;
 
@@ -257,12 +292,38 @@ fn app() -> Result<bool> {
         return Ok(true);
     }
 
-    let mut printer = BatPrinter::new();
+    #[allow(unused_variables)] // printer_kind is unused when syntect-printer is disabled for now
+    let printer_kind = match matches.value_of("printer").unwrap() {
+        #[cfg(feature = "bat-printer")]
+        "bat" => PrinterKind::Bat,
+        #[cfg(not(feature = "bat-printer"))]
+        "bat" => anyhow::bail!("--printer bat is not available because 'bat-printer' feature was disabled at compilation"),
+        #[cfg(feature = "syntect-printer")]
+        "syntect" => PrinterKind::Syntect,
+        #[cfg(not(feature = "syntect-printer"))]
+        "syntect" => anyhow::bail!("--printer syntect is not available because 'syntect-printer' feature was disabled at compilation"),
+        p => anyhow::bail!(
+            "Unknown printer '{}', at --printer option. It must be one of 'bat' or 'syntect'",
+            p
+        ),
+    };
+
     if matches.is_present("list-themes") {
-        for theme in printer.themes() {
-            println!("{}", theme);
+        #[cfg(feature = "syntect-printer")]
+        if printer_kind == PrinterKind::Syntect {
+            hgrep::syntect::list_themes(io::stdout().lock())?;
+            return Ok(true);
         }
-        return Ok(true);
+
+        #[cfg(feature = "bat-printer")]
+        if printer_kind == PrinterKind::Bat {
+            for theme in BatPrinter::new(PrinterOptions::default()).themes() {
+                println!("{}", theme);
+            }
+            return Ok(true);
+        }
+
+        unreachable!();
     }
 
     let min_context = matches
@@ -277,26 +338,38 @@ fn app() -> Result<bool> {
         .context("could not parse \"max-context\" option value as unsigned integer")?;
     let max_context = cmp::max(min_context, max_context);
 
-    let tab_width = matches
-        .value_of("tab")
-        .unwrap()
-        .parse()
-        .context("could not parse \"tab\" option value as unsigned integer")?;
-    printer.tab_width(tab_width);
+    let mut printer_opts = PrinterOptions::default();
+    if let Some(width) = matches.value_of("tab") {
+        printer_opts.tab_width = width
+            .parse()
+            .context("could not parse \"tab\" option value as unsigned integer")?;
+    }
 
     let theme_env = env::var("BAT_THEME").ok();
     if let Some(var) = &theme_env {
-        printer.theme(var);
+        printer_opts.theme = Some(var);
     }
     if let Some(theme) = matches.value_of("theme") {
-        printer.theme(theme);
+        printer_opts.theme = Some(theme);
     }
 
+    let is_grid = matches.is_present("grid");
     if let Ok("plain" | "header" | "numbers") = env::var("BAT_STYLE").as_ref().map(String::as_str) {
-        printer.no_grid();
+        if !is_grid {
+            printer_opts.grid = false;
+        }
     }
-    if matches.is_present("no-grid") && !matches.is_present("grid") {
-        printer.no_grid();
+    if matches.is_present("no-grid") && !is_grid {
+        printer_opts.grid = false;
+    }
+
+    #[cfg(feature = "syntect-printer")]
+    if matches.is_present("background") {
+        printer_opts.background_color = true;
+        #[cfg(feature = "bat-printer")]
+        if printer_kind == PrinterKind::Bat {
+            anyhow::bail!("--background flag is only available for syntect printer since bat does not support painting background colors");
+        }
     }
 
     #[cfg(feature = "ripgrep")]
@@ -362,28 +435,55 @@ fn app() -> Result<bool> {
             config.types_not(types_not);
         }
 
-        if let Some(paths) = paths {
-            return ripgrep::grep(printer, pattern, paths, config);
-        } else {
-            let cwd = env::current_dir()?;
-            let paths = std::iter::once(cwd.as_os_str());
+        #[cfg(feature = "syntect-printer")]
+        if printer_kind == PrinterKind::Syntect {
+            let printer = SyntectPrinter::new(printer_opts)?;
             return ripgrep::grep(printer, pattern, paths, config);
         }
+
+        #[cfg(feature = "bat-printer")]
+        if printer_kind == PrinterKind::Bat {
+            let printer = std::sync::Mutex::new(BatPrinter::new(printer_opts));
+            return ripgrep::grep(printer, pattern, paths, config);
+        }
+
+        unreachable!();
     }
 
-    let mut found = false;
-    // XXX: io::stdin().lock() is not available since bat's implementation internally takes lock of stdin
-    // *even if* it does not use stdin.
-    // https://github.com/sharkdp/bat/issues/1902
-    for f in io::BufReader::new(io::stdin())
-        .grep_lines()
-        .chunks_per_file(min_context, max_context)
-    {
-        printer.print(f?)?;
-        found = true;
+    #[cfg(feature = "syntect-printer")]
+    if printer_kind == PrinterKind::Syntect {
+        use hgrep::printer::Printer;
+        use rayon::prelude::*;
+        let printer = SyntectPrinter::new(printer_opts)?;
+        return io::BufReader::new(io::stdin())
+            .grep_lines()
+            .chunks_per_file(min_context, max_context)
+            .par_bridge()
+            .map(|file| {
+                printer.print(file?)?;
+                Ok(true)
+            })
+            .try_reduce(|| false, |a, b| Ok(a || b));
     }
 
-    Ok(found)
+    #[cfg(feature = "bat-printer")]
+    if printer_kind == PrinterKind::Bat {
+        let mut found = false;
+        let printer = BatPrinter::new(printer_opts);
+        // XXX: io::stdin().lock() is not available since bat's implementation internally takes lock of stdin
+        // *even if* it does not use stdin.
+        // https://github.com/sharkdp/bat/issues/1902
+        for f in io::BufReader::new(io::stdin())
+            .grep_lines()
+            .chunks_per_file(min_context, max_context)
+        {
+            printer.print(f?)?;
+            found = true;
+        }
+        return Ok(found);
+    }
+
+    unreachable!();
 }
 
 fn main() {
@@ -396,7 +496,8 @@ fn main() {
         Ok(true) => 0,
         Ok(false) => 1,
         Err(err) => {
-            eprintln!("{}", err);
+            let red = ansi_term::Colour::Red.bold();
+            eprintln!("{} {}", red.paint("error:"), err);
             2
         }
     };

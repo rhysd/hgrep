@@ -20,6 +20,8 @@ homepage = "https://github.com/rhysd/hgrep#readme"
 repository = "https://github.com/rhysd/hgrep"
 readme = "README.md"
 include = [
+    "/assets/bat/assets/themes.bin",
+    "/assets/bat/assets/syntaxes.bin",
     "/src",
     "/LICENSE.txt",
     "/README.md",
@@ -32,33 +34,51 @@ name = "hgrep"
 path = "src/main.rs"
 
 [features]
-default = ["ripgrep"]
+default = ["ripgrep", "bat-printer", "syntect-printer"]
 ripgrep = [
     "grep-matcher",
     "grep-pcre2",
     "grep-regex",
     "grep-searcher",
     "ignore",
-    "rayon",
     "regex",
+    "rayon",
+]
+syntect-printer = [
+    "syntect",
+    "rayon",
+    "unicode-width",
+    "bincode",
+    "flate2",
+    "rgb2ansi256",
+    "term",
+]
+bat-printer = [
+    "bat",
 ]
 
 [dependencies]
 anyhow = "1"
-bat = { version = "^0.18.3", default-features = false, features = ["regex-onig"] }
 clap = { version = "3.0.0-beta", default-features = false, features = ["std", "color", "suggestions"] }
 clap_generate = "3.0.0-beta"
 console = "0.15"
 memchr = "2"
 ansi_term = "0.12"
+pathdiff = "0.2"
+bat = { version = "^0.18.3", default-features = false, features = ["regex-onig"], optional = true }
 grep-regex = { version = "0.1.9", optional = true }
 grep-searcher = { version = "0.1.8", optional = true }
-rayon = { version = "1", optional = true }
 ignore = { version = "0.4", optional = true }
 regex = { version = "1", optional = true }
 grep-matcher = { version = "0.1.5", optional = true }
 grep-pcre2 = { version = "0.1.5", optional = true }
-pathdiff = "0.2"
+syntect = { version = "4.6", optional = true }
+rayon = { version = "1", optional = true }
+unicode-width = { version = "0.1.9", optional = true }
+bincode = { version = "1.3", optional = true }
+flate2 = { version = "1", optional = true }
+rgb2ansi256 = { version = "0.1", optional = true }
+term = { version = "0.7", optional = true }
 
 [workspace]
 members = [

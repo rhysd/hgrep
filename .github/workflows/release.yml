@@ -45,6 +45,8 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
       - uses: actions/checkout@v2
+        with:
+          submodules: true
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -60,10 +62,7 @@ jobs:
           echo 'PCRE2_SYS_STATIC=1' >> "$GITHUB_ENV"
         if: matrix.build == 'mac-aarch64'
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --color always --target=${{ matrix.target }} --verbose
+        run: cargo build --release --color always --target=${{ matrix.target }} --verbose
         env:
           PKG_CONFIG_ALLOW_CROSS: 1
           RUST_BACKTRACE: 1
