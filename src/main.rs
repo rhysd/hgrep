@@ -16,13 +16,13 @@ use hgrep::bat::BatPrinter;
 #[cfg(feature = "syntect-printer")]
 use hgrep::syntect::SyntectPrinter;
 
-#[cfg(feature = "bat-printer")]
-const DEFAULT_PRINTER: &str = "bat";
-
-#[cfg(all(not(feature = "bat-printer"), feature = "syntect-printer"))]
-const DEFAULT_PRINTER: &str = "syntect";
-
 fn cli<'a>() -> App<'a> {
+    #[cfg(feature = "bat-printer")]
+    const DEFAULT_PRINTER: &str = "bat";
+
+    #[cfg(all(not(feature = "bat-printer"), feature = "syntect-printer"))]
+    const DEFAULT_PRINTER: &str = "syntect";
+
     let app = App::new("hgrep")
         .version(env!("CARGO_PKG_VERSION"))
         .about(
@@ -86,7 +86,7 @@ fn cli<'a>() -> App<'a> {
                 .long("printer")
                 .value_name("PRINTER")
                 .default_value(DEFAULT_PRINTER)
-                .about("Printer to print highlighted results. 'bat' or 'syntect' is available"),
+                .about("Printer to print the match results. 'bat' or 'syntect' is available"),
         )
         .arg(
             Arg::new("generate-completion-script")
@@ -97,10 +97,11 @@ fn cli<'a>() -> App<'a> {
         );
 
     #[cfg(feature = "syntect-printer")]
-    let app =
-        app.arg(Arg::new("background").long("background").about(
-            "Paint background colors. This flag is only effective when using syntect printer",
-        ));
+    let app = app.arg(
+        Arg::new("background")
+            .long("background")
+            .about("Paint background colors. This flag is only for syntect printer"),
+    );
 
     #[cfg(feature = "ripgrep")]
     let app = app
@@ -322,7 +323,7 @@ fn app() -> Result<bool> {
             return Ok(true);
         }
 
-        anyhow::bail!("No printer");
+        unreachable!();
     }
 
     let min_context = matches
@@ -365,6 +366,10 @@ fn app() -> Result<bool> {
     #[cfg(feature = "syntect-printer")]
     if matches.is_present("background") {
         printer_opts.background_color = true;
+        #[cfg(feature = "bat-printer")]
+        if printer_kind == PrinterKind::Bat {
+            anyhow::bail!("--background flag is only available for syntect printer since bat does not support painting background colors");
+        }
     }
 
     #[cfg(feature = "ripgrep")]
@@ -442,7 +447,7 @@ fn app() -> Result<bool> {
             return ripgrep::grep(printer, pattern, paths, config);
         }
 
-        anyhow::bail!("No printer");
+        unreachable!();
     }
 
     #[cfg(feature = "syntect-printer")]
@@ -478,7 +483,7 @@ fn app() -> Result<bool> {
         return Ok(found);
     }
 
-    anyhow::bail!("No printer");
+    unreachable!();
 }
 
 fn main() {
@@ -491,7 +496,8 @@ fn main() {
         Ok(true) => 0,
         Ok(false) => 1,
         Err(err) => {
-            eprintln!("{}", err);
+            let red = ansi_term::Colour::Red.bold();
+            eprintln!("{} {}", red.paint("error:"), err);
             2
         }
     };

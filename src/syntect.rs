@@ -517,7 +517,7 @@ impl<'main> SyntectPrinter<'main> {
                 };
                 match std::str::from_utf8(bytes) {
                     Ok(line) => {
-                        let ranges = hl.highlight(&line, &self.syntaxes);
+                        let ranges = hl.highlight(line, &self.syntaxes);
                         lines.push(HighlightedLine::Lossless(lnum, matched, ranges));
                     }
                     Err(_) => {
