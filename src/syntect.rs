@@ -13,7 +13,7 @@ use std::io;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 use syntect::highlighting::{
-    Color, HighlightIterator, HighlightState, Highlighter, Style, Theme, ThemeSet,
+    Color, FontStyle, HighlightIterator, HighlightState, Highlighter, Style, Theme, ThemeSet,
 };
 use syntect::parsing::{ParseState, ScopeStack, ScopeStackOp, SyntaxReference, SyntaxSet};
 use term::terminfo::TermInfo;
@@ -206,6 +206,26 @@ impl<'file, W: Write> Drawer<'file, W> {
         Ok(())
     }
 
+    fn set_bold(&mut self) -> Result<()> {
+        self.out.write_all(b"\x1b[1m")?;
+        Ok(())
+    }
+
+    fn set_underline(&mut self) -> Result<()> {
+        self.out.write_all(b"\x1b[4m")?;
+        Ok(())
+    }
+
+    fn set_font_style(&mut self, style: FontStyle) -> Result<()> {
+        if style.contains(FontStyle::BOLD) {
+            self.set_bold()?;
+        }
+        if style.contains(FontStyle::UNDERLINE) {
+            self.set_underline()?;
+        }
+        Ok(())
+    }
+
     fn set_style(&mut self, s: Style) -> Result<()> {
         self.set_bg(s.background)?;
         self.set_fg(s.foreground)?;
@@ -325,6 +345,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         let mut width = gutter_width;
         for (style, text) in parts {
             self.set_style(style)?;
+            self.set_font_style(style.font_style)?;
             let num_tabs = self.draw_text(text)?;
             width += self.text_width(text, num_tabs);
         }
@@ -342,12 +363,16 @@ impl<'file, W: Write> Drawer<'file, W> {
     ) -> Result<()> {
         for (style, text) in parts {
             self.set_fg(style.foreground)?;
+            self.set_font_style(style.font_style)?;
             self.draw_text(text)?;
         }
         self.reset_color()
     }
 
-    fn draw_code_line<'a>(&mut self, parts: impl Iterator<Item = (Style, &'a str)>) -> Result<()> {
+    fn draw_unmatched_code_line<'a>(
+        &mut self,
+        parts: impl Iterator<Item = (Style, &'a str)>,
+    ) -> Result<()> {
         if self.background {
             self.draw_code_line_bg(parts)
         } else {
@@ -364,6 +389,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         let mut width = self.gutter_width() as usize;
         for (style, text) in parts {
             self.set_fg(style.foreground)?;
+            self.set_font_style(style.font_style)?;
             let num_tabs = self.draw_text(text)?;
             width += self.text_width(text, num_tabs);
         }
@@ -379,7 +405,7 @@ impl<'file, W: Write> Drawer<'file, W> {
                         return self.draw_matched_code_line(bg, parts.into_iter());
                     }
                 }
-                self.draw_code_line(parts.into_iter())
+                self.draw_unmatched_code_line(parts.into_iter())
             }
             HighlightedLine::Loss(lnum, matched, parts) => {
                 self.draw_line_number(lnum, matched)?;
@@ -389,7 +415,7 @@ impl<'file, W: Write> Drawer<'file, W> {
                         return self.draw_matched_code_line(bg, parts);
                     }
                 }
-                self.draw_code_line(parts)
+                self.draw_unmatched_code_line(parts)
             }
             HighlightedLine::Separator => self.draw_separator_line(),
         }
@@ -409,7 +435,8 @@ impl<'file, W: Write> Drawer<'file, W> {
         self.draw_horizontal_line("─")?;
         self.set_default_bg()?;
         let path = path.as_os_str().to_string_lossy();
-        write!(self.out, "\x1b[1m {}", path)?;
+        self.set_bold()?;
+        write!(self.out, " {}", path)?;
         if self.background {
             self.fill_rest_with_spaces(path.width_cjk() + 1)?;
         } else {
