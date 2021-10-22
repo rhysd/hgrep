@@ -12,9 +12,10 @@ use std::fmt;
 use std::io;
 use std::io::{BufWriter, Write};
 use std::path::Path;
-use syntect::easy::HighlightLines;
-use syntect::highlighting::{Color, Style, Theme, ThemeSet};
-use syntect::parsing::{SyntaxReference, SyntaxSet};
+use syntect::highlighting::{
+    Color, HighlightIterator, HighlightState, Highlighter, Style, Theme, ThemeSet,
+};
+use syntect::parsing::{ParseState, ScopeStack, ScopeStackOp, SyntaxReference, SyntaxSet};
 use term::terminfo::TermInfo;
 use unicode_width::UnicodeWidthStr;
 
@@ -85,6 +86,50 @@ impl fmt::Display for PrintError {
             "Error while printing output with syntect: {}",
             &self.message
         )
+    }
+}
+
+// Note: More flexible version of syntect::easy::HighlightLines for our use case
+struct LineHighlighter<'a> {
+    hl: Highlighter<'a>,
+    parse_state: ParseState,
+    hl_state: HighlightState,
+}
+
+impl<'a> LineHighlighter<'a> {
+    fn new(syntax: &SyntaxReference, theme: &'a Theme) -> Self {
+        let hl = Highlighter::new(theme);
+        let parse_state = ParseState::new(syntax);
+        let hl_state = HighlightState::new(&hl, ScopeStack::new());
+        Self {
+            hl,
+            parse_state,
+            hl_state,
+        }
+    }
+
+    fn parse_line(
+        &mut self,
+        line: impl AsRef<str>,
+        syntax_set: &SyntaxSet,
+    ) -> Vec<(usize, ScopeStackOp)> {
+        self.parse_state.parse_line(line.as_ref(), syntax_set)
+    }
+
+    fn highlight<'line>(
+        &mut self,
+        line: &'line str,
+        syntax_set: &SyntaxSet,
+    ) -> Vec<(Style, &'line str)> {
+        let ops = self.parse_state.parse_line(line.as_ref(), syntax_set);
+        HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl).collect()
+    }
+
+    fn highlight_owned(&mut self, line: &str, syntax_set: &SyntaxSet) -> Vec<(Style, String)> {
+        let ops = self.parse_state.parse_line(line.as_ref(), syntax_set);
+        HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl)
+            .map(|(n, s)| (n, s.to_string()))
+            .collect()
     }
 }
 
@@ -446,7 +491,7 @@ impl<'main> SyntectPrinter<'main> {
         theme: &Theme,
     ) -> Vec<HighlightedLine<'file>> {
         assert!(!file.chunks.is_empty());
-        let mut hl = HighlightLines::new(syntax, theme);
+        let mut hl = LineHighlighter::new(syntax, theme);
 
         // TODO: Consider capacity. It would be able to be calculated by {num of chunks} * {min context lines}
         let mut lines = vec![];
@@ -459,7 +504,7 @@ impl<'main> SyntectPrinter<'main> {
             let (start, end) = *chunk;
             if lnum < start {
                 let line = String::from_utf8_lossy(bytes);
-                hl.highlight(line.as_ref(), &self.syntaxes); // XXX: Returned Vec is discarded.
+                hl.parse_line(line.as_ref(), &self.syntaxes); // Discard parsed result
                 continue;
             }
             if start <= lnum && lnum <= end {
@@ -472,17 +517,13 @@ impl<'main> SyntectPrinter<'main> {
                 };
                 match std::str::from_utf8(bytes) {
                     Ok(line) => {
-                        let ranges = hl.highlight(line, &self.syntaxes);
+                        let ranges = hl.highlight(&line, &self.syntaxes);
                         lines.push(HighlightedLine::Lossless(lnum, matched, ranges));
                     }
                     Err(_) => {
                         let line = String::from_utf8_lossy(bytes);
-                        let ranges = hl.highlight(&line, &self.syntaxes);
                         // `line` is Cow<'file>, but Cow::<'file>::as_ref() returns &'_ str which does not live long enough
-                        let ranges = ranges
-                            .into_iter()
-                            .map(|(n, text)| (n, text.to_string()))
-                            .collect();
+                        let ranges = hl.highlight_owned(&line, &self.syntaxes);
                         lines.push(HighlightedLine::Loss(lnum, matched, ranges));
                     }
                 }
