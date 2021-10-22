@@ -49,7 +49,7 @@ impl<I: Iterator> Files<I> {
 }
 
 pub struct Line<'a>(pub &'a [u8], pub u64);
-pub struct Lines<'a> {
+struct Lines<'a> {
     lnum: usize,
     prev: usize,
     buf: &'a [u8],

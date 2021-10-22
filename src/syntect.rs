@@ -1,8 +1,9 @@
 use crate::chunk::File;
-use crate::chunk::{Line, Lines};
+use crate::chunk::Line;
 use crate::printer::{Printer, PrinterOptions};
 use anyhow::Result;
 use console::Term;
+use memchr::{memchr_iter, Memchr};
 use rgb2ansi256::rgb_to_ansi256;
 use std::cmp;
 use std::collections::HashSet;
@@ -15,7 +16,7 @@ use std::path::Path;
 use syntect::highlighting::{
     Color, FontStyle, HighlightIterator, HighlightState, Highlighter, Style, Theme, ThemeSet,
 };
-use syntect::parsing::{ParseState, ScopeStack, ScopeStackOp, SyntaxReference, SyntaxSet};
+use syntect::parsing::{ParseState, ScopeStack, SyntaxReference, SyntaxSet};
 use term::terminfo::TermInfo;
 use unicode_width::UnicodeWidthStr;
 
@@ -25,6 +26,21 @@ use unicode_width::UnicodeWidthStr;
 
 const SYNTAX_SET_BIN: &[u8] = include_bytes!("../assets/bat/assets/syntaxes.bin");
 const THEME_SET_BIN: &[u8] = include_bytes!("../assets/bat/assets/themes.bin");
+
+pub fn list_themes<W: Write>(mut out: W) -> Result<()> {
+    let mut seen = HashSet::new();
+    let bat_defaults = bincode::deserialize_from(flate2::read::ZlibDecoder::new(THEME_SET_BIN))?;
+    let defaults = ThemeSet::load_defaults();
+    for themes in &[bat_defaults, defaults] {
+        for name in themes.themes.keys() {
+            if !seen.contains(name) {
+                writeln!(out, "{}", name)?;
+                seen.insert(name);
+            }
+        }
+    }
+    Ok(())
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum TermColorSupport {
@@ -106,12 +122,9 @@ impl<'a> LineHighlighter<'a> {
         }
     }
 
-    fn parse_line(
-        &mut self,
-        line: impl AsRef<str>,
-        syntax_set: &SyntaxSet,
-    ) -> Vec<(usize, ScopeStackOp)> {
-        self.parse_state.parse_line(line.as_ref(), syntax_set)
+    fn skip_line(&mut self, line: &str, syntax_set: &SyntaxSet) {
+        let ops = self.parse_state.parse_line(line, syntax_set);
+        for _ in HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl) {}
     }
 
     fn highlight<'line>(
@@ -119,12 +132,12 @@ impl<'a> LineHighlighter<'a> {
         line: &'line str,
         syntax_set: &SyntaxSet,
     ) -> Vec<(Style, &'line str)> {
-        let ops = self.parse_state.parse_line(line.as_ref(), syntax_set);
+        let ops = self.parse_state.parse_line(line, syntax_set);
         HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl).collect()
     }
 
     fn highlight_owned(&mut self, line: &str, syntax_set: &SyntaxSet) -> Vec<(Style, String)> {
-        let ops = self.parse_state.parse_line(line.as_ref(), syntax_set);
+        let ops = self.parse_state.parse_line(line, syntax_set);
         HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl)
             .map(|(n, s)| (n, s.to_string()))
             .collect()
@@ -132,17 +145,96 @@ impl<'a> LineHighlighter<'a> {
 }
 
 enum HighlightedLine<'file> {
-    Lossless(u64, bool, Vec<(Style, &'file str)>),
-    Loss(u64, bool, Vec<(Style, String)>),
+    Lossless {
+        lnum: u64,
+        matched: bool,
+        parts: Vec<(Style, &'file str)>,
+    },
+    Loss {
+        lnum: u64,
+        matched: bool,
+        parts: Vec<(Style, String)>,
+    },
     Separator,
 }
 
 impl<'file> HighlightedLine<'file> {
+    fn loss_less(lnum: u64, matched: bool, mut parts: Vec<(Style, &'file str)>) -> Self {
+        // Remove newline at the end
+        if let Some((_, last)) = parts.last_mut() {
+            if last.ends_with('\n') {
+                *last = &last[..last.len() - 1];
+            }
+            if last.ends_with('\r') {
+                *last = &last[..last.len() - 1];
+            }
+        }
+        HighlightedLine::Lossless {
+            lnum,
+            matched,
+            parts,
+        }
+    }
+
+    fn loss(lnum: u64, matched: bool, mut parts: Vec<(Style, String)>) -> Self {
+        // Remove newline at the end
+        if let Some((_, last)) = parts.last_mut() {
+            if last.ends_with('\n') {
+                last.pop();
+            }
+            if last.ends_with('\r') {
+                last.pop();
+            }
+        }
+        HighlightedLine::Loss {
+            lnum,
+            matched,
+            parts,
+        }
+    }
+
     fn line_number(&self) -> Option<u64> {
         match self {
-            HighlightedLine::Lossless(n, _, _) => Some(*n),
-            HighlightedLine::Loss(n, _, _) => Some(*n),
+            HighlightedLine::Lossless { lnum, .. } => Some(*lnum),
+            HighlightedLine::Loss { lnum, .. } => Some(*lnum),
             HighlightedLine::Separator => None,
+        }
+    }
+}
+
+// Like chunk::Lines, but includes newlines
+struct LinesInclusive<'a> {
+    lnum: usize,
+    prev: usize,
+    buf: &'a [u8],
+    iter: Memchr<'a>,
+}
+impl<'a> LinesInclusive<'a> {
+    pub fn new(buf: &'a [u8]) -> Self {
+        Self {
+            lnum: 1,
+            prev: 0,
+            buf,
+            iter: memchr_iter(b'\n', buf),
+        }
+    }
+}
+impl<'a> Iterator for LinesInclusive<'a> {
+    type Item = Line<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(idx) = self.iter.next() {
+            let lnum = self.lnum;
+            let end = idx + 1;
+            let line = &self.buf[self.prev..end];
+            self.prev = end;
+            self.lnum += 1;
+            Some(Line(line, lnum as u64))
+        } else if self.prev == self.buf.len() {
+            None
+        } else {
+            let line = &self.buf[self.prev..];
+            self.prev = self.buf.len();
+            Some(Line(line, self.lnum as u64))
         }
     }
 }
@@ -188,7 +280,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         // In case of c.a == 0 and c.a == 1 are handling for special colorscheme by bat for non true
         // color terminals. Color value is encoded in R. See `to_ansi_color()` in bat/src/terminal.rs
         match c.a {
-            0 if c.r <= 7 => write!(self.out, "\x1b[{}m", c.r + 30)?, // 16 colors; e.g. 0 => 33 (Yellow), 6 => 36 (Cyan)
+            0 if c.r <= 7 => write!(self.out, "\x1b[{}m", c.r + 30)?, // 16 colors; e.g. 3 => 33 (Yellow), 6 => 36 (Cyan)
             0 => write!(self.out, "\x1b[38;5;{}m", c.r)?,             // 256 colors
             1 => { /* Pass through. Do nothing */ }
             _ if self.true_color => write!(self.out, "\x1b[38;2;{};{};{}m", c.r, c.g, c.b)?,
@@ -398,7 +490,11 @@ impl<'file, W: Write> Drawer<'file, W> {
 
     fn draw_line(&mut self, line: HighlightedLine<'file>) -> Result<()> {
         match line {
-            HighlightedLine::Lossless(lnum, matched, parts) => {
+            HighlightedLine::Lossless {
+                lnum,
+                matched,
+                parts,
+            } => {
                 self.draw_line_number(lnum, matched)?;
                 if matched {
                     if let Some(bg) = self.match_color {
@@ -407,7 +503,11 @@ impl<'file, W: Write> Drawer<'file, W> {
                 }
                 self.draw_unmatched_code_line(parts.into_iter())
             }
-            HighlightedLine::Loss(lnum, matched, parts) => {
+            HighlightedLine::Loss {
+                lnum,
+                matched,
+                parts,
+            } => {
                 self.draw_line_number(lnum, matched)?;
                 let parts = parts.iter().map(|(s, t)| (*s, t.as_str()));
                 if matched {
@@ -465,21 +565,6 @@ impl<'file, W: Write> Drop for Drawer<'file, W> {
     }
 }
 
-pub fn list_themes<W: Write>(mut out: W) -> Result<()> {
-    let mut seen = HashSet::new();
-    let bat_defaults = bincode::deserialize_from(flate2::read::ZlibDecoder::new(THEME_SET_BIN))?;
-    let defaults = ThemeSet::load_defaults();
-    for themes in &[bat_defaults, defaults] {
-        for name in themes.themes.keys() {
-            if !seen.contains(name) {
-                writeln!(out, "{}", name)?;
-                seen.insert(name);
-            }
-        }
-    }
-    Ok(())
-}
-
 fn load_themes(name: Option<&str>) -> Result<ThemeSet> {
     let bat_defaults: ThemeSet =
         bincode::deserialize_from(flate2::read::ZlibDecoder::new(THEME_SET_BIN))?;
@@ -535,11 +620,13 @@ impl<'main> SyntectPrinter<'main> {
         let mut chunks = file.chunks.iter();
         let mut chunk = chunks.next().unwrap(); // OK since chunks is not empty
 
-        for Line(bytes, lnum) in Lines::new(&file.contents) {
+        // Note: `bytes` contains newline at the end since SyntaxSet requires it. The newline will be trimmed when
+        // `HighlightedLine` instance is created.
+        for Line(bytes, lnum) in LinesInclusive::new(&file.contents) {
             let (start, end) = *chunk;
             if lnum < start {
                 let line = String::from_utf8_lossy(bytes);
-                hl.parse_line(line.as_ref(), &self.syntaxes); // Discard parsed result
+                hl.skip_line(line.as_ref(), &self.syntaxes); // Discard parsed result
                 continue;
             }
             if start <= lnum && lnum <= end {
@@ -553,13 +640,13 @@ impl<'main> SyntectPrinter<'main> {
                 match std::str::from_utf8(bytes) {
                     Ok(line) => {
                         let ranges = hl.highlight(line, &self.syntaxes);
-                        lines.push(HighlightedLine::Lossless(lnum, matched, ranges));
+                        lines.push(HighlightedLine::loss_less(lnum, matched, ranges));
                     }
                     Err(_) => {
                         let line = String::from_utf8_lossy(bytes);
                         // `line` is Cow<'file>, but Cow::<'file>::as_ref() returns &'_ str which does not live long enough
                         let ranges = hl.highlight_owned(&line, &self.syntaxes);
-                        lines.push(HighlightedLine::Loss(lnum, matched, ranges));
+                        lines.push(HighlightedLine::loss(lnum, matched, ranges));
                     }
                 }
                 if lnum == end {
