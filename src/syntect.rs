@@ -45,9 +45,7 @@ impl TermColorSupport {
 
         if let Ok(info) = TermInfo::from_env() {
             if let Some(colors) = info.numbers.get("colors") {
-                if *colors == 256 {
-                    return TermColorSupport::Ansi256;
-                } else {
+                if *colors < 256 {
                     return TermColorSupport::Ansi16;
                 }
             }
@@ -167,9 +165,9 @@ impl<'file, W: Write> Drawer<'file, W> {
     #[inline]
     fn gutter_width(&self) -> u16 {
         if self.grid {
-            self.lnum_width + 5
+            self.lnum_width + 4
         } else {
-            self.lnum_width + 3
+            self.lnum_width + 2
         }
     }
 
@@ -216,12 +214,13 @@ impl<'file, W: Write> Drawer<'file, W> {
 
     fn draw_horizontal_line(&mut self, sep: &str) -> Result<()> {
         self.set_fg(self.gutter_color)?;
+        self.set_default_bg()?;
         let gutter_width = self.gutter_width();
-        for _ in 0..gutter_width - 3 {
+        for _ in 0..gutter_width - 2 {
             self.out.write_all("─".as_bytes())?;
         }
         self.out.write_all(sep.as_bytes())?;
-        for _ in 0..self.term_width - gutter_width + 2 {
+        for _ in 0..self.term_width - gutter_width + 1 {
             self.out.write_all("─".as_bytes())?;
         }
         self.reset_color()
@@ -233,12 +232,13 @@ impl<'file, W: Write> Drawer<'file, W> {
     }
 
     fn draw_line_number(&mut self, lnum: u64, matched: bool) -> Result<()> {
-        let color = if matched {
+        let fg = if matched {
             self.theme.settings.foreground.unwrap()
         } else {
             self.gutter_color
         };
-        self.set_fg(color)?;
+        self.set_fg(fg)?;
+        self.set_default_bg()?;
         let width = num_digits(lnum);
         for _ in 0..(self.lnum_width - width) {
             self.out.write_all(b" ")?;
@@ -257,12 +257,13 @@ impl<'file, W: Write> Drawer<'file, W> {
 
     fn draw_separator_line(&mut self) -> Result<()> {
         self.set_fg(self.gutter_color)?;
+        self.set_default_bg()?;
         // + 1 for left margin and - 3 for length of "..."
         let left_margin = self.lnum_width + 1 - 3;
         for _ in 0..left_margin {
             self.out.write_all(b" ")?;
         }
-        let gutter_width = if self.grid {
+        let w = if self.grid {
             write!(self.out, "... ┝")?;
             5
         } else {
@@ -270,7 +271,7 @@ impl<'file, W: Write> Drawer<'file, W> {
             3
         };
         self.set_default_bg()?;
-        let body_width = self.term_width - left_margin - gutter_width; // This crashes when terminal width is smaller than gutter
+        let body_width = self.term_width - left_margin - w; // This crashes when terminal width is smaller than gutter
         for _ in 0..body_width / 2 {
             self.out.write_all(" ━".as_bytes())?;
         }
@@ -309,7 +310,7 @@ impl<'file, W: Write> Drawer<'file, W> {
     fn fill_rest_with_spaces(&mut self, written_width: usize) -> Result<()> {
         let term_width = self.term_width as usize;
         if written_width < term_width {
-            for _ in 0..term_width - written_width + 1 {
+            for _ in 0..term_width - written_width {
                 self.out.write_all(b" ")?;
             }
         }
@@ -406,8 +407,15 @@ impl<'file, W: Write> Drawer<'file, W> {
 
     fn draw_header(&mut self, path: &Path) -> Result<()> {
         self.draw_horizontal_line("─")?;
-        writeln!(self.out, "\x1b[1m {}", path.as_os_str().to_string_lossy())?;
-        self.reset_color()?;
+        self.set_default_bg()?;
+        let path = path.as_os_str().to_string_lossy();
+        write!(self.out, "\x1b[1m {}", path)?;
+        if self.background {
+            self.fill_rest_with_spaces(path.width_cjk() + 1)?;
+        } else {
+            self.reset_color()?;
+            writeln!(self.out)?;
+        }
         if self.grid {
             self.draw_horizontal_line("┬")?;
         }
