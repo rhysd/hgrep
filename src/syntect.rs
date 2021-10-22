@@ -318,6 +318,16 @@ impl<'file, W: Write> Drawer<'file, W> {
         Ok(())
     }
 
+    fn unset_font_style(&mut self, style: FontStyle) -> Result<()> {
+        if style.contains(FontStyle::BOLD) {
+            self.out.write_all(b"\x1b[22m")?;
+        }
+        if style.contains(FontStyle::UNDERLINE) {
+            self.out.write_all(b"\x1b[24m")?;
+        }
+        Ok(())
+    }
+
     fn set_style(&mut self, s: Style) -> Result<()> {
         self.set_bg(s.background)?;
         self.set_fg(s.foreground)?;
@@ -439,6 +449,7 @@ impl<'file, W: Write> Drawer<'file, W> {
             self.set_style(style)?;
             self.set_font_style(style.font_style)?;
             let num_tabs = self.draw_text(text)?;
+            self.unset_font_style(style.font_style)?;
             width += self.text_width(text, num_tabs);
         }
 
@@ -457,6 +468,7 @@ impl<'file, W: Write> Drawer<'file, W> {
             self.set_fg(style.foreground)?;
             self.set_font_style(style.font_style)?;
             self.draw_text(text)?;
+            self.unset_font_style(style.font_style)?;
         }
         self.reset_color()
     }
@@ -483,6 +495,7 @@ impl<'file, W: Write> Drawer<'file, W> {
             self.set_fg(style.foreground)?;
             self.set_font_style(style.font_style)?;
             let num_tabs = self.draw_text(text)?;
+            self.unset_font_style(style.font_style)?;
             width += self.text_width(text, num_tabs);
         }
         self.fill_rest_with_spaces(width)
@@ -613,7 +626,6 @@ impl<'main> SyntectPrinter<'main> {
         assert!(!file.chunks.is_empty());
         let mut hl = LineHighlighter::new(syntax, theme);
 
-        // TODO: Consider capacity. It would be able to be calculated by {num of chunks} * {min context lines}
         let mut lines = vec![];
 
         let mut matched = file.line_numbers.as_ref();
