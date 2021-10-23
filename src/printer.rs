@@ -1,6 +1,5 @@
 use crate::chunk::File;
 use anyhow::Result;
-use console::Term;
 use std::env;
 use term::terminfo::TermInfo;
 
@@ -46,6 +45,7 @@ pub struct PrinterOptions<'main> {
 
 impl<'main> Default for PrinterOptions<'main> {
     fn default() -> Self {
+        use terminal_size::{terminal_size, Width};
         Self {
             tab_width: 4,
             theme: None,
@@ -53,7 +53,7 @@ impl<'main> Default for PrinterOptions<'main> {
             background_color: false,
             color_support: TermColorSupport::detect(),
             custom_assets: false,
-            term_width: Term::stdout().size().1,
+            term_width: terminal_size().map(|(Width(w), _)| w).unwrap_or(80),
         }
     }
 }

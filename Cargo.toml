@@ -63,11 +63,11 @@ bat-printer = [
 anyhow = "1"
 clap = { version = "3.0.0-beta", default-features = false, features = ["std", "color", "suggestions"] }
 clap_generate = "3.0.0-beta"
-console = "0.15"
 memchr = "2"
 ansi_term = "0.12"
 pathdiff = "0.2"
 term = "0.7"
+terminal_size = "0.1"
 bat = { version = "^0.18.3", default-features = false, features = ["regex-onig"], optional = true }
 grep-regex = { version = "0.1.9", optional = true }
 grep-searcher = { version = "0.1.8", optional = true }

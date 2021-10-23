@@ -74,7 +74,7 @@ dependencies = [
  "ansi_term",
  "bugreport",
  "clircle",
- "console 0.14.1",
+ "console",
  "content_inspector",
  "encoding",
  "error-chain",
@@ -228,21 +228,6 @@ dependencies = [
  "encode_unicode",
  "lazy_static",
  "libc",
- "regex",
- "terminal_size",
- "unicode-width",
- "winapi",
-]
-
-[[package]]
-name = "console"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a28b32d32ca44b70c3e4acd7db1babf555fa026e385fb95f18028f88848b3c31"
-dependencies = [
- "encode_unicode",
- "libc",
- "once_cell",
  "regex",
  "terminal_size",
  "unicode-width",
@@ -660,7 +645,6 @@ dependencies = [
  "bincode",
  "clap 3.0.0-beta.5",
  "clap_generate",
- "console 0.15.0",
  "dirs-next",
  "flate2",
  "grep-matcher",
@@ -675,6 +659,7 @@ dependencies = [
  "rgb2ansi256",
  "syntect",
  "term",
+ "terminal_size",
  "unicode-width",
 ]
 
