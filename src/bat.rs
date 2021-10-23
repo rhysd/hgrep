@@ -92,7 +92,7 @@ impl<'main> BatPrinter<'main> {
         let assets = if opts.custom_assets {
             get_cache_dir()
                 .and_then(|path| HighlightingAssets::from_cache(&path).ok())
-                .unwrap_or_else(|| HighlightingAssets::from_binary())
+                .unwrap_or_else(HighlightingAssets::from_binary)
         } else {
             HighlightingAssets::from_binary()
         };
