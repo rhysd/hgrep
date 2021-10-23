@@ -24,8 +24,8 @@ use unicode_width::UnicodeWidthStr;
 // - 'file is a lifetime for File instance which is passed to print() method
 // - 'main is a lifetime for the scope of main function (the caller of printer)
 
-const SYNTAX_SET_BIN: &[u8] = include_bytes!("../assets/bat/assets/syntaxes.bin");
-const THEME_SET_BIN: &[u8] = include_bytes!("../assets/bat/assets/themes.bin");
+const SYNTAX_SET_BIN: &[u8] = include_bytes!("../assets/syntaxes.bin");
+const THEME_SET_BIN: &[u8] = include_bytes!("../assets/themes.bin");
 
 pub trait LockableWrite<'a> {
     type Locked: Write;

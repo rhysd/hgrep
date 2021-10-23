@@ -13,15 +13,13 @@ jobs:
       RUST_BACKTRACE: 1
     steps:
       - uses: actions/checkout@v2
-        with:
-          submodules: true
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
           override: true
       - name: Run tests
-        run: cargo test -- --color always
+        run: cargo test --color always -- --color always
       - run: cargo run --color always -- hgrep README.md
       - run: cargo run --color always --no-default-features --features syntect-printer             -- --version
       - run: cargo run --color always --no-default-features --features bat-printer                 -- --version
@@ -32,8 +30,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-        with:
-          submodules: true
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal

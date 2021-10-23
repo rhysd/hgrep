@@ -20,8 +20,9 @@ homepage = "https://github.com/rhysd/hgrep#readme"
 repository = "https://github.com/rhysd/hgrep"
 readme = "README.md"
 include = [
-    "/assets/bat/assets/themes.bin",
-    "/assets/bat/assets/syntaxes.bin",
+    "/assets/themes.bin",
+    "/assets/syntaxes.bin",
+    "/assets/LICENSE-MIT",
     "/src",
     "/LICENSE.txt",
     "/README.md",
