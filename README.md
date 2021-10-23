@@ -33,7 +33,7 @@ hgrep pattern ./dir
 hgrep provides two printers to pritn match results for your use case. Please see ['`bat` printer v.s. `syntect` printer'][bat-vs-syntect]
 section for the comparison.
 
-- `syntect` printer: Our own implementation of printer using [syntect][] library. Performance and output layout are more optimized
+- `syntect` printer: Our own implementation of printer using [syntect][] library. Performance and its output layout are more optimized
 - `bat` printer: Printer built on top of [bat][]'s pretty printer implementation, which is battle-tested and provides some unique features
 
 <img src="https://github.com/rhysd/ss/raw/master/hgrep/main.png" alt="screenshot" width="766" height="634" />
@@ -131,10 +131,12 @@ grep -nH pattern -R paths... | hgrep [options...]
 rg -nH pattern paths... | hgrep [options...]
 ```
 
-When you want a pager, please use external commands like `less`.
+When you want a pager, please use external commands like `less`. `$COLUMNS` needs to be passed because terminal width is fixed to
+80 characters when the process is piped. If you frequently use a pager, ['Set default command options'](#set-default-command-options)
+section would describe a better way.
 
 ```sh
-grep -nH pattern -R paths... | hgrep [options...] | less -R
+grep -nH pattern -R paths... | hgrep --term-width "$COLUMNS" [options...] | less -R
 ```
 
 By default, hgrep shows at least 5 lines and at most 5 lines as context of a match. How many context lines is determined by some
@@ -172,7 +174,7 @@ implementation built on top of [bat][]'s pretty printer. And `syntect` printer i
 
 At first, there was `bat` printer only. And then `syntect` printer was implemented for better performance and optimized layout.
 
-#### Pros of each printers are
+#### Pros of each printers
 
 - `bat` printer
   - Implementation is battle-tested. It is already used by many users on many platforms and terminals
@@ -241,6 +243,15 @@ For example, if you're using Bash, put the following line in your `.bash_profile
 ```sh
 # Use syntect-printer and search hidden files by default
 alias hgrep='hgrep --printer syntect --hidden'
+```
+
+If you prefer a pager, try the following wrappre function. `--term-width` propagates the correct width of terminal window.
+
+```sh
+# Use syntect-printer and less as pager. $COLUMNS corrects terminal window
+function hgrep() {
+    command hgrep -p syntect --term-width "$COLUMNS" "$@" | less -R
+}
 ```
 
 ### Command options
