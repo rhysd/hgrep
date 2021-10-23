@@ -39,15 +39,16 @@ fn node_modules(c: &mut Criterion) {
 
     c.bench_function("node_modules", |b| {
         b.iter(|| {
-            black_box(
-                ripgrep::grep(
-                    DummyPrinter,
-                    r"\bparcel\b",
-                    Some(iter::once(dir.as_os_str())),
-                    ripgrep::Config::new(3, 6),
-                )
-                .unwrap(),
+            let mut config = ripgrep::Config::new(3, 6);
+            config.no_ignore(true);
+            let found = ripgrep::grep(
+                DummyPrinter,
+                r"\bparcel\b",
+                Some(iter::once(dir.as_os_str())),
+                config,
             )
+            .unwrap();
+            assert!(found);
         })
     });
 }

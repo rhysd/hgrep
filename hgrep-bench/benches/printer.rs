@@ -1,7 +1,10 @@
 use criterion::{criterion_group, criterion_main, Criterion};
+use gag::Gag;
 use hgrep::bat::BatPrinter;
 use hgrep::chunk::File;
-use hgrep::printer::{Printer, PrinterOptions};
+use hgrep::printer::{Printer, PrinterOptions, TermColorSupport};
+use hgrep::syntect::SyntectPrinter;
+use rayon::prelude::*;
 use std::fs;
 use std::path::PathBuf;
 
@@ -31,12 +34,31 @@ fn large_file(c: &mut Criterion) {
     })
     .collect::<Vec<_>>();
 
-    c.bench_function("node_modules", |b| {
+    c.bench_function("bat", |b| {
         b.iter(|| {
-            let printer = BatPrinter::new(PrinterOptions::default());
+            let _gag = Gag::stdout().unwrap();
+            let mut opts = PrinterOptions::default();
+            opts.color_support = TermColorSupport::True;
+            opts.term_width = 80;
+            let printer = BatPrinter::new(opts);
             for file in files.clone().into_iter() {
                 printer.print(file).unwrap();
             }
+        })
+    });
+
+    c.bench_function("syntect", |b| {
+        b.iter(|| {
+            let _gag = Gag::stdout().unwrap();
+            let mut opts = PrinterOptions::default();
+            opts.color_support = TermColorSupport::True;
+            opts.term_width = 80;
+            let printer = SyntectPrinter::with_stdout(opts).unwrap();
+            files
+                .clone()
+                .into_par_iter()
+                .try_for_each(|f| printer.print(f))
+                .unwrap();
         })
     });
 }

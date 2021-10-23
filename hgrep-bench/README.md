@@ -5,8 +5,10 @@ Benchmarks
 
 [npm][] is necessary since we use:
 
-- `package-lock.json` as example for large file
-- `node_modules` black hole as example for large directory
+- `package-lock.json` as example of large file
+- `node_modules` black hole as example of large directory
+
+Create them by running `npm install`.
 
 ## Run benchmarks
 
@@ -37,5 +39,10 @@ cargo bench -- --save-baseline change
 critcmp base change
 ```
 
+## Notes
+
+- To suppress massive outputs to stdout, `printer` benchmark suite uses [`gag` crate][gag], which is not available on Windows.
+
 [critcmp]: https://github.com/BurntSushi/critcmp
 [npm]: https://www.npmjs.com/
+[gag]: https://docs.rs/gag/

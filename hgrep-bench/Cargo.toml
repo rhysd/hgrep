@@ -13,6 +13,8 @@ hgrep = { path = ".." }
 
 [dev-dependencies]
 criterion = "0.3"
+gag = "1"
+rayon = "1.5"
 
 [[bench]]
 name = "chunk"
@@ -24,4 +26,8 @@ harness = false
 
 [[bench]]
 name = "printer"
+harness = false
+
+[[bench]]
+name = "syntect"
 harness = false
