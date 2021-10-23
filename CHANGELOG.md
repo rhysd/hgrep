@@ -1,3 +1,18 @@
+<a name="v0.1.6"></a>
+# [v0.1.6](https://github.com/rhysd/batgrep/releases/tag/v0.1.6) - 23 Oct 2021
+
+- Add new experimental `syntect-printer` feature built with [syntect](https://github.com/trishume/syntect) library.
+  - It is much faster than current printer built on bat (2x~4x faster).
+  - Its output layout is optimized for our use case. For example, line numbers at matches are highlighted in different color.
+  - It supports painting background colors with `--background` flag. This is useful when your favorite theme does not fit to your terminal's background color.
+  - See [`bat` printer v.s. `syntect` printer](https://github.com/rhysd/hgrep#bat-printer-vs-syntect-printer) section for comparison of the two printers.
+- Add `--printer` (`-p`) flag to specify printer to use. It takes argument `bat` or `syntect`. `-p syntect` enables the new experimental printer
+- `bat` printer is now optional through `bat-printer` feature gate. Note that at least `bat-printer` or `syntect-printer` must be enabled. Both printers are enabled by default. See [Feature flags](https://github.com/rhysd/hgrep#feature-flags) section for more details.
+- hgrep is now available for NetBSD. See [the instruction](https://github.com/rhysd/hgrep#for-netbsd) (thanks @0323pin, #3)
+
+[Changes][v0.1.6]
+
+
 <a name="v0.1.5"></a>
 # [v0.1.5](https://github.com/rhysd/batgrep/releases/tag/v0.1.5) - 20 Oct 2021
 
@@ -49,6 +64,7 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [Changes][v0.1.1]
 
 
+[v0.1.6]: https://github.com/rhysd/batgrep/compare/v0.1.5...v0.1.6
 [v0.1.5]: https://github.com/rhysd/batgrep/compare/v0.1.4...v0.1.5
 [v0.1.4]: https://github.com/rhysd/batgrep/compare/v0.1.3...v0.1.4
 [v0.1.3]: https://github.com/rhysd/batgrep/compare/v0.1.2...v0.1.3

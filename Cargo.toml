@@ -25,6 +25,7 @@ include = [
     "/src",
     "/LICENSE.txt",
     "/README.md",
+    "/CHANGELOG.md",
 ]
 categories = ["command-line-utilities", "text-processing"]
 keywords = ["grep", "search", "syntax-highlighting", "ripgrep", "bat"]
