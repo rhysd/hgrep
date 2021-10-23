@@ -1,13 +1,12 @@
 use crate::chunk::File;
 use crate::chunk::Line;
-use crate::printer::{Printer, PrinterOptions};
+use crate::printer::{Printer, PrinterOptions, TermColorSupport};
 use anyhow::Result;
 use console::Term;
 use memchr::{memchr_iter, Memchr};
 use rgb2ansi256::rgb_to_ansi256;
 use std::cmp;
 use std::collections::HashSet;
-use std::env;
 use std::ffi::OsStr;
 use std::fmt;
 use std::io::{self, Stdout, StdoutLock};
@@ -17,7 +16,6 @@ use syntect::highlighting::{
     Color, FontStyle, HighlightIterator, HighlightState, Highlighter, Style, Theme, ThemeSet,
 };
 use syntect::parsing::{ParseState, ScopeStack, SyntaxReference, SyntaxSet};
-use term::terminfo::TermInfo;
 use unicode_width::UnicodeWidthStr;
 
 // Note for lifetimes:
@@ -52,36 +50,6 @@ pub fn list_themes<W: Write>(mut out: W) -> Result<()> {
         }
     }
     Ok(())
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum TermColorSupport {
-    True,
-    Ansi256,
-    Ansi16,
-}
-
-impl TermColorSupport {
-    fn detect() -> Self {
-        if env::var("COLORTERM")
-            .ok()
-            .map(|v| v.eq_ignore_ascii_case("truecolor"))
-            .unwrap_or(false)
-        {
-            return TermColorSupport::True;
-        }
-
-        if let Ok(info) = TermInfo::from_env() {
-            if let Some(colors) = info.numbers.get("colors") {
-                if *colors < 256 {
-                    return TermColorSupport::Ansi16;
-                }
-            }
-        }
-
-        // Assume 256 colors by default (I'm not sure this is correct)
-        TermColorSupport::Ansi256
-    }
 }
 
 // Use u64::log10 once it is stabilized: https://github.com/rust-lang/rust/issues/70887
@@ -617,7 +585,6 @@ where
     themes: ThemeSet,
     opts: PrinterOptions<'main>,
     term_width: u16,
-    term_support: TermColorSupport,
 }
 
 impl<'main> SyntectPrinter<'main, Stdout> {
@@ -637,7 +604,6 @@ where
             themes: load_themes(opts.theme)?,
             opts,
             term_width: Term::stdout().size().1,
-            term_support: TermColorSupport::detect(),
         })
     }
 
@@ -726,14 +692,14 @@ where
             background: self.opts.background_color,
             gutter_color,
             match_color: theme.settings.line_highlight.or(theme.settings.background),
-            true_color: self.term_support == TermColorSupport::True,
+            true_color: self.opts.color_support == TermColorSupport::True,
             out: BufWriter::new(self.stdout.lock()), // Take lock here to print files in serial from multiple threads
         }
     }
 
     fn theme(&self) -> &Theme {
         let name = self.opts.theme.unwrap_or_else(|| {
-            if self.term_support == TermColorSupport::Ansi16 {
+            if self.opts.color_support == TermColorSupport::Ansi16 {
                 "ansi"
             } else {
                 "Monokai Extended" // Our 25bit -> 8bit color conversion works really well with this colorscheme

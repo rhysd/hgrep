@@ -1,5 +1,5 @@
 use crate::chunk::File;
-use crate::printer::{Printer, PrinterOptions};
+use crate::printer::{Printer, PrinterOptions, TermColorSupport};
 use anyhow::{Error, Result};
 use bat::assets::HighlightingAssets;
 use bat::config::{Config, VisibleLines};
@@ -55,15 +55,17 @@ impl<'main> BatPrinter<'main> {
 
         let mut config = Config {
             colored_output: true,
-            true_color: true,
             term_width: Term::stdout().size().1 as usize,
             style_components: StyleComponents::new(styles),
             tab_width: opts.tab_width,
+            true_color: opts.color_support == TermColorSupport::True,
             ..Default::default()
         };
 
         if let Some(theme) = &opts.theme {
             config.theme = theme.to_string();
+        } else if opts.color_support == TermColorSupport::Ansi16 {
+            config.theme = "ansi".to_string();
         }
 
         Self {
