@@ -750,35 +750,35 @@ where
 mod tests {
     use super::*;
     use crate::chunk::File;
+    use std::cell::{RefCell, RefMut};
     use std::fmt;
     use std::fs;
+    use std::mem;
     use std::path::PathBuf;
+
+    struct DummyStdoutLock<'a>(RefMut<'a, Vec<u8>>);
+    impl<'a> Write for DummyStdoutLock<'a> {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.0.write(buf)
+        }
+        fn flush(&mut self) -> io::Result<()> {
+            self.0.flush()
+        }
+    }
+
+    #[derive(Default)]
+    struct DummyStdout(RefCell<Vec<u8>>);
+    impl<'a> LockableWrite<'a> for DummyStdout {
+        type Locked = DummyStdoutLock<'a>;
+        fn lock(&'a self) -> Self::Locked {
+            DummyStdoutLock(self.0.borrow_mut())
+        }
+    }
 
     #[cfg(not(windows))]
     mod uitests {
         use super::*;
-        use std::cell::{RefCell, RefMut};
-        use std::mem;
         use std::path::Path;
-
-        struct DummyStdoutLock<'a>(RefMut<'a, Vec<u8>>);
-        impl<'a> Write for DummyStdoutLock<'a> {
-            fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-                self.0.write(buf)
-            }
-            fn flush(&mut self) -> io::Result<()> {
-                self.0.flush()
-            }
-        }
-
-        #[derive(Default)]
-        struct DummyStdout(RefCell<Vec<u8>>);
-        impl<'a> LockableWrite<'a> for DummyStdout {
-            type Locked = DummyStdoutLock<'a>;
-            fn lock(&'a self) -> Self::Locked {
-                DummyStdoutLock(self.0.borrow_mut())
-            }
-        }
 
         fn read_chunks(path: PathBuf) -> File {
             let contents = fs::read(&path).unwrap();
@@ -935,5 +935,20 @@ mod tests {
 
         // From default assets
         assert!(out.contains("base16-ocean.dark\n"), "output={:?}", out);
+    }
+
+    #[test]
+    fn test_print_nothing() {
+        let file = File::new(PathBuf::from("x.txt"), vec![], vec![], vec![]);
+        let opts = PrinterOptions::default();
+        let stdout = DummyStdout(RefCell::new(vec![]));
+        let mut printer = SyntectPrinter::new(stdout, opts).unwrap();
+        printer.print(file).unwrap();
+        let printed = mem::take(printer.writer_mut()).0.into_inner();
+        assert!(
+            printed.is_empty(),
+            "pritned:\n{}",
+            String::from_utf8_lossy(&printed)
+        );
     }
 }
