@@ -549,13 +549,9 @@ impl<'file, W: Write> Drawer<'file, W> {
         }
         Ok(())
     }
-}
 
-impl<'file, W: Write> Drop for Drawer<'file, W> {
-    fn drop(&mut self) {
-        self.out
-            .flush()
-            .expect("could not flush stdout for syntect printer");
+    fn flush(&mut self) -> Result<()> {
+        Ok(self.out.flush()?)
     }
 }
 
@@ -745,21 +741,25 @@ where
         let mut drawer = self.build_drawer(highlighted, theme, include_separator); // Lock is acquired here
         drawer.draw_header(&file.path)?;
         drawer.draw_lines()?;
-        drawer.draw_footer()
+        drawer.draw_footer()?;
+        drawer.flush()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::chunk::File;
+    use std::fmt;
+    use std::fs;
+    use std::path::PathBuf;
 
     #[cfg(not(windows))]
     mod uitests {
         use super::*;
         use std::cell::{RefCell, RefMut};
-        use std::fs;
         use std::mem;
-        use std::path::{Path, PathBuf};
+        use std::path::Path;
 
         struct DummyStdoutLock<'a>(RefMut<'a, Vec<u8>>);
         impl<'a> Write for DummyStdoutLock<'a> {
@@ -773,7 +773,6 @@ mod tests {
 
         #[derive(Default)]
         struct DummyStdout(RefCell<Vec<u8>>);
-
         impl<'a> LockableWrite<'a> for DummyStdout {
             type Locked = DummyStdoutLock<'a>;
             fn lock(&'a self) -> Self::Locked {
@@ -862,5 +861,75 @@ mod tests {
                 o.color_support = TermColorSupport::Ansi16;
             }),
         );
+    }
+
+    #[derive(Debug)]
+    struct DummyError;
+    impl std::error::Error for DummyError {}
+    impl fmt::Display for DummyError {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "dummy error!")
+        }
+    }
+
+    struct ErrorStdoutLock;
+    impl Write for ErrorStdoutLock {
+        fn write(&mut self, _: &[u8]) -> io::Result<usize> {
+            Err(io::Error::new(io::ErrorKind::Other, DummyError))
+        }
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[derive(Default)]
+    struct ErrorStdout;
+    impl<'a> LockableWrite<'a> for ErrorStdout {
+        type Locked = ErrorStdoutLock;
+        fn lock(&'a self) -> Self::Locked {
+            ErrorStdoutLock
+        }
+    }
+
+    fn readme_chunk() -> File {
+        let readme = PathBuf::from("README.md");
+        let lnums = vec![3];
+        let chunks = vec![(1, 6)];
+        let contents = fs::read(&readme).unwrap();
+        File::new(readme, lnums, chunks, contents)
+    }
+
+    #[test]
+    fn test_error_write() {
+        let file = readme_chunk();
+        let opts = PrinterOptions::default();
+        let printer = SyntectPrinter::new(ErrorStdout, opts).unwrap();
+        let err = printer.print(file).unwrap_err();
+        assert_eq!(&format!("{}", err), "dummy error!", "message={}", err);
+    }
+
+    #[test]
+    fn test_unknown_theme() {
+        let mut opts = PrinterOptions::default();
+        opts.theme = Some("this theme does not exist");
+        let err = match SyntectPrinter::with_stdout(opts) {
+            Err(e) => e,
+            Ok(_) => panic!("error did not occur"),
+        };
+        let msg = format!("{}", err);
+        assert!(msg.contains("Unknown theme"), "message={:?}", msg);
+    }
+
+    #[test]
+    fn test_list_themes() {
+        let mut buf = vec![];
+        list_themes(&mut buf).unwrap();
+        let out = String::from_utf8(buf).unwrap();
+
+        // From bat's assets
+        assert!(out.contains("Monokai Extended\n"), "output={:?}", out);
+
+        // From default assets
+        assert!(out.contains("base16-ocean.dark\n"), "output={:?}", out);
     }
 }
