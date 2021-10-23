@@ -7,7 +7,6 @@ use bat::controller::Controller;
 use bat::input::Input;
 use bat::line_range::{HighlightedLineRanges, LineRange, LineRanges};
 use bat::style::{StyleComponent, StyleComponents};
-use console::Term;
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -55,7 +54,7 @@ impl<'main> BatPrinter<'main> {
 
         let mut config = Config {
             colored_output: true,
-            term_width: Term::stdout().size().1 as usize,
+            term_width: opts.term_width as usize,
             style_components: StyleComponents::new(styles),
             tab_width: opts.tab_width,
             true_color: opts.color_support == TermColorSupport::True,

@@ -2,7 +2,6 @@ use crate::chunk::File;
 use crate::chunk::Line;
 use crate::printer::{Printer, PrinterOptions, TermColorSupport};
 use anyhow::Result;
-use console::Term;
 use memchr::{memchr_iter, Memchr};
 use rgb2ansi256::rgb_to_ansi256;
 use std::cmp;
@@ -536,8 +535,8 @@ impl<'file, W: Write> Drawer<'file, W> {
             self.fill_rest_with_spaces(path.width_cjk() + 1)?;
         } else {
             self.reset_color()?;
-            writeln!(self.out)?;
         }
+        writeln!(self.out)?;
         if self.grid {
             self.draw_horizontal_line("┬")?;
         }
@@ -582,11 +581,10 @@ pub struct SyntectPrinter<'main, W>
 where
     for<'a> W: LockableWrite<'a>,
 {
-    stdout: W, // Protected with mutex because it should print file by file
+    writer: W, // Protected with mutex because it should print file by file
     syntaxes: SyntaxSet,
     themes: ThemeSet,
     opts: PrinterOptions<'main>,
-    term_width: u16,
 }
 
 impl<'main> SyntectPrinter<'main, Stdout> {
@@ -601,12 +599,15 @@ where
 {
     pub fn new(out: W, opts: PrinterOptions<'main>) -> Result<Self> {
         Ok(Self {
-            stdout: out,
+            writer: out,
             syntaxes: bincode::deserialize_from(flate2::read::ZlibDecoder::new(SYNTAX_SET_BIN))?,
             themes: load_themes(opts.theme)?,
             opts,
-            term_width: Term::stdout().size().1,
         })
+    }
+
+    pub fn writer_mut(&mut self) -> &mut W {
+        &mut self.writer
     }
 
     fn parse_highlights<'file>(
@@ -688,14 +689,14 @@ where
             lines,
             theme,
             grid: self.opts.grid,
-            term_width: self.term_width,
+            term_width: self.opts.term_width,
             lnum_width,
             tab_width: self.opts.tab_width as u16,
             background: self.opts.background_color,
             gutter_color,
             match_color: theme.settings.line_highlight.or(theme.settings.background),
             true_color: self.opts.color_support == TermColorSupport::True,
-            out: BufWriter::new(self.stdout.lock()), // Take lock here to print files in serial from multiple threads
+            out: BufWriter::new(self.writer.lock()), // Take lock here to print files in serial from multiple threads
         }
     }
 
@@ -745,5 +746,121 @@ where
         drawer.draw_header(&file.path)?;
         drawer.draw_lines()?;
         drawer.draw_footer()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(not(windows))]
+    mod uitests {
+        use super::*;
+        use std::cell::{RefCell, RefMut};
+        use std::fs;
+        use std::mem;
+        use std::path::{Path, PathBuf};
+
+        struct DummyStdoutLock<'a>(RefMut<'a, Vec<u8>>);
+        impl<'a> Write for DummyStdoutLock<'a> {
+            fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+                self.0.write(buf)
+            }
+            fn flush(&mut self) -> io::Result<()> {
+                self.0.flush()
+            }
+        }
+
+        #[derive(Default)]
+        struct DummyStdout(RefCell<Vec<u8>>);
+
+        impl<'a> LockableWrite<'a> for DummyStdout {
+            type Locked = DummyStdoutLock<'a>;
+            fn lock(&'a self) -> Self::Locked {
+                DummyStdoutLock(self.0.borrow_mut())
+            }
+        }
+
+        fn read_chunks(path: PathBuf) -> File {
+            let contents = fs::read(&path).unwrap();
+            let mut lnums = vec![];
+            let mut chunks = vec![];
+            for (idx, line) in contents.split_inclusive(|b| *b == b'\n').enumerate() {
+                let lnum = (idx + 1) as u64;
+                let pat = "*match to this line*".as_bytes();
+                if line.windows(pat.len()).any(|s| s == pat) {
+                    lnums.push(lnum);
+                    chunks.push((lnum.saturating_sub(6), lnum + 6));
+                }
+            }
+            File::new(path, lnums, chunks, contents)
+        }
+
+        fn run_uitest(infile: PathBuf, outfile: PathBuf, f: fn(&mut PrinterOptions<'_>) -> ()) {
+            let stdout = DummyStdout(RefCell::new(vec![]));
+            let mut opts = PrinterOptions::default();
+            opts.term_width = 80;
+            opts.color_support = TermColorSupport::True;
+            f(&mut opts);
+            let mut printer = SyntectPrinter::new(stdout, opts).unwrap();
+            let file = read_chunks(infile);
+            printer.print(file).unwrap();
+            let printed = mem::take(printer.writer_mut()).0.into_inner();
+            let expected = fs::read(outfile).unwrap();
+            assert_eq!(
+                printed,
+                expected,
+                "got:\n{}\nwant:\n{}",
+                String::from_utf8_lossy(&printed),
+                String::from_utf8_lossy(&expected),
+            );
+        }
+
+        fn run_parametrized_uitest(mut input: &str, f: fn(&mut PrinterOptions<'_>) -> ()) {
+            let dir = Path::new(".").join("testdata").join("syntect");
+            if input.starts_with("test_") {
+                input = &input["test_".len()..];
+            }
+            let infile = dir.join(format!("{}.rs", input));
+            let outfile = dir.join(format!("{}.out", input));
+            run_uitest(infile, outfile, f);
+        }
+
+        macro_rules! uitest {
+            ($($input:ident($f:expr),)+) => {
+                $(
+                    #[cfg(not(windows))]
+                    #[test]
+                    fn $input() {
+                        run_parametrized_uitest(stringify!($input), $f);
+                    }
+                )+
+            }
+        }
+
+        uitest!(
+            test_default(|_| {}),
+            test_background(|o| {
+                o.background_color = true;
+            }),
+            test_no_grid(|o| {
+                o.grid = false;
+            }),
+            test_theme(|o| {
+                o.theme = Some("Nord");
+            }),
+            test_tab_width_2(|o| {
+                o.tab_width = 2;
+            }),
+            test_hard_tab(|o| {
+                o.tab_width = 0;
+            }),
+            test_ansi256_colors(|o| {
+                o.color_support = TermColorSupport::Ansi256;
+            }),
+            test_ansi16_colors(|o| {
+                o.color_support = TermColorSupport::Ansi16;
+            }),
+        );
     }
 }

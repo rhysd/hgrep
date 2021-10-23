@@ -1,5 +1,6 @@
 use crate::chunk::File;
 use anyhow::Result;
+use console::Term;
 use std::env;
 use term::terminfo::TermInfo;
 
@@ -39,6 +40,7 @@ pub struct PrinterOptions<'main> {
     pub grid: bool,
     pub background_color: bool,
     pub color_support: TermColorSupport,
+    pub term_width: u16,
 }
 
 impl<'main> Default for PrinterOptions<'main> {
@@ -49,6 +51,8 @@ impl<'main> Default for PrinterOptions<'main> {
             grid: true,
             background_color: false,
             color_support: TermColorSupport::detect(),
+            term_width: Term::stdout().size().1,
+            // term_width: 80, // Uncomment this to take snapshot for syntect UI tests
         }
     }
 }
