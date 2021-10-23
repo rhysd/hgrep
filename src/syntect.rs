@@ -325,7 +325,9 @@ impl<'file, W: Write> Drawer<'file, W> {
         for _ in 0..self.term_width - gutter_width + 1 {
             self.out.write_all("─".as_bytes())?;
         }
-        self.reset_color()
+        self.reset_color()?;
+        writeln!(self.out)?;
+        Ok(())
     }
 
     fn reset_color(&mut self) -> Result<()> {
