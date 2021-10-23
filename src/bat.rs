@@ -7,6 +7,7 @@ use bat::controller::Controller;
 use bat::input::Input;
 use bat::line_range::{HighlightedLineRanges, LineRange, LineRanges};
 use bat::style::{StyleComponent, StyleComponents};
+use std::env;
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -27,6 +28,27 @@ impl fmt::Display for BatPrintError {
         }
         Ok(())
     }
+}
+
+// Brought from bat/src/bin/bat/directories.rs until this change is available
+// https://github.com/sharkdp/bat/pull/1918
+fn get_cache_dir() -> Option<PathBuf> {
+    // on all OS prefer BAT_CACHE_PATH if set
+    let cache_dir_op = env::var_os("BAT_CACHE_PATH").map(PathBuf::from);
+    if cache_dir_op.is_some() {
+        return cache_dir_op;
+    }
+
+    #[cfg(target_os = "macos")]
+    let cache_dir_op = env::var_os("XDG_CACHE_HOME")
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .or_else(|| dirs_next::home_dir().map(|d| d.join(".cache")));
+
+    #[cfg(not(target_os = "macos"))]
+    let cache_dir_op = dirs_next::cache_dir();
+
+    cache_dir_op.map(|d| d.join("bat"))
 }
 
 pub struct BatPrinter<'main> {
@@ -67,9 +89,17 @@ impl<'main> BatPrinter<'main> {
             config.theme = "ansi".to_string();
         }
 
+        let assets = if opts.custom_assets {
+            get_cache_dir()
+                .and_then(|path| HighlightingAssets::from_cache(&path).ok())
+                .unwrap_or_else(|| HighlightingAssets::from_binary())
+        } else {
+            HighlightingAssets::from_binary()
+        };
+
         Self {
             grid: opts.grid,
-            assets: HighlightingAssets::from_binary(),
+            assets,
             config,
         }
     }
@@ -163,7 +193,9 @@ mod tests {
 
     #[test]
     fn test_print_default() {
-        let p = BatPrinter::new(PrinterOptions::default());
+        let mut opts = PrinterOptions::default();
+        opts.custom_assets = false;
+        let p = BatPrinter::new(opts);
         let f = sample_file();
         p.print(f).unwrap();
     }
@@ -171,6 +203,7 @@ mod tests {
     #[test]
     fn test_print_with_flags() {
         let mut opts = PrinterOptions::default();
+        opts.custom_assets = false;
         opts.tab_width = 2;
         opts.theme = Some("Nord");
         opts.grid = false;

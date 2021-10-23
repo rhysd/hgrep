@@ -103,6 +103,13 @@ fn cli<'a>() -> App<'a> {
                 .about("Print completion script for SHELL to stdout. SHELL must be one of 'bash', 'zsh', 'powershell', 'fish', or 'elvish'"),
         );
 
+    #[cfg(feature = "bat-printer")]
+    let app = app.arg(
+        Arg::new("no-custom-assets")
+            .long("no-custom-assets")
+            .about("Do not load bat's custom assets. This flag is only for bat printer"),
+    );
+
     #[cfg(feature = "syntect-printer")]
     let app = app.arg(
         Arg::new("background")
@@ -386,6 +393,15 @@ fn app() -> Result<bool> {
         #[cfg(feature = "bat-printer")]
         if printer_kind == PrinterKind::Bat {
             anyhow::bail!("--background flag is only available for syntect printer since bat does not support painting background colors");
+        }
+    }
+
+    #[cfg(feature = "bat-printer")]
+    if matches.is_present("no-custom-assets") {
+        printer_opts.custom_assets = false;
+        #[cfg(feature = "syntect-printer")]
+        if printer_kind == PrinterKind::Syntect {
+            anyhow::bail!("--no-custom-assets flag is only available for bat printer");
         }
     }
 

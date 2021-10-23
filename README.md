@@ -176,11 +176,11 @@ At first, there was `bat` printer only. And then `syntect` printer was implement
 
 - `bat` printer
   - Implementation is battle-tested. It is already used by many users on many platforms and terminals
-  - The same output layout as `bat` command
+  - The behavior is compatible with `bat` command. Its output layout is the same as `bat` command. It can load bat's assets cache
 - `syntect` printer
   - Performance is much better. 2x to 4x faster (more match results gets better performance)
   - Output layout is optimized for our use cases. For example, a line number at match is highlighted in different color
-  - Painting background color (`--background`) is supported. This is useful when the theme you want to use does not fit to your
+  - Painting background color (`--background`) is supported. This is useful when your favorite theme does not fit to your
     terminal's background color
   - Detection for terminal color support is better. It automatically changes the default theme to 'ansi' when the terminal only
     supports 16 colors
@@ -276,7 +276,9 @@ alias hgrep='hgrep --printer syntect --hidden'
   - `--type-not TYPE` (`-T`): Do not search files matching TYPE. Inverse of --type. This option is repeatable
   - `--type-list`: Show all supported file types and their corresponding globs
 - Only for `syntect-printer` feature
-  - `--background`: Paint background colors. This flag is only for syntect printer
+  - `--background`: Paint background colors. This is useful when your favorite theme does not fit to your terminal's background color
+- Only for `bat-printer` feature
+  - `--no-custom-assets`: Do not load bat's custom assets
 
 See `--help` for full list of options.
 

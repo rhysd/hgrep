@@ -41,6 +41,7 @@ pub struct PrinterOptions<'main> {
     pub background_color: bool,
     pub color_support: TermColorSupport,
     pub term_width: u16,
+    pub custom_assets: bool,
 }
 
 impl<'main> Default for PrinterOptions<'main> {
@@ -51,8 +52,8 @@ impl<'main> Default for PrinterOptions<'main> {
             grid: true,
             background_color: false,
             color_support: TermColorSupport::detect(),
+            custom_assets: true,
             term_width: Term::stdout().size().1,
-            // term_width: 80, // Uncomment this to take snapshot for syntect UI tests
         }
     }
 }
