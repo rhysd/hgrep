@@ -278,7 +278,7 @@ alias hgrep='hgrep --printer syntect --hidden'
 - Only for `syntect-printer` feature
   - `--background`: Paint background colors. This is useful when your favorite theme does not fit to your terminal's background color
 - Only for `bat-printer` feature
-  - `--no-custom-assets`: Do not load bat's custom assets
+  - `--custom-assets`: Load bat's custom assets from cache. Note that this flag may not work with some version of `bat` command
 
 See `--help` for full list of options.
 

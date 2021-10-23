@@ -30,8 +30,7 @@ impl fmt::Display for BatPrintError {
     }
 }
 
-// Brought from bat/src/bin/bat/directories.rs until this change is available
-// https://github.com/sharkdp/bat/pull/1918
+// Brought from bat/src/bin/bat/directories.rs dde770aa210ab9eeb5469e152cec6fcaab374d84
 fn get_cache_dir() -> Option<PathBuf> {
     // on all OS prefer BAT_CACHE_PATH if set
     let cache_dir_op = env::var_os("BAT_CACHE_PATH").map(PathBuf::from);
@@ -193,9 +192,7 @@ mod tests {
 
     #[test]
     fn test_print_default() {
-        let mut opts = PrinterOptions::default();
-        opts.custom_assets = false;
-        let p = BatPrinter::new(opts);
+        let p = BatPrinter::new(PrinterOptions::default());
         let f = sample_file();
         p.print(f).unwrap();
     }
@@ -203,7 +200,6 @@ mod tests {
     #[test]
     fn test_print_with_flags() {
         let mut opts = PrinterOptions::default();
-        opts.custom_assets = false;
         opts.tab_width = 2;
         opts.theme = Some("Nord");
         opts.grid = false;

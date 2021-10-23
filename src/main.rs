@@ -105,9 +105,9 @@ fn cli<'a>() -> App<'a> {
 
     #[cfg(feature = "bat-printer")]
     let app = app.arg(
-        Arg::new("no-custom-assets")
-            .long("no-custom-assets")
-            .about("Do not load bat's custom assets. This flag is only for bat printer"),
+        Arg::new("custom-assets")
+            .long("custom-assets")
+            .about("Load bat's custom assets. Note that this flag may not work with some version of `bat` command. This flag is only for bat printer"),
     );
 
     #[cfg(feature = "syntect-printer")]
@@ -397,11 +397,11 @@ fn app() -> Result<bool> {
     }
 
     #[cfg(feature = "bat-printer")]
-    if matches.is_present("no-custom-assets") {
-        printer_opts.custom_assets = false;
+    if matches.is_present("custom-assets") {
+        printer_opts.custom_assets = true;
         #[cfg(feature = "syntect-printer")]
         if printer_kind == PrinterKind::Syntect {
-            anyhow::bail!("--no-custom-assets flag is only available for bat printer");
+            anyhow::bail!("--custom-assets flag is only available for bat printer");
         }
     }
 

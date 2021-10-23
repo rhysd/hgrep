@@ -52,7 +52,7 @@ impl<'main> Default for PrinterOptions<'main> {
             grid: true,
             background_color: false,
             color_support: TermColorSupport::detect(),
-            custom_assets: true,
+            custom_assets: false,
             term_width: Term::stdout().size().1,
         }
     }
