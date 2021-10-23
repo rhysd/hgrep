@@ -89,6 +89,13 @@ fn cli<'a>() -> App<'a> {
                 .about("Printer to print the match results. 'bat' or 'syntect' is available"),
         )
         .arg(
+            Arg::new("term-width")
+                .long("term-width")
+                .takes_value(true)
+                .value_name("NUM")
+                .about("Width (number of characters) of terminal window"),
+        )
+        .arg(
             Arg::new("generate-completion-script")
                 .long("generate-completion-script")
                 .takes_value(true)
@@ -361,6 +368,16 @@ fn app() -> Result<bool> {
     }
     if matches.is_present("no-grid") && !is_grid {
         printer_opts.grid = false;
+    }
+
+    if let Some(width) = matches.value_of("term-width") {
+        let width = width
+            .parse()
+            .context("could not parse \"term-width\" option value as unsigned integer")?;
+        printer_opts.term_width = width;
+        if width < 10 {
+            anyhow::bail!("Too small value at --term-width option ({} < 10)", width);
+        }
     }
 
     #[cfg(feature = "syntect-printer")]

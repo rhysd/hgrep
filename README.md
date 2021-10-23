@@ -253,6 +253,7 @@ alias hgrep='hgrep --printer syntect --hidden'
   - `--theme THEME`: Theme for syntax highlighting. Default value is the same as `bat` command
   - `--list-themes`: List all theme names available for --theme option
   - `--printer`: Printer to print the match results. 'bat' or 'syntect' is available. Default value is 'bat'
+  - `--term-width`: Width (number of characters) of terminal window
 - Only for `ripgrep` feature
   - `--no-ignore`: Don't respect ignore files (.gitignore, .ignore, etc.)
   - `--ignore-case` (`-i`): When this flag is provided, the given patterns will be searched case insensitively
