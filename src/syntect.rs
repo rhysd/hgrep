@@ -860,6 +860,10 @@ mod tests {
             test_ansi16_colors(|o| {
                 o.color_support = TermColorSupport::Ansi16;
             }),
+            test_long_line(|_| {}),
+            test_long_line_bg(|o| {
+                o.background_color = true;
+            }),
         );
     }
 
