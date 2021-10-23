@@ -437,7 +437,7 @@ fn app() -> Result<bool> {
 
         #[cfg(feature = "syntect-printer")]
         if printer_kind == PrinterKind::Syntect {
-            let printer = SyntectPrinter::new(printer_opts)?;
+            let printer = SyntectPrinter::with_stdout(printer_opts)?;
             return ripgrep::grep(printer, pattern, paths, config);
         }
 
@@ -454,7 +454,7 @@ fn app() -> Result<bool> {
     if printer_kind == PrinterKind::Syntect {
         use hgrep::printer::Printer;
         use rayon::prelude::*;
-        let printer = SyntectPrinter::new(printer_opts)?;
+        let printer = SyntectPrinter::with_stdout(printer_opts)?;
         return io::BufReader::new(io::stdin())
             .grep_lines()
             .chunks_per_file(min_context, max_context)

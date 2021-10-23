@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use std::env;
 use std::ffi::OsStr;
 use std::fmt;
-use std::io;
+use std::io::{self, Stdout, StdoutLock};
 use std::io::{BufWriter, Write};
 use std::path::Path;
 use syntect::highlighting::{
@@ -26,6 +26,18 @@ use unicode_width::UnicodeWidthStr;
 
 const SYNTAX_SET_BIN: &[u8] = include_bytes!("../assets/bat/assets/syntaxes.bin");
 const THEME_SET_BIN: &[u8] = include_bytes!("../assets/bat/assets/themes.bin");
+
+pub trait LockableWrite<'a> {
+    type Locked: Write;
+    fn lock(&'a self) -> Self::Locked;
+}
+
+impl<'a> LockableWrite<'a> for Stdout {
+    type Locked = StdoutLock<'a>;
+    fn lock(&'a self) -> Self::Locked {
+        self.lock()
+    }
+}
 
 pub fn list_themes<W: Write>(mut out: W) -> Result<()> {
     let mut seen = HashSet::new();
@@ -53,7 +65,7 @@ impl TermColorSupport {
     fn detect() -> Self {
         if env::var("COLORTERM")
             .ok()
-            .map(|v| v == "truecolor")
+            .map(|v| v.eq_ignore_ascii_case("truecolor"))
             .unwrap_or(false)
         {
             return TermColorSupport::True;
@@ -596,8 +608,11 @@ fn load_themes(name: Option<&str>) -> Result<ThemeSet> {
     }
 }
 
-pub struct SyntectPrinter<'main> {
-    stdout: io::Stdout, // Protected with mutex because it should print file by file
+pub struct SyntectPrinter<'main, W>
+where
+    for<'a> W: LockableWrite<'a>,
+{
+    stdout: W, // Protected with mutex because it should print file by file
     syntaxes: SyntaxSet,
     themes: ThemeSet,
     opts: PrinterOptions<'main>,
@@ -605,10 +620,19 @@ pub struct SyntectPrinter<'main> {
     term_support: TermColorSupport,
 }
 
-impl<'main> SyntectPrinter<'main> {
-    pub fn new(opts: PrinterOptions<'main>) -> Result<Self> {
+impl<'main> SyntectPrinter<'main, Stdout> {
+    pub fn with_stdout(opts: PrinterOptions<'main>) -> Result<Self> {
+        Self::new(io::stdout(), opts)
+    }
+}
+
+impl<'main, W> SyntectPrinter<'main, W>
+where
+    for<'a> W: LockableWrite<'a>,
+{
+    pub fn new(out: W, opts: PrinterOptions<'main>) -> Result<Self> {
         Ok(Self {
-            stdout: io::stdout(),
+            stdout: out,
             syntaxes: bincode::deserialize_from(flate2::read::ZlibDecoder::new(SYNTAX_SET_BIN))?,
             themes: load_themes(opts.theme)?,
             opts,
@@ -736,7 +760,10 @@ impl<'main> SyntectPrinter<'main> {
     }
 }
 
-impl<'main> Printer for SyntectPrinter<'main> {
+impl<'main, W> Printer for SyntectPrinter<'main, W>
+where
+    for<'a> W: LockableWrite<'a>,
+{
     fn print(&self, file: File) -> Result<()> {
         if file.chunks.is_empty() || file.line_numbers.is_empty() {
             return Ok(());
