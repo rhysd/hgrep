@@ -367,7 +367,7 @@ impl<'file, W: Write> Drawer<'file, W> {
             self.out.write_all(b" ")?;
         }
         let w = if self.grid {
-            write!(self.out, "... ┝")?;
+            write!(self.out, "... ├")?;
             5
         } else {
             write!(self.out, "...")?;
@@ -375,8 +375,8 @@ impl<'file, W: Write> Drawer<'file, W> {
         };
         self.set_default_bg()?;
         let body_width = self.term_width - left_margin - w; // This crashes when terminal width is smaller than gutter
-        for _ in 0..body_width / 2 {
-            self.out.write_all(" ━".as_bytes())?;
+        for _ in 0..body_width {
+            self.out.write_all("─".as_bytes())?;
         }
         Ok(()) // We don't need to reset color for next line
     }
