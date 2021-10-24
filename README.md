@@ -179,6 +179,7 @@ At first, there was `bat` printer only. And then `syntect` printer was implement
 - `bat` printer
   - Implementation is battle-tested. It is already used by many users on many platforms and terminals
   - The behavior is compatible with `bat` command. Its output layout is the same as `bat` command. It can load bat's assets cache
+  - Text wrapping is enabled until `--no-wrap` is specified
 - `syntect` printer
   - Performance is much better. 2x to 4x faster (more match results gets better performance)
   - Output layout is optimized for our use cases. For example, a line number at match is highlighted in different color
@@ -290,6 +291,7 @@ function hgrep() {
   - `--background`: Paint background colors. This is useful when your favorite theme does not fit to your terminal's background color
 - Only for `bat-printer` feature
   - `--custom-assets`: Load bat's custom assets from cache. Note that this flag may not work with some version of `bat` command
+  - `--no-wrap`: Disable text wrapping. Text wrapping is enabled by default for bat printer
 
 See `--help` for full list of options.
 

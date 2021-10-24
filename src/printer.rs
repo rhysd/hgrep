@@ -41,6 +41,7 @@ pub struct PrinterOptions<'main> {
     pub color_support: TermColorSupport,
     pub term_width: u16,
     pub custom_assets: bool,
+    pub text_wrap: bool,
 }
 
 impl<'main> Default for PrinterOptions<'main> {
@@ -54,6 +55,7 @@ impl<'main> Default for PrinterOptions<'main> {
             color_support: TermColorSupport::detect(),
             custom_assets: false,
             term_width: terminal_size().map(|(Width(w), _)| w).unwrap_or(80),
+            text_wrap: true,
         }
     }
 }

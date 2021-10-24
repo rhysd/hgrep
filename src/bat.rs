@@ -7,6 +7,7 @@ use bat::controller::Controller;
 use bat::input::Input;
 use bat::line_range::{HighlightedLineRanges, LineRange, LineRanges};
 use bat::style::{StyleComponent, StyleComponents};
+use bat::WrappingMode;
 use std::env;
 use std::fmt;
 use std::path::PathBuf;
@@ -73,12 +74,19 @@ impl<'main> BatPrinter<'main> {
             ][..]
         };
 
+        let wrapping_mode = if opts.text_wrap {
+            WrappingMode::Character
+        } else {
+            WrappingMode::NoWrapping(true)
+        };
+
         let mut config = Config {
             colored_output: true,
             term_width: opts.term_width as usize,
             style_components: StyleComponents::new(styles),
             tab_width: opts.tab_width,
             true_color: opts.color_support == TermColorSupport::True,
+            wrapping_mode,
             ..Default::default()
         };
 
@@ -203,6 +211,7 @@ mod tests {
         opts.tab_width = 2;
         opts.theme = Some("Nord");
         opts.grid = false;
+        opts.text_wrap = false;
         let p = BatPrinter::new(opts);
         let f = sample_file();
         p.print(f).unwrap();
