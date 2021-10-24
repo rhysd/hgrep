@@ -895,8 +895,8 @@ mod tests {
         }
     }
 
-    fn readme_chunk() -> File {
-        let readme = PathBuf::from("README.md");
+    fn sample_chunk(file: &str) -> File {
+        let readme = PathBuf::from(file);
         let lnums = vec![3];
         let chunks = vec![(1, 6)];
         let contents = fs::read(&readme).unwrap();
@@ -905,7 +905,7 @@ mod tests {
 
     #[test]
     fn test_error_write() {
-        let file = readme_chunk();
+        let file = sample_chunk("README.md");
         let opts = PrinterOptions::default();
         let printer = SyntectPrinter::new(ErrorStdout, opts).unwrap();
         let err = printer.print(file).unwrap_err();
@@ -950,5 +950,16 @@ mod tests {
             "pritned:\n{}",
             String::from_utf8_lossy(&printed)
         );
+    }
+
+    #[test]
+    fn test_no_syntax_found() {
+        let file = sample_chunk("LICENSE.txt");
+        let opts = PrinterOptions::default();
+        let stdout = DummyStdout(RefCell::new(vec![]));
+        let mut printer = SyntectPrinter::new(stdout, opts).unwrap();
+        printer.print(file).unwrap();
+        let printed = mem::take(printer.writer_mut()).0.into_inner();
+        assert!(!printed.is_empty());
     }
 }

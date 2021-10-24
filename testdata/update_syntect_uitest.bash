@@ -20,7 +20,7 @@ cargo run -- 'match to this line' -p syntect --term-width 80 --background ./test
 cargo run -- 'match to this line' -p syntect --term-width 80              ./testdata/syntect/default.rs        > ./testdata/syntect/default.out
 cargo run -- 'match to this line' -p syntect --term-width 80 --tab 0      ./testdata/syntect/hard_tab.rs       > ./testdata/syntect/hard_tab.out
 cargo run -- 'match to this line' -p syntect --term-width 80              ./testdata/syntect/long_line.rs      > ./testdata/syntect/long_line.out
-cargo run -- 'match to this line' -p syntect --term-width 80 --background ./testdata/syntect/long_line_bg.rs      > ./testdata/syntect/long_line_bg.out
+cargo run -- 'match to this line' -p syntect --term-width 80 --background ./testdata/syntect/long_line_bg.rs   > ./testdata/syntect/long_line_bg.out
 cargo run -- 'match to this line' -p syntect --term-width 80 --no-grid    ./testdata/syntect/no_grid.rs        > ./testdata/syntect/no_grid.out
 cargo run -- 'match to this line' -p syntect --term-width 80 --tab 2      ./testdata/syntect/tab_width_2.rs    > ./testdata/syntect/tab_width_2.out
 cargo run -- 'match to this line' -p syntect --term-width 80 --theme Nord ./testdata/syntect/theme.rs          > ./testdata/syntect/theme.out
