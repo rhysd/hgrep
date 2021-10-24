@@ -1,3 +1,20 @@
+<a name="v0.1.7"></a>
+# [v0.1.7](https://github.com/rhysd/batgrep/releases/tag/v0.1.7) - 24 Oct 2021
+
+- Fix highlighting was broken on 256 colors terminals when using `bat-printer`.
+- `bat-printer` enables text wrapping by default as `bat` command does. It can be disabled by `--no-wrap`.
+- `bat-printer` now looks at bat's cache directory when `--custom-assets` flag is specified. This is useful if you use some custom syntax highlighting or theme. Note that this may not work fine with some versions of `bat` command.
+- `bat-printer` automatically uses 'ansi' theme for terminals which enable only 16 colors since other themes don't work.
+- Add `--terminal-width` option to give the width of terminal explicitly. This is useful when piping the results to other command like `less`.
+- Fix build failure due to lack of assets (#4).
+- Fix some newlines were missing when printing results with `syntect-printer`.
+- Use `terminal_size` crate directly instead of using `console` crate. It removes 3 dependencies when `bat-printer` feature is not enabled.
+- The document has been improved. Especially if you like a pager such as `less`, I recommend to check 'Set default command options' section.
+- (Dev) Several tests and benchmarks for `syntect-printer` were added.
+
+[Changes][v0.1.7]
+
+
 <a name="v0.1.6"></a>
 # [v0.1.6](https://github.com/rhysd/batgrep/releases/tag/v0.1.6) - 23 Oct 2021
 
@@ -64,6 +81,7 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [Changes][v0.1.1]
 
 
+[v0.1.7]: https://github.com/rhysd/batgrep/compare/v0.1.6...v0.1.7
 [v0.1.6]: https://github.com/rhysd/batgrep/compare/v0.1.5...v0.1.6
 [v0.1.5]: https://github.com/rhysd/batgrep/compare/v0.1.4...v0.1.5
 [v0.1.4]: https://github.com/rhysd/batgrep/compare/v0.1.3...v0.1.4
