@@ -15,7 +15,7 @@ use std::path::Path;
 use syntect::highlighting::{
     Color, FontStyle, HighlightIterator, HighlightState, Highlighter, Style, Theme, ThemeSet,
 };
-use syntect::parsing::{ParseState, ScopeStack, ScopeStackOp, SyntaxReference, SyntaxSet};
+use syntect::parsing::{ParseState, ScopeStack, SyntaxReference, SyntaxSet};
 use unicode_width::UnicodeWidthStr;
 
 // Note for lifetimes:
@@ -81,17 +81,6 @@ impl fmt::Display for PrintError {
             &self.message
         )
     }
-}
-
-#[inline]
-fn chomp(mut s: &str) -> &str {
-    if s.ends_with('\n') {
-        s = &s[..s.len() - 1];
-    }
-    if s.ends_with('\r') {
-        s = &s[..s.len() - 1];
-    }
-    s
 }
 
 struct Canvas<'file, W: Write> {
@@ -230,15 +219,10 @@ impl<'file, W: Write> Canvas<'file, W> {
         self.reset_color()
     }
 
-    fn draw_parts_fg_bg<'line>(
-        &mut self,
-        parts: HighlightIterator<'_, 'line>,
-        max_width: usize,
-    ) -> Result<()> {
+    fn draw_parts_fg_bg(&mut self, parts: &[(Style, &str)], max_width: usize) -> Result<()> {
         let mut width = 0;
         for (style, text) in parts {
-            let text = chomp(text);
-            self.set_style(style)?;
+            self.set_style(*style)?;
             self.set_font_style(style.font_style)?;
             let num_tabs = self.draw_text(text)?;
             self.unset_font_style(style.font_style)?;
@@ -252,9 +236,8 @@ impl<'file, W: Write> Canvas<'file, W> {
         self.fill_rest_with_spaces(width, max_width)
     }
 
-    fn draw_parts_fg<'line>(&mut self, parts: HighlightIterator<'_, 'line>) -> Result<()> {
+    fn draw_parts_fg(&mut self, parts: &[(Style, &str)]) -> Result<()> {
         for (style, text) in parts {
-            let text = chomp(text);
             self.set_fg(style.foreground)?;
             self.set_font_style(style.font_style)?;
             self.draw_text(text)?;
@@ -263,16 +246,15 @@ impl<'file, W: Write> Canvas<'file, W> {
         self.reset_color()
     }
 
-    fn draw_parts_with_bg<'line>(
+    fn draw_parts_with_bg(
         &mut self,
         bg: Color,
-        parts: HighlightIterator<'_, 'line>,
+        parts: &[(Style, &str)],
         max_width: usize,
     ) -> Result<()> {
         self.set_bg(bg)?;
         let mut width = 0;
         for (style, text) in parts {
-            let text = chomp(text);
             self.set_fg(style.foreground)?;
             self.set_font_style(style.font_style)?;
             let num_tabs = self.draw_text(text)?;
@@ -282,9 +264,9 @@ impl<'file, W: Write> Canvas<'file, W> {
         self.fill_rest_with_spaces(width, max_width)
     }
 
-    fn draw_parts<'line>(
+    fn draw_parts(
         &mut self,
-        parts: HighlightIterator<'_, 'line>,
+        parts: &[(Style, &str)],
         matched: bool,
         max_width: usize,
     ) -> Result<()> {
@@ -301,6 +283,37 @@ impl<'file, W: Write> Canvas<'file, W> {
     }
 }
 
+// Note: More flexible version of syntect::easy::HighlightLines for our use case
+struct LineHighlighter<'a> {
+    hl: Highlighter<'a>,
+    parse_state: ParseState,
+    hl_state: HighlightState,
+    syntaxes: &'a SyntaxSet,
+}
+
+impl<'a> LineHighlighter<'a> {
+    fn new(syntax: &SyntaxReference, theme: &'a Theme, syntaxes: &'a SyntaxSet) -> Self {
+        let hl = Highlighter::new(theme);
+        let parse_state = ParseState::new(syntax);
+        let hl_state = HighlightState::new(&hl, ScopeStack::new());
+        Self {
+            hl,
+            parse_state,
+            hl_state,
+            syntaxes,
+        }
+    }
+
+    fn skip_line(&mut self, line: &str) {
+        let ops = self.parse_state.parse_line(line, self.syntaxes);
+        for _ in HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl) {}
+    }
+
+    fn highlight<'line>(&mut self, line: &'line str) -> Vec<(Style, &'line str)> {
+        let ops = self.parse_state.parse_line(line, self.syntaxes);
+        HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl).collect()
+    }
+}
 // Like chunk::Lines, but includes newlines
 struct LinesInclusive<'a> {
     lnum: usize,
@@ -340,10 +353,6 @@ impl<'a> Iterator for LinesInclusive<'a> {
 
 // Drawer is responsible for one-time screen drawing
 struct Drawer<'file, W: Write> {
-    hl: Highlighter<'file>,
-    parse_state: ParseState,
-    hl_state: HighlightState,
-    syntaxes: &'file SyntaxSet,
     theme: &'file Theme,
     grid: bool,
     term_width: u16,
@@ -354,6 +363,40 @@ struct Drawer<'file, W: Write> {
 }
 
 impl<'file, W: Write> Drawer<'file, W> {
+    fn new(out: W, opts: &PrinterOptions, theme: &'file Theme, chunks: &[(u64, u64)]) -> Self {
+        let last_lnum = chunks.last().map(|(_, e)| *e).unwrap_or(0);
+        let mut lnum_width = num_digits(last_lnum);
+        if chunks.len() > 1 {
+            lnum_width = cmp::max(lnum_width, 3); // Consider '...' in gutter
+        }
+
+        let gutter_color = theme.settings.gutter_foreground.unwrap_or(Color {
+            r: 128,
+            g: 128,
+            b: 128,
+            a: 255,
+        });
+
+        let canvas = Canvas {
+            theme,
+            true_color: opts.color_support == TermColorSupport::True,
+            tab_width: opts.tab_width as u16,
+            background: opts.background_color,
+            match_color: theme.settings.line_highlight.or(theme.settings.background),
+            out,
+        };
+
+        Drawer {
+            theme,
+            grid: opts.grid,
+            term_width: opts.term_width,
+            lnum_width,
+            background: opts.background_color,
+            gutter_color,
+            canvas,
+        }
+    }
+
     #[inline]
     fn gutter_width(&self) -> u16 {
         if self.grid {
@@ -427,27 +470,16 @@ impl<'file, W: Write> Drawer<'file, W> {
         Ok(()) // We don't need to reset color for next line
     }
 
-    fn parse_syntax(&mut self, line: &str) -> Vec<(usize, ScopeStackOp)> {
-        self.parse_state.parse_line(line, self.syntaxes)
-    }
-
-    fn skip_line(&mut self, line: &str) {
-        let ops = self.parse_syntax(line);
-        for _ in HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl) {}
-    }
-
-    fn draw_line(&mut self, line: &str, lnum: u64, matched: bool) -> Result<()> {
-        self.draw_line_number(lnum, matched)?;
-
-        let ops = self.parse_syntax(line);
+    // Note: Newline (\n or \r\n) at the end of line must be removed before calling this method
+    fn draw_line(&mut self, parts: Vec<(Style, &'_ str)>, lnum: u64, matched: bool) -> Result<()> {
         let body_width = (self.term_width - self.gutter_width()) as usize;
-        let iter = HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl);
-        self.canvas.draw_parts(iter, matched, body_width)?;
+        self.draw_line_number(lnum, matched)?;
+        self.canvas.draw_parts(&parts, matched, body_width)?;
         writeln!(self.canvas.out)?;
         Ok(())
     }
 
-    fn draw_body(&mut self, file: &File) -> Result<()> {
+    fn draw_body(&mut self, file: &File, mut hl: LineHighlighter<'_>) -> Result<()> {
         assert!(!file.chunks.is_empty());
 
         let mut matched = file.line_numbers.as_ref();
@@ -459,8 +491,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         for Line(bytes, lnum) in LinesInclusive::new(&file.contents) {
             let (start, end) = *chunk;
             if lnum < start {
-                let line = String::from_utf8_lossy(bytes);
-                self.skip_line(line.as_ref()); // Discard parsed result
+                hl.skip_line(String::from_utf8_lossy(bytes).as_ref()); // Discard parsed result
                 continue;
             }
             if start <= lnum && lnum <= end {
@@ -472,7 +503,17 @@ impl<'file, W: Write> Drawer<'file, W> {
                     _ => false,
                 };
                 let line = String::from_utf8_lossy(bytes);
-                self.draw_line(line.as_ref(), lnum, matched)?;
+                let mut parts = hl.highlight(line.as_ref());
+                if let Some((_, s)) = parts.last_mut() {
+                    if s.ends_with('\n') {
+                        *s = &s[..s.len() - 1];
+                    }
+                    if s.ends_with('\r') {
+                        *s = &s[..s.len() - 1];
+                    }
+                }
+                self.draw_line(parts, lnum, matched)?;
+
                 if lnum == end {
                     if let Some(c) = chunks.next() {
                         self.draw_separator_line()?;
@@ -565,54 +606,6 @@ where
         &mut self.writer
     }
 
-    fn build_drawer<'file, 'me: 'file, B: Write>(
-        &'me self,
-        buf: B,
-        syntax: &'file SyntaxReference,
-        theme: &'file Theme,
-        chunks: &[(u64, u64)],
-    ) -> Drawer<'file, B> {
-        let last_lnum = chunks.last().unwrap().1;
-        let mut lnum_width = num_digits(last_lnum);
-        if chunks.len() > 1 {
-            lnum_width = cmp::max(lnum_width, 3); // Consider '...' in gutter
-        }
-
-        let gutter_color = theme.settings.gutter_foreground.unwrap_or(Color {
-            r: 128,
-            g: 128,
-            b: 128,
-            a: 255,
-        });
-
-        let canvas = Canvas {
-            theme,
-            true_color: self.opts.color_support == TermColorSupport::True,
-            tab_width: self.opts.tab_width as u16,
-            background: self.opts.background_color,
-            match_color: theme.settings.line_highlight.or(theme.settings.background),
-            out: buf,
-        };
-
-        let hl = Highlighter::new(theme);
-        let parse_state = ParseState::new(syntax);
-        let hl_state = HighlightState::new(&hl, ScopeStack::new());
-
-        Drawer {
-            hl,
-            parse_state,
-            hl_state,
-            syntaxes: &self.syntaxes,
-            theme,
-            grid: self.opts.grid,
-            term_width: self.opts.term_width,
-            lnum_width,
-            background: self.opts.background_color,
-            gutter_color,
-            canvas,
-        }
-    }
-
     fn theme(&self) -> &Theme {
         let name = self.opts.theme.unwrap_or_else(|| {
             if self.opts.color_support == TermColorSupport::Ansi16 {
@@ -655,9 +648,10 @@ where
         let theme = self.theme();
         let syntax = self.find_syntax(&file.path)?;
 
-        let mut drawer = self.build_drawer(&mut buf, syntax, theme, &file.chunks);
+        let mut drawer = Drawer::new(&mut buf, &self.opts, theme, &file.chunks);
         drawer.draw_header(&file.path)?;
-        drawer.draw_body(&file)?;
+        let hl = LineHighlighter::new(syntax, theme, &self.syntaxes);
+        drawer.draw_body(&file, hl)?;
         drawer.draw_footer()?;
 
         // Take lock here to print files in serial from multiple threads
