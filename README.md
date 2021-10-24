@@ -30,7 +30,7 @@ Example:
 hgrep pattern ./dir
 ```
 
-hgrep provides two printers to pritn match results for your use case. Please see ['`bat` printer v.s. `syntect` printer'][bat-vs-syntect]
+hgrep provides two printers to print match results for your use case. Please see ['`bat` printer v.s. `syntect` printer'][bat-vs-syntect]
 section for the comparison.
 
 - `syntect` printer: Our own implementation of printer using [syntect][] library. Performance and its output layout are more optimized
