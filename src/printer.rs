@@ -14,7 +14,7 @@ impl TermColorSupport {
     fn detect() -> Self {
         if env::var("COLORTERM")
             .ok()
-            .map(|v| v.eq_ignore_ascii_case("truecolor"))
+            .map(|v| v.eq_ignore_ascii_case("truecolor") || v.eq_ignore_ascii_case("24bit"))
             .unwrap_or(false)
         {
             return TermColorSupport::True;
@@ -54,7 +54,7 @@ impl<'main> Default for PrinterOptions<'main> {
             background_color: false,
             color_support: TermColorSupport::detect(),
             custom_assets: false,
-            term_width: terminal_size().map(|(Width(w), _)| w).unwrap_or(80),
+            term_width: terminal_size().map(|(Width(w), _)| w).unwrap_or(80), // Note: `tput` returns 80 when tty is not found
             text_wrap: true,
         }
     }

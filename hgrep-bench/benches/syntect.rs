@@ -3,14 +3,15 @@ use hgrep::chunk::File;
 use hgrep::printer::{Printer, PrinterOptions, TermColorSupport};
 use hgrep::ripgrep;
 use hgrep::syntect::{LockableWrite, SyntectPrinter};
+use hgrep_bench::node_modules_path;
+use hgrep_bench::read_package_lock_json;
 use rayon::prelude::*;
 use std::cmp;
-use std::fs;
 use std::io;
 use std::io::Write;
 use std::iter;
 use std::mem;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Mutex, MutexGuard};
 
 struct SinkLock<'a>(MutexGuard<'a, Vec<u8>>);
@@ -33,15 +34,7 @@ impl<'a> LockableWrite<'a> for Sink {
 }
 
 fn large_file(c: &mut Criterion) {
-    let path = PathBuf::from("package-lock.json");
-    let path = path.as_path();
-    let contents = match fs::read_to_string(path) {
-        Ok(s) => s,
-        Err(err) => panic!(
-            "put large file as \"package-lock.json\" at root of hgrep-bench directory by `npm install`: {}",
-            err,
-        ),
-    };
+    let (path, contents) = read_package_lock_json();
     let lines = contents.lines().count() as u64;
     let mut files = vec![];
     for l in (1..=lines).step_by(500) {
@@ -55,7 +48,7 @@ fn large_file(c: &mut Criterion) {
         ))
     }
 
-    c.bench_function("printer-only", |b| {
+    c.bench_function("syntect-package-lock.json", |b| {
         b.iter(|| {
             let mut opts = PrinterOptions::default();
             opts.color_support = TermColorSupport::True;
@@ -73,33 +66,34 @@ fn large_file(c: &mut Criterion) {
     });
 }
 
-fn node_modules(c: &mut Criterion) {
-    let dir = Path::new("node_modules");
-    assert!(
-        dir.is_dir(),
-        "put \"node_modules\" directory in hgrep-bench directory by `npm install`"
-    );
+fn with_ripgrep(c: &mut Criterion) {
+    #[inline]
+    fn run_ripgrep(pat: &str, dir: &Path) -> bool {
+        let mut opts = PrinterOptions::default();
+        opts.color_support = TermColorSupport::True;
+        opts.term_width = 80;
+        let sink = Sink(Mutex::new(vec![]));
+        let printer = SyntectPrinter::new(sink, opts).unwrap();
+        let mut config = ripgrep::Config::new(3, 6);
+        config.no_ignore(true);
+        ripgrep::grep(printer, pat, Some(iter::once(dir.as_os_str())), config).unwrap()
+    }
 
-    c.bench_function("printer+ripgrep", |b| {
-        b.iter(|| {
-            let mut opts = PrinterOptions::default();
-            opts.color_support = TermColorSupport::True;
-            opts.term_width = 80;
-            let sink = Sink(Mutex::new(vec![]));
-            let printer = SyntectPrinter::new(sink, opts).unwrap();
-            let mut config = ripgrep::Config::new(3, 6);
-            config.no_ignore(true);
-            let found = ripgrep::grep(
-                printer,
-                r"\bparcel\b",
-                Some(iter::once(dir.as_os_str())),
-                config,
-            )
-            .unwrap();
-            assert!(found);
-        })
+    let dir = node_modules_path();
+    c.bench_function("ripgrep-large", |b| {
+        b.iter(|| assert!(run_ripgrep(r"\bparcel\b", dir)))
+    });
+
+    let dir = Path::new("..").join("src");
+    c.bench_function("ripgrep-small", |b| {
+        b.iter(|| assert!(run_ripgrep("Printer", &dir)))
+    });
+
+    let dir = Path::new("..").join("testdata").join("chunk");
+    c.bench_function("ripgrep-tiny", |b| {
+        b.iter(|| assert!(run_ripgrep(r"\*$", &dir)))
     });
 }
 
-criterion_group!(syntect, large_file, node_modules);
+criterion_group!(syntect, large_file, with_ripgrep);
 criterion_main!(syntect);

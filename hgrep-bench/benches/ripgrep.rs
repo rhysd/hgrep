@@ -3,6 +3,7 @@ use hgrep::chunk::File;
 use hgrep::printer::Printer;
 use hgrep::ripgrep;
 use hgrep::Result;
+use hgrep_bench::node_modules_path;
 use std::iter;
 use std::path::Path;
 
@@ -31,11 +32,7 @@ fn testdata_dir(c: &mut Criterion) {
 }
 
 fn node_modules(c: &mut Criterion) {
-    let dir = Path::new("node_modules");
-    assert!(
-        dir.is_dir(),
-        "put \"node_modules\" directory in hgrep-bench directory by `npm install`"
-    );
+    let dir = node_modules_path();
 
     c.bench_function("node_modules", |b| {
         b.iter(|| {

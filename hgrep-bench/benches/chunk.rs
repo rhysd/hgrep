@@ -1,5 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use hgrep::grep::BufReadExt;
+use hgrep_bench::read_package_lock_json;
 use std::fs;
 use std::path::Path;
 
@@ -52,19 +53,13 @@ fn large_file(c: &mut Criterion) {
     let mut buf_per_100_lines = String::new();
     let mut buf_per_1000_lines = String::new();
     let mut buf_per_3000_lines = String::new();
-    let contents = match fs::read_to_string("package-lock.json") {
-        Ok(s) => s,
-        Err(err) => panic!(
-            "put large file as \"package-lock.json\" at root of hgrep-bench directory by `npm install`: {}",
-            err,
-        ),
-    };
+    let (path, contents) = read_package_lock_json();
     for (idx, line) in contents.lines().enumerate() {
         let n = idx + 1;
         if n % 10 != 0 {
             continue;
         }
-        let input = format!("package-lock.json:{}:{}\n", n, line);
+        let input = format!("{}:{}:{}\n", path, n, line);
         buf_per_10_lines += &input;
 
         if n % 100 == 0 {
