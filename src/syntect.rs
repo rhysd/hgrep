@@ -16,7 +16,7 @@ use syntect::highlighting::{
     Color, FontStyle, HighlightIterator, HighlightState, Highlighter, Style, Theme, ThemeSet,
 };
 use syntect::parsing::{ParseState, ScopeStack, SyntaxReference, SyntaxSet};
-use unicode_width::UnicodeWidthStr;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 // Note for lifetimes:
 // - 'file is a lifetime for File instance which is passed to print() method
@@ -104,6 +104,15 @@ impl<'file, W: Write> DerefMut for Canvas<'file, W> {
     }
 }
 
+enum TextDrawn<'line> {
+    Continue(usize),
+    Break(&'line str),
+}
+enum LineDrawn<'line> {
+    Done,
+    Wrap(&'line str, usize),
+}
+
 impl<'file, W: Write> Canvas<'file, W> {
     fn set_bg(&mut self, c: Color) -> Result<()> {
         // In case of c.a == 0 and c.a == 1 are handling for special colorscheme by bat for non true
@@ -170,116 +179,88 @@ impl<'file, W: Write> Canvas<'file, W> {
         Ok(())
     }
 
-    fn set_style(&mut self, s: Style) -> Result<()> {
-        self.set_bg(s.background)?;
-        self.set_fg(s.foreground)?;
-        Ok(())
-    }
-
     fn reset_color(&mut self) -> Result<()> {
         self.out.write_all(b"\x1b[0m")?;
         Ok(())
     }
 
+    fn draw_spaces(&mut self, num: usize) -> Result<()> {
+        for _ in 0..num {
+            self.out.write_all(b" ")?;
+        }
+        Ok(())
+    }
+
     // Returns number of tab characters in the text
-    fn draw_text(&mut self, text: &str) -> Result<usize> {
-        if self.tab_width == 0 {
-            write!(self.out, "{}", text)?;
-            return Ok(0); // XXX: This does not consider width of \t in terminal
-        }
-        let mut num_tabs = 0;
-        let mut start_idx = 0;
+    fn draw_text<'line>(&mut self, text: &'line str, limit: usize) -> Result<TextDrawn<'line>> {
+        let mut width = 0;
         for (i, c) in text.char_indices() {
-            if c == '\t' {
-                let eaten = &text[start_idx..i];
-                write!(self.out, "{}", eaten)?;
-                for _ in 0..self.tab_width {
-                    self.out.write_all(b" ")?;
+            width += if c == '\t' && self.tab_width > 0 {
+                let w = self.tab_width as usize;
+                if width + w > limit {
+                    self.draw_spaces(limit - width)?;
+                    return Ok(TextDrawn::Break(&text[i..]));
                 }
-                start_idx = i + 1;
-                num_tabs += 1;
-            }
+                self.draw_spaces(self.tab_width as usize)?;
+                w
+            } else {
+                let w = c.width_cjk().unwrap_or(0);
+                if width + w > limit {
+                    return Ok(TextDrawn::Break(&text[i..]));
+                }
+                write!(self.out, "{}", c)?;
+                w
+            };
         }
-        let rest = &text[start_idx..];
-        write!(self.out, "{}", rest)?;
-        Ok(num_tabs)
+        Ok(TextDrawn::Continue(width))
     }
 
-    #[inline]
-    fn text_width(&self, text: &str, num_tabs: usize) -> usize {
-        num_tabs * (self.tab_width.saturating_sub(1) as usize) + text.width_cjk()
-    }
-
-    fn fill_rest_with_spaces(&mut self, written_width: usize, max_width: usize) -> Result<()> {
+    fn fill_spaces(&mut self, written_width: usize, max_width: usize) -> Result<()> {
         if written_width < max_width {
-            for _ in 0..max_width - written_width {
-                self.out.write_all(b" ")?;
-            }
+            self.draw_spaces(max_width - written_width)?;
         }
         self.reset_color()
     }
 
-    fn draw_parts_fg_bg(&mut self, parts: &[(Style, &str)], max_width: usize) -> Result<()> {
-        let mut width = 0;
-        for (style, text) in parts {
-            self.set_style(*style)?;
-            self.set_font_style(style.font_style)?;
-            let num_tabs = self.draw_text(text)?;
-            self.unset_font_style(style.font_style)?;
-            width += self.text_width(text, num_tabs);
-        }
-
-        if width == 0 {
-            self.set_default_bg()?; // For empty line
-        }
-
-        self.fill_rest_with_spaces(width, max_width)
-    }
-
-    fn draw_parts_fg(&mut self, parts: &[(Style, &str)]) -> Result<()> {
-        for (style, text) in parts {
-            self.set_fg(style.foreground)?;
-            self.set_font_style(style.font_style)?;
-            self.draw_text(text)?;
-            self.unset_font_style(style.font_style)?;
-        }
-        self.reset_color()
-    }
-
-    fn draw_parts_with_bg(
+    fn draw_texts<'line>(
         &mut self,
-        bg: Color,
-        parts: &[(Style, &str)],
-        max_width: usize,
-    ) -> Result<()> {
-        self.set_bg(bg)?;
-        let mut width = 0;
-        for (style, text) in parts {
-            self.set_fg(style.foreground)?;
-            self.set_font_style(style.font_style)?;
-            let num_tabs = self.draw_text(text)?;
-            self.unset_font_style(style.font_style)?;
-            width += self.text_width(text, num_tabs);
-        }
-        self.fill_rest_with_spaces(width, max_width)
-    }
-
-    fn draw_parts(
-        &mut self,
-        parts: &[(Style, &str)],
+        parts: &[(Style, &'line str)],
         matched: bool,
         max_width: usize,
-    ) -> Result<()> {
+    ) -> Result<LineDrawn<'line>> {
         if matched {
             if let Some(bg) = self.match_color {
-                return self.draw_parts_with_bg(bg, parts, max_width);
+                self.set_bg(bg)?;
             }
         }
-        if self.background {
-            self.draw_parts_fg_bg(parts, max_width)
-        } else {
-            self.draw_parts_fg(parts)
+
+        let mut width = 0;
+        for (idx, (style, text)) in parts.iter().enumerate() {
+            if !matched && self.background {
+                self.set_bg(style.background)?;
+            }
+            self.set_fg(style.foreground)?;
+            self.set_font_style(style.font_style)?;
+            match self.draw_text(text, max_width - width)? {
+                TextDrawn::Continue(w) => width += w,
+                TextDrawn::Break(rest) => {
+                    self.reset_color()?;
+                    return Ok(LineDrawn::Wrap(rest, idx));
+                }
+            }
+            self.unset_font_style(style.font_style)?;
         }
+
+        if width == 0 && !matched {
+            self.set_default_bg()?; // For empty line
+        }
+        if matched || self.background {
+            self.fill_spaces(width, max_width)?;
+        } else {
+            self.reset_color()?;
+        }
+
+        Ok(LineDrawn::Done)
     }
 }
 
@@ -431,9 +412,8 @@ impl<'file, W: Write> Drawer<'file, W> {
         self.canvas.set_fg(fg)?;
         self.canvas.set_default_bg()?;
         let width = num_digits(lnum);
-        for _ in 0..(self.lnum_width - width) {
-            self.canvas.write_all(b" ")?;
-        }
+        self.canvas
+            .draw_spaces((self.lnum_width - width) as usize)?;
         write!(self.canvas, " {}", lnum)?;
         if self.grid {
             if matched {
@@ -446,14 +426,22 @@ impl<'file, W: Write> Drawer<'file, W> {
         Ok(()) // Do not reset color because another color text will follow
     }
 
+    fn draw_wrapping_gutter(&mut self) -> Result<()> {
+        self.canvas.set_fg(self.gutter_color)?;
+        self.canvas.set_default_bg()?;
+        self.canvas.draw_spaces(self.lnum_width as usize + 2)?;
+        if self.grid {
+            self.canvas.write_all("│ ".as_bytes())?;
+        }
+        Ok(())
+    }
+
     fn draw_separator_line(&mut self) -> Result<()> {
         self.canvas.set_fg(self.gutter_color)?;
         self.canvas.set_default_bg()?;
         // + 1 for left margin and - 3 for length of "..."
         let left_margin = self.lnum_width + 1 - 3;
-        for _ in 0..left_margin {
-            self.canvas.write_all(b" ")?;
-        }
+        self.canvas.draw_spaces(left_margin as usize)?;
         let w = if self.grid {
             write!(self.canvas, "... ├")?;
             5
@@ -470,11 +458,38 @@ impl<'file, W: Write> Drawer<'file, W> {
         Ok(()) // We don't need to reset color for next line
     }
 
-    // Note: Newline (\n or \r\n) at the end of line must be removed before calling this method
-    fn draw_line(&mut self, parts: Vec<(Style, &'_ str)>, lnum: u64, matched: bool) -> Result<()> {
+    fn draw_line(
+        &mut self,
+        mut parts: Vec<(Style, &'_ str)>,
+        lnum: u64,
+        matched: bool,
+    ) -> Result<()> {
+        // The highlighter requires newline at the end. But we don't want it since we sometimes need to fill the rest
+        // of line with spaces. Chomp it.
+        if let Some((_, s)) = parts.last_mut() {
+            if s.ends_with('\n') {
+                *s = &s[..s.len() - 1];
+                if s.ends_with('\r') {
+                    *s = &s[..s.len() - 1];
+                }
+            }
+        }
+
         let body_width = (self.term_width - self.gutter_width()) as usize;
         self.draw_line_number(lnum, matched)?;
-        self.canvas.draw_parts(&parts, matched, body_width)?;
+        let mut parts = parts.as_mut_slice();
+
+        while let LineDrawn::Wrap(rest, idx) = self.canvas.draw_texts(parts, matched, body_width)? {
+            writeln!(self.canvas.out)?;
+            self.draw_wrapping_gutter()?;
+            if rest.is_empty() {
+                parts = &mut parts[idx + 1..];
+            } else {
+                parts = &mut parts[idx..];
+                parts[0].1 = rest;
+            }
+        }
+
         writeln!(self.canvas.out)?;
         Ok(())
     }
@@ -503,16 +518,7 @@ impl<'file, W: Write> Drawer<'file, W> {
                     _ => false,
                 };
                 let line = String::from_utf8_lossy(bytes);
-                let mut parts = hl.highlight(line.as_ref());
-                if let Some((_, s)) = parts.last_mut() {
-                    if s.ends_with('\n') {
-                        *s = &s[..s.len() - 1];
-                    }
-                    if s.ends_with('\r') {
-                        *s = &s[..s.len() - 1];
-                    }
-                }
-                self.draw_line(parts, lnum, matched)?;
+                self.draw_line(hl.highlight(line.as_ref()), lnum, matched)?;
 
                 if lnum == end {
                     if let Some(c) = chunks.next() {
@@ -536,7 +542,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         write!(self.canvas, " {}", path)?;
         if self.background {
             self.canvas
-                .fill_rest_with_spaces(path.width_cjk() + 1, self.term_width as usize)?;
+                .fill_spaces(path.width_cjk() + 1, self.term_width as usize)?;
         } else {
             self.canvas.reset_color()?;
         }
