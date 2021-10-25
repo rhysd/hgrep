@@ -197,6 +197,7 @@ impl<'file, W: Write> Canvas<'file, W> {
     // Returns number of tab characters in the text
     fn draw_text<'line>(&mut self, text: &'line str, limit: usize) -> Result<LineDrawState<'line>> {
         let mut width = 0;
+        let mut saw_zwj = false;
         for (i, c) in text.char_indices() {
             width += if c == '\t' && self.tab_width > 0 {
                 let w = self.tab_width as usize;
@@ -208,7 +209,16 @@ impl<'file, W: Write> Canvas<'file, W> {
                 self.draw_spaces(self.tab_width as usize)?;
                 w
             } else {
-                let w = c.width_cjk().unwrap_or(0);
+                // Handle zero width joiner
+                let w = if c == '\u{200d}' {
+                    saw_zwj = true;
+                    0
+                } else if saw_zwj {
+                    saw_zwj = false;
+                    0 // Do not count width while joining current character into previous one with ZWJ
+                } else {
+                    c.width_cjk().unwrap_or(0)
+                };
                 if width + w > limit {
                     self.draw_spaces(limit - width)?;
                     return Ok(LineDrawState::Break(&text[i..]));
@@ -879,6 +889,36 @@ mod tests {
             test_multi_chunks_default(|_| {}),
             test_multi_chunks_no_grid(|o| {
                 o.grid = false;
+            }),
+            test_multi_chunks_bg(|o| {
+                o.background_color = true;
+            }),
+            test_japanese_default(|_| {}),
+            test_japanese_background(|o| {
+                o.background_color = true;
+            }),
+            test_wrap_japanese_after(|_| {}),
+            test_wrap_japanese_before(|_| {}),
+            test_wrap_break_wide_char(|_| {}),
+            test_wrap_break_wide_char_bg(|o| {
+                o.background_color = true;
+            }),
+            test_wrap_japanese_louise(|_| {}),
+            test_wrap_jp_louise_bg(|o| {
+                o.background_color = true;
+            }),
+            test_wrap_jp_louise_no_grid(|o| {
+                o.grid = false;
+            }),
+            test_wrap_emoji(|_| {}),
+            test_wrap_emoji_zwj(|_| {}),
+            test_emoji(|_| {}),
+            test_emoji_bg(|o| {
+                o.background_color = true;
+            }),
+            test_no_grid_background(|o| {
+                o.grid = false;
+                o.background_color = true;
             }),
         );
     }

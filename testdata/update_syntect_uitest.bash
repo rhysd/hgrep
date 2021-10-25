@@ -51,6 +51,11 @@ cargo run -- 'match to this line' -c 6 -C 6 -p syntect --term-width 80 --backgro
 cargo run -- 'match to this line' -c 6 -C 6 -p syntect --term-width 80                        ./testdata/syntect/wrap_japanese_louise.rs    > ./testdata/syntect/wrap_japanese_louise.out
 cargo run -- 'match to this line' -c 6 -C 6 -p syntect --term-width 80 --background           ./testdata/syntect/wrap_jp_louise_bg.rs       > ./testdata/syntect/wrap_jp_louise_bg.out
 cargo run -- 'match to this line' -c 6 -C 6 -p syntect --term-width 80 --no-grid              ./testdata/syntect/wrap_jp_louise_no_grid.rs  > ./testdata/syntect/wrap_jp_louise_no_grid.out
+cargo run -- 'match to this line' -c 6 -C 6 -p syntect --term-width 80                        ./testdata/syntect/wrap_emoji.rs              > ./testdata/syntect/wrap_emoji.out
+cargo run -- 'match to this line' -c 6 -C 6 -p syntect --term-width 80                        ./testdata/syntect/wrap_emoji_zwj.rs          > ./testdata/syntect/wrap_emoji_zwj.out
+cargo run -- 'match to this line' -c 6 -C 6 -p syntect --term-width 80                        ./testdata/syntect/emoji.rs                   > ./testdata/syntect/emoji.out
+cargo run -- 'match to this line' -c 6 -C 6 -p syntect --term-width 80 --background           ./testdata/syntect/emoji_bg.rs                > ./testdata/syntect/emoji_bg.out
+cargo run -- 'match to this line' -c 6 -C 6 -p syntect --term-width 80 --background --no-grid ./testdata/syntect/no_grid_background.rs      > ./testdata/syntect/no_grid_background.out
 
 cat ./testdata/syntect/ansi16_colors.out
 cat ./testdata/syntect/ansi256_colors.out
@@ -88,3 +93,8 @@ cat ./testdata/syntect/wrap_break_wide_char_bg.out
 cat ./testdata/syntect/wrap_japanese_louise.out
 cat ./testdata/syntect/wrap_jp_louise_bg.out
 cat ./testdata/syntect/wrap_jp_louise_no_grid.out
+cat ./testdata/syntect/wrap_emoji.out
+cat ./testdata/syntect/wrap_emoji_zwj.out
+cat ./testdata/syntect/emoji.out
+cat ./testdata/syntect/emoji_bg.out
+cat ./testdata/syntect/no_grid_background.out
