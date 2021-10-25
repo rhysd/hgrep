@@ -182,15 +182,15 @@ impl<'file, W: Write> Canvas<'file, W> {
         Ok(())
     }
 
-    fn reset_color(&mut self) -> Result<()> {
-        self.out.write_all(b"\x1b[0m")?;
-        Ok(())
-    }
-
     fn draw_spaces(&mut self, num: usize) -> Result<()> {
         for _ in 0..num {
             self.out.write_all(b" ")?;
         }
+        Ok(())
+    }
+
+    fn draw_newline(&mut self) -> Result<()> {
+        writeln!(self.out, "\x1b[0m")?; // Reset on newline to ensure to reset color
         Ok(())
     }
 
@@ -253,7 +253,7 @@ impl<'file, W: Write> Canvas<'file, W> {
         if written_width < max_width {
             self.draw_spaces(max_width - written_width)?;
         }
-        self.reset_color()
+        Ok(())
     }
 
     fn draw_texts<'line>(
@@ -278,10 +278,7 @@ impl<'file, W: Write> Canvas<'file, W> {
             if self.wrap {
                 match self.draw_text(text, max_width - width)? {
                     LineDrawState::Continue(w) => width += w,
-                    LineDrawState::Break(rest) => {
-                        self.reset_color()?;
-                        return Ok(LineDrawn::Wrap(rest, idx));
-                    }
+                    LineDrawState::Break(rest) => return Ok(LineDrawn::Wrap(rest, idx)),
                 }
             } else {
                 width += self.draw_text_no_wrap(text)?;
@@ -294,8 +291,6 @@ impl<'file, W: Write> Canvas<'file, W> {
         }
         if matched || self.background {
             self.fill_spaces(width, max_width)?;
-        } else {
-            self.reset_color()?;
         }
 
         Ok(LineDrawn::Done)
@@ -437,9 +432,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         for _ in 0..self.term_width - gutter_width + 1 {
             self.canvas.write_all("─".as_bytes())?;
         }
-        self.canvas.reset_color()?;
-        writeln!(self.canvas)?;
-        Ok(())
+        self.canvas.draw_newline()
     }
 
     fn draw_line_number(&mut self, lnum: u64, matched: bool) -> Result<()> {
@@ -493,9 +486,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         for _ in 0..body_width {
             self.canvas.write_all("╶".as_bytes())?;
         }
-        self.canvas.reset_color()?;
-        writeln!(self.canvas)?;
-        Ok(())
+        self.canvas.draw_newline()
     }
 
     fn draw_line(
@@ -520,7 +511,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         let mut parts = parts.as_mut_slice();
 
         while let LineDrawn::Wrap(rest, idx) = self.canvas.draw_texts(parts, matched, body_width)? {
-            writeln!(self.canvas.out)?;
+            self.canvas.draw_newline()?;
             self.draw_wrapping_gutter()?;
             if rest.is_empty() {
                 parts = &mut parts[idx + 1..];
@@ -530,8 +521,7 @@ impl<'file, W: Write> Drawer<'file, W> {
             }
         }
 
-        writeln!(self.canvas.out)?;
-        Ok(())
+        self.canvas.draw_newline()
     }
 
     fn draw_body(&mut self, file: &File, mut hl: LineHighlighter<'_>) -> Result<()> {
@@ -585,10 +575,8 @@ impl<'file, W: Write> Drawer<'file, W> {
         if self.background {
             self.canvas
                 .fill_spaces(path.width_cjk() + 1, self.term_width as usize)?;
-        } else {
-            self.canvas.reset_color()?;
         }
-        writeln!(self.canvas)?;
+        self.canvas.draw_newline()?;
         if self.grid {
             self.draw_horizontal_line("┬")?;
         }
