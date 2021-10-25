@@ -115,7 +115,7 @@ impl<'main> BatPrinter<'main> {
     }
 
     pub fn print(&self, file: File) -> Result<()> {
-        if file.chunks.is_empty() || file.line_numbers.is_empty() {
+        if file.chunks.is_empty() || file.line_matches.is_empty() {
             return Ok(()); // Ensure to print some match
         }
 
@@ -149,9 +149,12 @@ impl<'main> BatPrinter<'main> {
             Input::from_reader(Box::new(file.contents.as_ref())).with_name(Some(&file.path));
 
         let ranges = file
-            .line_numbers
+            .line_matches
             .iter()
-            .map(|n| LineRange::new(*n as usize, *n as usize))
+            .map(|m| {
+                let n = m.line_number as usize;
+                LineRange::new(n, n)
+            })
             .collect();
         config.highlighted_lines = HighlightedLineRanges(LineRanges::from(ranges));
 
@@ -186,15 +189,16 @@ impl<'main> Printer for Mutex<BatPrinter<'main>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::chunk::LineMatch;
 
     fn sample_file() -> File {
         let path = PathBuf::from("test.rs");
-        let lnums = vec![1];
+        let lmats = vec![LineMatch::lnum(1)];
         let chunks = vec![(1, 2)];
         let contents = "fn main() {\n    println!(\"hello\");\n}\n"
             .as_bytes()
             .to_vec();
-        File::new(path, lnums, chunks, contents)
+        File::new(path, lmats, chunks, contents)
     }
 
     #[test]

@@ -1,5 +1,5 @@
 use crate::chunk::Files;
-use crate::grep::Match;
+use crate::grep::GrepMatch;
 use crate::printer::Printer;
 use anyhow::Result;
 use grep_matcher::{LineTerminator, Matcher};
@@ -375,14 +375,15 @@ fn walk<'main>(
     rx.into_iter().collect()
 }
 
-struct Matches<'a> {
+struct Matches<'a, M: Matcher> {
     multiline: bool,
     count: &'a Option<Mutex<u64>>,
     path: PathBuf,
-    buf: Vec<Match>,
+    matcher: &'a M,
+    buf: Vec<GrepMatch>,
 }
 
-impl<'a> Sink for Matches<'a> {
+impl<'a, M: Matcher> Sink for Matches<'a, M> {
     type Error = io::Error;
 
     fn matched(&mut self, _searcher: &Searcher, mat: &SinkMatch<'_>) -> Result<bool, Self::Error> {
@@ -394,16 +395,36 @@ impl<'a> Sink for Matches<'a> {
             }
             *c -= 1;
         }
+
         let line_number = mat.line_number().unwrap();
         let path = self.path.clone();
-        self.buf.push(Match { path, line_number });
+
+        let range = if self.multiline {
+            None
+        } else {
+            self.matcher
+                .find(mat.bytes())
+                .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?
+                .map(|m| (m.start(), m.end()))
+        };
+        self.buf.push(GrepMatch {
+            path,
+            line_number,
+            range,
+        });
+
         if self.multiline {
             for i in 1..mat.lines().count() {
                 let line_number = line_number + i as u64;
                 let path = self.path.clone();
-                self.buf.push(Match { path, line_number });
+                self.buf.push(GrepMatch {
+                    path,
+                    line_number,
+                    range: None,
+                });
             }
         }
+
         Ok(true)
     }
 }
@@ -441,7 +462,7 @@ where
         }
     }
 
-    fn search(&self, path: PathBuf) -> Result<Vec<Match>> {
+    fn search(&self, path: PathBuf) -> Result<Vec<GrepMatch>> {
         if let Some(count) = &self.count {
             if *count.lock().unwrap() == 0 {
                 return Ok(vec![]);
@@ -453,6 +474,7 @@ where
             multiline: self.config.multiline,
             count: &self.count,
             path,
+            matcher: &self.matcher,
             buf: vec![],
         };
         searcher.search_file(&self.matcher, &file, &mut matches)?;
@@ -493,7 +515,11 @@ mod tests {
     #[derive(Default)]
     struct DummyPrinter(Mutex<Vec<File>>);
     impl Printer for &DummyPrinter {
-        fn print(&self, file: File) -> Result<()> {
+        fn print(&self, mut file: File) -> Result<()> {
+            // TODO: Check byte range within line
+            for lm in file.line_matches.iter_mut() {
+                lm.range = None;
+            }
             self.0.lock().unwrap().push(file);
             Ok(())
         }

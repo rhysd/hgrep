@@ -1,10 +1,10 @@
-use crate::chunk::File;
-use crate::grep::Match;
+use crate::chunk::{File, LineMatch};
+use crate::grep::GrepMatch;
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
 
-pub(crate) fn read_matches<S: AsRef<str>>(dir: &Path, input: S) -> Vec<Result<Match>> {
+pub(crate) fn read_matches<S: AsRef<str>>(dir: &Path, input: S) -> Vec<Result<GrepMatch>> {
     let path = dir.join(format!("{}.in", input.as_ref()));
     let path = path.as_path();
     fs::read_to_string(path)
@@ -13,16 +13,17 @@ pub(crate) fn read_matches<S: AsRef<str>>(dir: &Path, input: S) -> Vec<Result<Ma
         .enumerate()
         .filter_map(|(idx, line)| {
             line.ends_with('*').then(|| {
-                Ok(Match {
+                Ok(GrepMatch {
                     path: path.into(),
                     line_number: idx as u64 + 1,
+                    range: None,
                 })
             })
         })
-        .collect::<Vec<Result<Match>>>()
+        .collect::<Vec<Result<GrepMatch>>>()
 }
 
-pub(crate) fn read_all_matches<S: AsRef<str>>(dir: &Path, inputs: &[S]) -> Vec<Result<Match>> {
+pub(crate) fn read_all_matches<S: AsRef<str>>(dir: &Path, inputs: &[S]) -> Vec<Result<GrepMatch>> {
     inputs
         .iter()
         .map(|input| read_matches(dir, input).into_iter())
@@ -33,7 +34,7 @@ pub(crate) fn read_all_matches<S: AsRef<str>>(dir: &Path, inputs: &[S]) -> Vec<R
 pub(crate) fn read_expected_chunks<S: AsRef<str>>(dir: &Path, input: S) -> Option<File> {
     let input = input.as_ref();
     let outfile = dir.join(format!("{}.out", input));
-    let (chunks, lnums) = fs::read_to_string(&outfile)
+    let (chunks, lmats) = fs::read_to_string(&outfile)
         .unwrap()
         .lines()
         .filter(|s| !s.is_empty())
@@ -44,23 +45,27 @@ pub(crate) fn read_expected_chunks<S: AsRef<str>>(dir: &Path, input: S) -> Optio
             let chunk_start: u64 = rs.next().unwrap().parse().unwrap();
             let chunk_end: u64 = rs.next().unwrap().parse().unwrap();
             let lines = s.next().unwrap();
-            let lnums: Vec<u64> = lines.split(' ').map(|s| s.parse().unwrap()).collect();
-            ((chunk_start, chunk_end), lnums)
+            let lmats: Vec<_> = lines
+                .split(' ')
+                .map(|s| s.parse().unwrap())
+                .map(LineMatch::lnum)
+                .collect();
+            ((chunk_start, chunk_end), lmats)
         })
         .fold(
             (Vec::new(), Vec::new()),
-            |(mut chunks, mut lnums), (chunk, mut match_lnums)| {
+            |(mut chunks, mut lmats), (chunk, mut match_lmats)| {
                 chunks.push(chunk);
-                lnums.append(&mut match_lnums);
-                (chunks, lnums)
+                lmats.append(&mut match_lmats);
+                (chunks, lmats)
             },
         );
-    if chunks.is_empty() || lnums.is_empty() {
+    if chunks.is_empty() || lmats.is_empty() {
         return None;
     }
     let infile = dir.join(format!("{}.in", input));
     let contents = fs::read(&infile).unwrap();
-    Some(File::new(infile, lnums, chunks, contents))
+    Some(File::new(infile, lmats, chunks, contents))
 }
 
 pub(crate) fn read_all_expected_chunks<S: AsRef<str>>(dir: &Path, inputs: &[S]) -> Vec<File> {

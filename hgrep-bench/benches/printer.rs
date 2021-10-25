@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use gag::Gag;
 use hgrep::bat::BatPrinter;
-use hgrep::chunk::File;
+use hgrep::chunk::{File, LineMatch};
 use hgrep::printer::{Printer, PrinterOptions, TermColorSupport};
 use hgrep::syntect::SyntectPrinter;
 use hgrep_bench::read_package_lock_json;
@@ -17,7 +17,7 @@ fn large_file(c: &mut Criterion) {
         } else {
             Some(File::new(
                 path.into(),
-                vec![count],
+                vec![LineMatch::lnum(count)],
                 vec![(count - 6, count + 6)],
                 contents.clone().into_bytes(),
             ))

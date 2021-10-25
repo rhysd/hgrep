@@ -52,9 +52,11 @@ impl fmt::Display for ParseError {
 impl std::error::Error for ParseError {}
 
 #[derive(Debug, PartialEq)]
-pub struct Match {
+pub struct GrepMatch {
     pub path: PathBuf,
     pub line_number: u64,
+    // Byte offsets of start/end positions within the line
+    pub range: Option<(usize, usize)>,
 }
 
 pub struct GrepLines<R: BufRead> {
@@ -67,7 +69,7 @@ impl<R: BufRead> GrepLines<R> {
     }
 }
 
-fn parse_line(line: Vec<u8>) -> Result<Match> {
+fn parse_line(line: Vec<u8>) -> Result<GrepMatch> {
     // {path}:{lnum}:{line}...
     let mut split = line.splitn(3, |&b| b == b':');
     let (path, lnum) = match (split.next(), split.next(), split.next()) {
@@ -78,16 +80,17 @@ fn parse_line(line: Vec<u8>) -> Result<Match> {
         _ => return ParseError::err(line, "Path or line number is missing"),
     };
     match str::from_utf8(lnum).ok().and_then(|s| s.parse().ok()) {
-        Some(lnum) => Ok(Match {
+        Some(lnum) => Ok(GrepMatch {
             path: PathBuf::from(bytes_to_os_string(path)),
             line_number: lnum,
+            range: None,
         }),
         None => ParseError::err(line, "Could not parse line number as unsigned integer"),
     }
 }
 
 impl<R: BufRead> Iterator for GrepLines<R> {
-    type Item = Result<Match>;
+    type Item = Result<GrepMatch>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut buf = Vec::new();
@@ -122,17 +125,20 @@ fn test_read_ok() {
     let output: Vec<_> = input.grep_lines().collect::<Result<_>>().unwrap();
 
     let expected = vec![
-        Match {
+        GrepMatch {
             path: PathBuf::from("/path/to/foo.txt"),
             line_number: 1,
+            range: None,
         },
-        Match {
+        GrepMatch {
             path: PathBuf::from("/path/to/bar.txt"),
             line_number: 100,
+            range: None,
         },
-        Match {
+        GrepMatch {
             path: PathBuf::from("/path/to/bar.txt"),
             line_number: 110,
+            range: None,
         },
     ];
 

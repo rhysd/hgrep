@@ -1,4 +1,4 @@
-use crate::grep::Match;
+use crate::grep::GrepMatch;
 use anyhow::Result;
 use memchr::{memchr_iter, Memchr};
 use pathdiff::diff_paths;
@@ -9,19 +9,41 @@ use std::iter::Peekable;
 use std::path::PathBuf;
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
-#[derive(Clone)]
+#[derive(Clone)] // Implement Clone for benchmark
+pub struct LineMatch {
+    pub line_number: u64,
+    // Byte offsets of start/end positions within the line. Inherit from GrepMatch
+    pub range: Option<(usize, usize)>,
+}
+
+impl LineMatch {
+    pub fn lnum(line_number: u64) -> Self {
+        Self {
+            line_number,
+            range: None,
+        }
+    }
+}
+
+#[cfg_attr(test, derive(Debug, PartialEq))]
+#[derive(Clone)] // Implement Clone for benchmark
 pub struct File {
     pub path: PathBuf,
-    pub line_numbers: Box<[u64]>,
+    pub line_matches: Box<[LineMatch]>,
     pub chunks: Box<[(u64, u64)]>,
     pub contents: Box<[u8]>,
 }
 
 impl File {
-    pub fn new(path: PathBuf, lnums: Vec<u64>, chunks: Vec<(u64, u64)>, contents: Vec<u8>) -> Self {
+    pub fn new(
+        path: PathBuf,
+        lm: Vec<LineMatch>,
+        chunks: Vec<(u64, u64)>,
+        contents: Vec<u8>,
+    ) -> Self {
         Self {
             path,
-            line_numbers: lnums.into_boxed_slice(),
+            line_matches: lm.into_boxed_slice(),
             chunks: chunks.into_boxed_slice(),
             contents: contents.into_boxed_slice(),
         }
@@ -94,7 +116,7 @@ impl<'a> Iterator for Lines<'a> {
     }
 }
 
-impl<I: Iterator<Item = Result<Match>>> Files<I> {
+impl<I: Iterator<Item = Result<GrepMatch>>> Files<I> {
     fn calculate_chunk_range<'contents>(
         &self,
         match_start: u64,
@@ -149,7 +171,7 @@ impl<I: Iterator<Item = Result<Match>>> Files<I> {
     }
 }
 
-impl<I: Iterator<Item = Result<Match>>> Iterator for Files<I> {
+impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
     type Item = Result<File>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -157,9 +179,10 @@ impl<I: Iterator<Item = Result<Match>>> Iterator for Files<I> {
             return None;
         }
 
-        let Match {
+        let GrepMatch {
             path,
             mut line_number,
+            range,
         } = match self.iter.next()? {
             Ok(m) => m,
             Err(e) => {
@@ -176,7 +199,7 @@ impl<I: Iterator<Item = Result<Match>>> Iterator for Files<I> {
         };
         // Assumes that matched lines are sorted by source location
         let mut lines = Lines::new(&contents);
-        let mut lnums = vec![line_number];
+        let mut lmats = vec![LineMatch { line_number, range }];
         let mut chunks = Vec::new();
 
         'chunks: loop {
@@ -208,8 +231,12 @@ impl<I: Iterator<Item = Result<Match>>> Iterator for Files<I> {
                     State::Error => self.saw_error = true,
                     State::NextMatch => {
                         // Next match
-                        line_number = self.iter.next().unwrap().unwrap().line_number;
-                        lnums.push(line_number);
+                        let m = self.iter.next().unwrap().unwrap();
+                        line_number = m.line_number;
+                        lmats.push(LineMatch {
+                            line_number,
+                            range: m.range,
+                        });
                     }
                 }
 
@@ -222,17 +249,22 @@ impl<I: Iterator<Item = Result<Match>>> Iterator for Files<I> {
             }
 
             // Go to next chunk
-            line_number = self.iter.next().unwrap().unwrap().line_number;
-            lnums.push(line_number); // first match line of next chunk
+            let m = self.iter.next().unwrap().unwrap();
+            line_number = m.line_number;
+            // First match line of next chunk
+            lmats.push(LineMatch {
+                line_number,
+                range: m.range,
+            });
         }
 
         if chunks.is_empty() {
-            assert!(lnums.is_empty());
+            assert!(lmats.is_empty());
             return None;
         }
 
         let path = self.relative_path(path);
-        Some(Ok(File::new(path, lnums, chunks, contents)))
+        Some(Ok(File::new(path, lmats, chunks, contents)))
     }
 }
 
@@ -323,7 +355,7 @@ mod tests {
 
         let path = dir.join("single_max.in");
         let expected = File {
-            line_numbers: vec![8].into_boxed_slice(),
+            line_matches: vec![LineMatch::lnum(8)].into_boxed_slice(),
             chunks: vec![(5, 11)].into_boxed_slice(),
             contents: fs::read(&path).unwrap().into_boxed_slice(),
             path,
@@ -343,7 +375,7 @@ mod tests {
 
         let path = dir.join("single_max.in");
         let expected = File {
-            line_numbers: vec![8].into_boxed_slice(),
+            line_matches: vec![LineMatch::lnum(8)].into_boxed_slice(),
             chunks: vec![(8, 8)].into_boxed_slice(),
             contents: fs::read(&path).unwrap().into_boxed_slice(),
             path,
@@ -364,7 +396,7 @@ mod tests {
         }
         impl std::error::Error for DummyError {}
 
-        let matches: Vec<Result<Match>> = vec![Err(Error::new(DummyError))];
+        let matches: Vec<Result<GrepMatch>> = vec![Err(Error::new(DummyError))];
         let err = Files::new(matches.into_iter(), 3, 6)
             .collect::<Result<Vec<_>>>()
             .unwrap_err();
