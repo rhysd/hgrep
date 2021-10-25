@@ -113,7 +113,9 @@ fn cli<'a>() -> App<'a> {
                 .long("generate-completion-script")
                 .takes_value(true)
                 .value_name("SHELL")
-                .about("Print completion script for SHELL to stdout. SHELL must be one of 'bash', 'zsh', 'powershell', 'fish', or 'elvish'"),
+                .possible_values(["bash", "zsh", "powershell", "fish", "elvish"])
+                .case_insensitive(true)
+                .about("Print completion script for SHELL to stdout"),
         );
 
     #[cfg(feature = "bat-printer")]
@@ -284,22 +286,26 @@ fn cli<'a>() -> App<'a> {
     app
 }
 
-fn generate_completion_script(shell: &str) -> Result<()> {
+fn generate_completion_script(shell: &str) {
     use clap_generate::generate;
     use clap_generate::generators::*;
 
     let mut app = cli();
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
-    match shell.to_lowercase().as_str() {
-        "bash" => generate(Bash, &mut app, "hgrep", &mut stdout),
-        "zsh" => generate(Zsh, &mut app, "hgrep", &mut stdout),
-        "powershell" => generate(PowerShell, &mut app, "hgrep", &mut stdout),
-        "fish" => generate(Fish, &mut app, "hgrep", &mut stdout),
-        "elvish" => generate(Elvish, &mut app, "hgrep", &mut stdout),
-        s => anyhow::bail!("Unknown shell '{}'. Supported shells are 'bash', 'zsh', 'powershell', 'fish', or 'elvish'", s),
+    if shell.eq_ignore_ascii_case("bash") {
+        generate(Bash, &mut app, "hgrep", &mut stdout)
+    } else if shell.eq_ignore_ascii_case("zsh") {
+        generate(Zsh, &mut app, "hgrep", &mut stdout)
+    } else if shell.eq_ignore_ascii_case("powershell") {
+        generate(PowerShell, &mut app, "hgrep", &mut stdout)
+    } else if shell.eq_ignore_ascii_case("fish") {
+        generate(Fish, &mut app, "hgrep", &mut stdout)
+    } else if shell.eq_ignore_ascii_case("elvish") {
+        generate(Elvish, &mut app, "hgrep", &mut stdout)
+    } else {
+        unreachable!() // SHELL argument is validated by clap
     }
-    Ok(())
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -315,7 +321,7 @@ fn app() -> Result<bool> {
 
     let matches = cli().get_matches();
     if let Some(shell) = matches.value_of("generate-completion-script") {
-        generate_completion_script(shell)?;
+        generate_completion_script(shell);
         return Ok(true);
     }
 
