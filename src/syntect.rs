@@ -210,6 +210,7 @@ impl<'file, W: Write> Canvas<'file, W> {
             } else {
                 let w = c.width_cjk().unwrap_or(0);
                 if width + w > limit {
+                    self.draw_spaces(limit - width)?;
                     return Ok(LineDrawState::Break(&text[i..]));
                 }
                 write!(self.out, "{}", c)?;
@@ -482,8 +483,9 @@ impl<'file, W: Write> Drawer<'file, W> {
         for _ in 0..body_width {
             self.canvas.write_all("╶".as_bytes())?;
         }
+        self.canvas.reset_color()?;
         writeln!(self.canvas)?;
-        Ok(()) // We don't need to reset color for next line
+        Ok(())
     }
 
     fn draw_line(
@@ -732,20 +734,41 @@ mod tests {
         use std::cmp;
         use std::path::Path;
 
-        fn read_chunks(path: PathBuf) -> File {
-            let contents = fs::read(&path).unwrap();
-            let lines = contents.split_inclusive(|b| *b == b'\n').count() as u64;
+        fn read_chunk<'a>(
+            iter: &mut impl Iterator<Item = (usize, &'a str)>,
+        ) -> Option<(Vec<u64>, (u64, u64))> {
             let mut lnums = vec![];
-            let mut chunks = vec![];
-            for (idx, line) in contents.split_inclusive(|b| *b == b'\n').enumerate() {
-                let lnum = (idx + 1) as u64;
-                let pat = "*match to this line*".as_bytes();
-                if line.windows(pat.len()).any(|s| s == pat) {
-                    lnums.push(lnum);
-                    chunks.push((lnum.saturating_sub(6), cmp::min(lnum + 6, lines)));
+            let (mut s, mut e) = (u64::MAX, 0);
+            for _ in 0..12 {
+                if let Some((idx, line)) = iter.next() {
+                    let lnum = (idx + 1) as u64;
+                    s = cmp::min(s, lnum);
+                    e = cmp::max(e, lnum);
+                    if line.contains("*match to this line*") {
+                        lnums.push(lnum);
+                    }
+                } else {
+                    break;
                 }
             }
-            File::new(path, lnums, chunks, contents)
+            if s == u64::MAX || e == 0 || lnums.is_empty() {
+                return None;
+            }
+            s = cmp::max(lnums[0].saturating_sub(6), s);
+            e = cmp::min(lnums[lnums.len() - 1] + 6, e);
+            Some((lnums, (s, e)))
+        }
+
+        fn read_chunks(path: PathBuf) -> File {
+            let contents = fs::read_to_string(&path).unwrap();
+            let mut lnums = vec![];
+            let mut chunks = vec![];
+            let mut lines = contents.lines().enumerate();
+            while let Some((ls, c)) = read_chunk(&mut lines) {
+                lnums.extend(ls);
+                chunks.push(c);
+            }
+            File::new(path, lnums, chunks, contents.into_bytes())
         }
 
         fn run_uitest(file: File, expected_file: PathBuf, f: fn(&mut PrinterOptions<'_>) -> ()) {
@@ -851,6 +874,11 @@ mod tests {
             test_no_wrap_background(|o| {
                 o.text_wrap = false;
                 o.background_color = true;
+            }),
+            test_multi_line_numbers(|_| {}),
+            test_multi_chunks_default(|_| {}),
+            test_multi_chunks_no_grid(|o| {
+                o.grid = false;
             }),
         );
     }
