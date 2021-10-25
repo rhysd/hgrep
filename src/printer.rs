@@ -4,6 +4,12 @@ use std::env;
 use term::terminfo::TermInfo;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
+pub enum TextWrapMode {
+    Char,
+    Never,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum TermColorSupport {
     True,
     Ansi256,
@@ -41,7 +47,7 @@ pub struct PrinterOptions<'main> {
     pub color_support: TermColorSupport,
     pub term_width: u16,
     pub custom_assets: bool,
-    pub text_wrap: bool,
+    pub text_wrap: TextWrapMode,
 }
 
 impl<'main> Default for PrinterOptions<'main> {
@@ -55,7 +61,7 @@ impl<'main> Default for PrinterOptions<'main> {
             color_support: TermColorSupport::detect(),
             custom_assets: false,
             term_width: terminal_size().map(|(Width(w), _)| w).unwrap_or(80), // Note: `tput` returns 80 when tty is not found
-            text_wrap: true,
+            text_wrap: TextWrapMode::Char,
         }
     }
 }

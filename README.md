@@ -286,7 +286,7 @@ function hgrep() {
   - `--type TYPE` (`-t`): Only search files matching TYPE. This option is repeatable
   - `--type-not TYPE` (`-T`): Do not search files matching TYPE. Inverse of --type. This option is repeatable
   - `--type-list`: Show all supported file types and their corresponding globs
-  - `--no-wrap`: Disable text wrapping. Text wrapping is enabled by default
+  - `--wrap MODE`: Text-wrapping mode. 'char' enables character-wise text-wrapping. 'never' disables text-wrapping. Default value is 'char'
 - Only for `syntect-printer` feature
   - `--background`: Paint background colors. This is useful when your favorite theme does not fit to your terminal's background color
 - Only for `bat-printer` feature

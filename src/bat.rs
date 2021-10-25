@@ -1,5 +1,5 @@
 use crate::chunk::File;
-use crate::printer::{Printer, PrinterOptions, TermColorSupport};
+use crate::printer::{Printer, PrinterOptions, TermColorSupport, TextWrapMode};
 use anyhow::{Error, Result};
 use bat::assets::HighlightingAssets;
 use bat::config::{Config, VisibleLines};
@@ -74,10 +74,9 @@ impl<'main> BatPrinter<'main> {
             ][..]
         };
 
-        let wrapping_mode = if opts.text_wrap {
-            WrappingMode::Character
-        } else {
-            WrappingMode::NoWrapping(true)
+        let wrapping_mode = match opts.text_wrap {
+            TextWrapMode::Char => WrappingMode::Character,
+            TextWrapMode::Never => WrappingMode::NoWrapping(true),
         };
 
         let mut config = Config {
@@ -211,7 +210,7 @@ mod tests {
         opts.tab_width = 2;
         opts.theme = Some("Nord");
         opts.grid = false;
-        opts.text_wrap = false;
+        opts.text_wrap = TextWrapMode::Never;
         let p = BatPrinter::new(opts);
         let f = sample_file();
         p.print(f).unwrap();

@@ -1,6 +1,6 @@
 use crate::chunk::File;
 use crate::chunk::Line;
-use crate::printer::{Printer, PrinterOptions, TermColorSupport};
+use crate::printer::{Printer, PrinterOptions, TermColorSupport, TextWrapMode};
 use anyhow::Result;
 use memchr::{memchr_iter, Memchr};
 use rgb2ansi256::rgb_to_ansi256;
@@ -396,7 +396,7 @@ impl<'file, W: Write> Drawer<'file, W> {
             true_color: opts.color_support == TermColorSupport::True,
             tab_width: opts.tab_width as u16,
             background: opts.background_color,
-            wrap: opts.text_wrap,
+            wrap: opts.text_wrap == TextWrapMode::Char,
             match_color: theme.settings.line_highlight.or(theme.settings.background),
             out,
         };
@@ -863,14 +863,14 @@ mod tests {
                 o.background_color = true;
             }),
             test_no_wrap_default(|o| {
-                o.text_wrap = false;
+                o.text_wrap = TextWrapMode::Never;
             }),
             test_no_wrap_no_grid(|o| {
-                o.text_wrap = false;
+                o.text_wrap = TextWrapMode::Never;
                 o.grid = false;
             }),
             test_no_wrap_background(|o| {
-                o.text_wrap = false;
+                o.text_wrap = TextWrapMode::Never;
                 o.background_color = true;
             }),
             test_multi_line_numbers(|_| {}),

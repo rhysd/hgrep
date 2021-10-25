@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{App, Arg};
 use hgrep::grep::BufReadExt;
-use hgrep::printer::PrinterOptions;
+use hgrep::printer::{PrinterOptions, TextWrapMode};
 use std::cmp;
 use std::env;
 use std::io;
@@ -97,7 +97,16 @@ fn cli<'a>() -> App<'a> {
         ).arg(
             Arg::new("no-wrap")
                 .long("no-wrap")
-                .about("Disable the text-wrapping mode")
+                .about("DEPRECATED: The same as `--wrap never`. This flag will be removed at v0.2.0")
+        ).arg(
+            Arg::new("wrap")
+                .long("wrap")
+                .takes_value(true)
+                .value_name("MODE")
+                .default_value("char")
+                .possible_values(["char", "never"])
+                .case_insensitive(true)
+                .about("Text-wrapping mode. 'char' enables character-wise text-wrapping. 'never' disables text-wrapping")
         )
         .arg(
             Arg::new("generate-completion-script")
@@ -392,7 +401,16 @@ fn app() -> Result<bool> {
     }
 
     if matches.is_present("no-wrap") {
-        printer_opts.text_wrap = false;
+        printer_opts.text_wrap = TextWrapMode::Never;
+    }
+    if let Some(mode) = matches.value_of("wrap") {
+        if mode.eq_ignore_ascii_case("never") {
+            printer_opts.text_wrap = TextWrapMode::Never;
+        } else if mode.eq_ignore_ascii_case("char") {
+            printer_opts.text_wrap = TextWrapMode::Char;
+        } else {
+            unreachable!(); // Option value is validated by clap
+        }
     }
 
     #[cfg(feature = "syntect-printer")]
