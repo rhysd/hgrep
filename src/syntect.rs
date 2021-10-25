@@ -90,6 +90,7 @@ struct Canvas<'file, W: Write> {
     true_color: bool,
     background: bool,
     match_color: Option<Color>,
+    wrap: bool,
 }
 
 impl<'file, W: Write> Deref for Canvas<'file, W> {
@@ -216,6 +217,25 @@ impl<'file, W: Write> Canvas<'file, W> {
         Ok(LineDrawState::Continue(width))
     }
 
+    fn draw_text_no_wrap(&mut self, text: &str) -> Result<usize> {
+        if self.tab_width == 0 {
+            write!(self.out, "{}", text)?;
+            return Ok(text.width_cjk());
+        }
+        let mut width = 0;
+        for c in text.chars() {
+            if c == '\t' && self.tab_width > 0 {
+                let w = self.tab_width as usize;
+                self.draw_spaces(w)?;
+                width += w;
+            } else {
+                write!(self.out, "{}", c)?;
+                width += c.width_cjk().unwrap_or(0);
+            }
+        }
+        Ok(width)
+    }
+
     fn fill_spaces(&mut self, written_width: usize, max_width: usize) -> Result<()> {
         if written_width < max_width {
             self.draw_spaces(max_width - written_width)?;
@@ -242,12 +262,16 @@ impl<'file, W: Write> Canvas<'file, W> {
             }
             self.set_fg(style.foreground)?;
             self.set_font_style(style.font_style)?;
-            match self.draw_text(text, max_width - width)? {
-                LineDrawState::Continue(w) => width += w,
-                LineDrawState::Break(rest) => {
-                    self.reset_color()?;
-                    return Ok(LineDrawn::Wrap(rest, idx));
+            if self.wrap {
+                match self.draw_text(text, max_width - width)? {
+                    LineDrawState::Continue(w) => width += w,
+                    LineDrawState::Break(rest) => {
+                        self.reset_color()?;
+                        return Ok(LineDrawn::Wrap(rest, idx));
+                    }
                 }
+            } else {
+                width += self.draw_text_no_wrap(text)?;
             }
             self.unset_font_style(style.font_style)?;
         }
@@ -364,6 +388,7 @@ impl<'file, W: Write> Drawer<'file, W> {
             true_color: opts.color_support == TermColorSupport::True,
             tab_width: opts.tab_width as u16,
             background: opts.background_color,
+            wrap: opts.text_wrap,
             match_color: theme.settings.line_highlight.or(theme.settings.background),
             out,
         };
@@ -812,6 +837,17 @@ mod tests {
                 o.background_color = true;
             }),
             test_wrap_between_bg(|o| {
+                o.background_color = true;
+            }),
+            test_no_wrap_default(|o| {
+                o.text_wrap = false;
+            }),
+            test_no_wrap_no_grid(|o| {
+                o.text_wrap = false;
+                o.grid = false;
+            }),
+            test_no_wrap_background(|o| {
+                o.text_wrap = false;
                 o.background_color = true;
             }),
         );

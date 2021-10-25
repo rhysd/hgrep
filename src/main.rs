@@ -94,6 +94,10 @@ fn cli<'a>() -> App<'a> {
                 .takes_value(true)
                 .value_name("NUM")
                 .about("Width (number of characters) of terminal window"),
+        ).arg(
+            Arg::new("no-wrap")
+                .long("no-wrap")
+                .about("Disable the text-wrapping mode")
         )
         .arg(
             Arg::new("generate-completion-script")
@@ -104,16 +108,11 @@ fn cli<'a>() -> App<'a> {
         );
 
     #[cfg(feature = "bat-printer")]
-    let app = app
-        .arg(
-            Arg::new("custom-assets")
-                .long("custom-assets")
-                .about("Load bat's custom assets. Note that this flag may not work with some version of `bat` command. This flag is only for bat printer"),
-        ). arg(
-            Arg::new("no-wrap")
-                .long("no-wrap")
-                .about("Disable the text-wrapping mode. This flag is only for bat printer")
-        );
+    let app = app.arg(
+        Arg::new("custom-assets")
+            .long("custom-assets")
+            .about("Load bat's custom assets. Note that this flag may not work with some version of `bat` command. This flag is only for bat printer"),
+    );
 
     #[cfg(feature = "syntect-printer")]
     let app = app.arg(
@@ -392,6 +391,10 @@ fn app() -> Result<bool> {
         }
     }
 
+    if matches.is_present("no-wrap") {
+        printer_opts.text_wrap = false;
+    }
+
     #[cfg(feature = "syntect-printer")]
     if matches.is_present("background") {
         printer_opts.background_color = true;
@@ -407,15 +410,6 @@ fn app() -> Result<bool> {
         #[cfg(feature = "syntect-printer")]
         if printer_kind == PrinterKind::Syntect {
             anyhow::bail!("--custom-assets flag is only available for bat printer");
-        }
-    }
-
-    #[cfg(feature = "bat-printer")]
-    if matches.is_present("no-wrap") {
-        printer_opts.text_wrap = false;
-        #[cfg(feature = "syntect-printer")]
-        if printer_kind == PrinterKind::Syntect {
-            anyhow::bail!("--no-wrap option is only available for bat printer");
         }
     }
 
