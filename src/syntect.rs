@@ -104,7 +104,7 @@ impl<'file, W: Write> DerefMut for Canvas<'file, W> {
     }
 }
 
-enum TextDrawn<'line> {
+enum LineDrawState<'line> {
     Continue(usize),
     Break(&'line str),
 }
@@ -192,27 +192,28 @@ impl<'file, W: Write> Canvas<'file, W> {
     }
 
     // Returns number of tab characters in the text
-    fn draw_text<'line>(&mut self, text: &'line str, limit: usize) -> Result<TextDrawn<'line>> {
+    fn draw_text<'line>(&mut self, text: &'line str, limit: usize) -> Result<LineDrawState<'line>> {
         let mut width = 0;
         for (i, c) in text.char_indices() {
             width += if c == '\t' && self.tab_width > 0 {
                 let w = self.tab_width as usize;
                 if width + w > limit {
                     self.draw_spaces(limit - width)?;
-                    return Ok(TextDrawn::Break(&text[i..]));
+                    // `+ 1` for skipping rest of \t
+                    return Ok(LineDrawState::Break(&text[i + 1..]));
                 }
                 self.draw_spaces(self.tab_width as usize)?;
                 w
             } else {
                 let w = c.width_cjk().unwrap_or(0);
                 if width + w > limit {
-                    return Ok(TextDrawn::Break(&text[i..]));
+                    return Ok(LineDrawState::Break(&text[i..]));
                 }
                 write!(self.out, "{}", c)?;
                 w
             };
         }
-        Ok(TextDrawn::Continue(width))
+        Ok(LineDrawState::Continue(width))
     }
 
     fn fill_spaces(&mut self, written_width: usize, max_width: usize) -> Result<()> {
@@ -242,8 +243,8 @@ impl<'file, W: Write> Canvas<'file, W> {
             self.set_fg(style.foreground)?;
             self.set_font_style(style.font_style)?;
             match self.draw_text(text, max_width - width)? {
-                TextDrawn::Continue(w) => width += w,
-                TextDrawn::Break(rest) => {
+                LineDrawState::Continue(w) => width += w,
+                LineDrawState::Break(rest) => {
                     self.reset_color()?;
                     return Ok(LineDrawn::Wrap(rest, idx));
                 }
@@ -486,7 +487,7 @@ impl<'file, W: Write> Drawer<'file, W> {
                 parts = &mut parts[idx + 1..];
             } else {
                 parts = &mut parts[idx..];
-                parts[0].1 = rest;
+                parts[0].1 = rest; // Set rest of the text broken by text wrapping
             }
         }
 
@@ -518,6 +519,8 @@ impl<'file, W: Write> Drawer<'file, W> {
                     _ => false,
                 };
                 let line = String::from_utf8_lossy(bytes);
+                // Collect to `Vec` rather than handing HighlightIterator as-is. HighlightIterator takes ownership of Highlighter
+                // while the iteration. When the highlighter is stored in `self`, it means the iterator takes ownership of `self`.
                 self.draw_line(hl.highlight(line.as_ref()), lnum, matched)?;
 
                 if lnum == end {
@@ -699,10 +702,12 @@ mod tests {
     #[cfg(not(windows))]
     mod uitests {
         use super::*;
+        use std::cmp;
         use std::path::Path;
 
         fn read_chunks(path: PathBuf) -> File {
             let contents = fs::read(&path).unwrap();
+            let lines = contents.split_inclusive(|b| *b == b'\n').count() as u64;
             let mut lnums = vec![];
             let mut chunks = vec![];
             for (idx, line) in contents.split_inclusive(|b| *b == b'\n').enumerate() {
@@ -710,23 +715,22 @@ mod tests {
                 let pat = "*match to this line*".as_bytes();
                 if line.windows(pat.len()).any(|s| s == pat) {
                     lnums.push(lnum);
-                    chunks.push((lnum.saturating_sub(6), lnum + 6));
+                    chunks.push((lnum.saturating_sub(6), cmp::min(lnum + 6, lines)));
                 }
             }
             File::new(path, lnums, chunks, contents)
         }
 
-        fn run_uitest(infile: PathBuf, outfile: PathBuf, f: fn(&mut PrinterOptions<'_>) -> ()) {
+        fn run_uitest(file: File, expected_file: PathBuf, f: fn(&mut PrinterOptions<'_>) -> ()) {
             let stdout = DummyStdout(RefCell::new(vec![]));
             let mut opts = PrinterOptions::default();
             opts.term_width = 80;
             opts.color_support = TermColorSupport::True;
             f(&mut opts);
             let mut printer = SyntectPrinter::new(stdout, opts).unwrap();
-            let file = read_chunks(infile);
             printer.print(file).unwrap();
             let printed = mem::take(printer.writer_mut()).0.into_inner();
-            let expected = fs::read(outfile).unwrap();
+            let expected = fs::read(expected_file).unwrap();
             assert_eq!(
                 printed,
                 expected,
@@ -736,14 +740,18 @@ mod tests {
             );
         }
 
-        fn run_parametrized_uitest(mut input: &str, f: fn(&mut PrinterOptions<'_>) -> ()) {
+        fn run_parametrized_uitest_single_chunk(
+            mut input: &str,
+            f: fn(&mut PrinterOptions<'_>) -> (),
+        ) {
             let dir = Path::new(".").join("testdata").join("syntect");
             if input.starts_with("test_") {
                 input = &input["test_".len()..];
             }
             let infile = dir.join(format!("{}.rs", input));
             let outfile = dir.join(format!("{}.out", input));
-            run_uitest(infile, outfile, f);
+            let file = read_chunks(infile);
+            run_uitest(file, outfile, f);
         }
 
         macro_rules! uitest {
@@ -752,7 +760,7 @@ mod tests {
                     #[cfg(not(windows))]
                     #[test]
                     fn $input() {
-                        run_parametrized_uitest(stringify!($input), $f);
+                        run_parametrized_uitest_single_chunk(stringify!($input), $f);
                     }
                 )+
             }
@@ -783,6 +791,27 @@ mod tests {
             }),
             test_long_line(|_| {}),
             test_long_line_bg(|o| {
+                o.background_color = true;
+            }),
+            test_empty_lines(|_| {}),
+            test_wrap_between_text(|_| {}),
+            test_wrap_middle_of_text(|_| {}),
+            test_wrap_middle_of_spaces(|_| {}),
+            test_wrap_middle_of_tab(|_| {}),
+            test_wrap_twice(|_| {}),
+            test_wrap_no_grid(|o| {
+                o.grid = false;
+            }),
+            test_wrap_theme(|o| {
+                o.theme = Some("Nord");
+            }),
+            test_wrap_ansi256(|o| {
+                o.color_support = TermColorSupport::Ansi256;
+            }),
+            test_wrap_middle_text_bg(|o| {
+                o.background_color = true;
+            }),
+            test_wrap_between_bg(|o| {
                 o.background_color = true;
             }),
         );
