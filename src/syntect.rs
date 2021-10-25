@@ -115,30 +115,32 @@ enum LineDrawn<'line> {
 }
 
 impl<'file, W: Write> Canvas<'file, W> {
-    fn set_bg(&mut self, c: Color) -> Result<()> {
+    fn set_color(&mut self, code: u8, c: Color) -> Result<()> {
         // In case of c.a == 0 and c.a == 1 are handling for special colorscheme by bat for non true
         // color terminals. Color value is encoded in R. See `to_ansi_color()` in bat/src/terminal.rs
         match c.a {
-            0 if c.r <= 7 => write!(self.out, "\x1b[{}m", c.r + 40)?, // 16 colors; e.g. 0 => 40 (Black), 7 => 47 (White)
-            0 => write!(self.out, "\x1b[48;5;{}m", c.r)?,             // 256 colors
+            0 if c.r <= 7 => write!(self.out, "\x1b[{}m", c.r + code)?, // 16 colors; e.g. 3 => 33 (Yellow), 6 => 36 (Cyan) (code=30)
+            0 => write!(self.out, "\x1b[{};5;{}m", code + 8, c.r)?, // 256 colors; code=38 for fg, code=48 for bg
             1 => { /* Pass through. Do nothing */ }
-            _ if self.true_color => write!(self.out, "\x1b[48;2;{};{};{}m", c.r, c.g, c.b)?,
-            _ => write!(self.out, "\x1b[48;5;{}m", rgb_to_ansi256(c.r, c.g, c.b))?,
+            _ if self.true_color => {
+                write!(self.out, "\x1b[{};2;{};{};{}m", code + 8, c.r, c.g, c.b)?
+            }
+            _ => write!(
+                self.out,
+                "\x1b[{};5;{}m",
+                code + 8,
+                rgb_to_ansi256(c.r, c.g, c.b),
+            )?,
         }
         Ok(())
     }
 
+    fn set_bg(&mut self, c: Color) -> Result<()> {
+        self.set_color(40, c)
+    }
+
     fn set_fg(&mut self, c: Color) -> Result<()> {
-        // In case of c.a == 0 and c.a == 1 are handling for special colorscheme by bat for non true
-        // color terminals. Color value is encoded in R. See `to_ansi_color()` in bat/src/terminal.rs
-        match c.a {
-            0 if c.r <= 7 => write!(self.out, "\x1b[{}m", c.r + 30)?, // 16 colors; e.g. 3 => 33 (Yellow), 6 => 36 (Cyan)
-            0 => write!(self.out, "\x1b[38;5;{}m", c.r)?,             // 256 colors
-            1 => { /* Pass through. Do nothing */ }
-            _ if self.true_color => write!(self.out, "\x1b[38;2;{};{};{}m", c.r, c.g, c.b)?,
-            _ => write!(self.out, "\x1b[38;5;{}m", rgb_to_ansi256(c.r, c.g, c.b))?,
-        }
-        Ok(())
+        self.set_color(30, c)
     }
 
     fn set_default_bg(&mut self) -> Result<()> {
@@ -478,7 +480,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         self.canvas.set_default_bg()?;
         let body_width = self.term_width - left_margin - w; // This crashes when terminal width is smaller than gutter
         for _ in 0..body_width {
-            self.canvas.write_all("─".as_bytes())?;
+            self.canvas.write_all("╶".as_bytes())?;
         }
         writeln!(self.canvas)?;
         Ok(()) // We don't need to reset color for next line
