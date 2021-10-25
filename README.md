@@ -36,7 +36,7 @@ section for the comparison.
 - `syntect` printer: Our own implementation of printer using [syntect][] library. Performance and its output layout are more optimized
 - `bat` printer: Printer built on top of [bat][]'s pretty printer implementation, which is battle-tested and provides some unique features
 
-<img src="https://github.com/rhysd/ss/raw/master/hgrep/main.png" alt="screenshot" width="766" height="634" />
+<img src="https://github.com/rhysd/ss/raw/master/hgrep/main.png" alt="screenshot" width="766" height="739" />
 
 Please see [the usage section](#usage) for more details.
 
