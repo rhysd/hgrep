@@ -8,14 +8,15 @@ use std::cmp;
 use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::fmt;
+use std::io::Write;
 use std::io::{self, Stdout, StdoutLock};
-use std::io::{BufWriter, Write};
+use std::ops::{Deref, DerefMut};
 use std::path::Path;
 use syntect::highlighting::{
     Color, FontStyle, HighlightIterator, HighlightState, Highlighter, Style, Theme, ThemeSet,
 };
 use syntect::parsing::{ParseState, ScopeStack, SyntaxReference, SyntaxSet};
-use unicode_width::UnicodeWidthStr;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 // Note for lifetimes:
 // - 'file is a lifetime for File instance which is passed to print() method
@@ -82,190 +83,64 @@ impl fmt::Display for PrintError {
     }
 }
 
-// Note: More flexible version of syntect::easy::HighlightLines for our use case
-struct LineHighlighter<'a> {
-    hl: Highlighter<'a>,
-    parse_state: ParseState,
-    hl_state: HighlightState,
-}
-
-impl<'a> LineHighlighter<'a> {
-    fn new(syntax: &SyntaxReference, theme: &'a Theme) -> Self {
-        let hl = Highlighter::new(theme);
-        let parse_state = ParseState::new(syntax);
-        let hl_state = HighlightState::new(&hl, ScopeStack::new());
-        Self {
-            hl,
-            parse_state,
-            hl_state,
-        }
-    }
-
-    fn skip_line(&mut self, line: &str, syntax_set: &SyntaxSet) {
-        let ops = self.parse_state.parse_line(line, syntax_set);
-        for _ in HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl) {}
-    }
-
-    fn highlight<'line>(
-        &mut self,
-        line: &'line str,
-        syntax_set: &SyntaxSet,
-    ) -> Vec<(Style, &'line str)> {
-        let ops = self.parse_state.parse_line(line, syntax_set);
-        HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl).collect()
-    }
-
-    fn highlight_owned(&mut self, line: &str, syntax_set: &SyntaxSet) -> Vec<(Style, String)> {
-        let ops = self.parse_state.parse_line(line, syntax_set);
-        HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl)
-            .map(|(n, s)| (n, s.to_string()))
-            .collect()
-    }
-}
-
-enum HighlightedLine<'file> {
-    Lossless {
-        lnum: u64,
-        matched: bool,
-        parts: Vec<(Style, &'file str)>,
-    },
-    Loss {
-        lnum: u64,
-        matched: bool,
-        parts: Vec<(Style, String)>,
-    },
-    Separator,
-}
-
-impl<'file> HighlightedLine<'file> {
-    fn loss_less(lnum: u64, matched: bool, mut parts: Vec<(Style, &'file str)>) -> Self {
-        // Remove newline at the end
-        if let Some((_, last)) = parts.last_mut() {
-            if last.ends_with('\n') {
-                *last = &last[..last.len() - 1];
-            }
-            if last.ends_with('\r') {
-                *last = &last[..last.len() - 1];
-            }
-        }
-        HighlightedLine::Lossless {
-            lnum,
-            matched,
-            parts,
-        }
-    }
-
-    fn loss(lnum: u64, matched: bool, mut parts: Vec<(Style, String)>) -> Self {
-        // Remove newline at the end
-        if let Some((_, last)) = parts.last_mut() {
-            if last.ends_with('\n') {
-                last.pop();
-            }
-            if last.ends_with('\r') {
-                last.pop();
-            }
-        }
-        HighlightedLine::Loss {
-            lnum,
-            matched,
-            parts,
-        }
-    }
-
-    fn line_number(&self) -> Option<u64> {
-        match self {
-            HighlightedLine::Lossless { lnum, .. } => Some(*lnum),
-            HighlightedLine::Loss { lnum, .. } => Some(*lnum),
-            HighlightedLine::Separator => None,
-        }
-    }
-}
-
-// Like chunk::Lines, but includes newlines
-struct LinesInclusive<'a> {
-    lnum: usize,
-    prev: usize,
-    buf: &'a [u8],
-    iter: Memchr<'a>,
-}
-impl<'a> LinesInclusive<'a> {
-    pub fn new(buf: &'a [u8]) -> Self {
-        Self {
-            lnum: 1,
-            prev: 0,
-            buf,
-            iter: memchr_iter(b'\n', buf),
-        }
-    }
-}
-impl<'a> Iterator for LinesInclusive<'a> {
-    type Item = Line<'a>;
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(idx) = self.iter.next() {
-            let lnum = self.lnum;
-            let end = idx + 1;
-            let line = &self.buf[self.prev..end];
-            self.prev = end;
-            self.lnum += 1;
-            Some(Line(line, lnum as u64))
-        } else if self.prev == self.buf.len() {
-            None
-        } else {
-            let line = &self.buf[self.prev..];
-            self.prev = self.buf.len();
-            Some(Line(line, self.lnum as u64))
-        }
-    }
-}
-
-struct Drawer<'file, W: Write> {
-    lines: Vec<HighlightedLine<'file>>,
-    theme: &'file Theme,
+struct Canvas<'file, W: Write> {
     out: W,
-    grid: bool,
     tab_width: u16,
-    term_width: u16,
-    lnum_width: u16,
-    background: bool,
-    gutter_color: Color,
-    match_color: Option<Color>,
+    theme: &'file Theme,
     true_color: bool,
+    background: bool,
+    match_color: Option<Color>,
+    wrap: bool,
 }
 
-impl<'file, W: Write> Drawer<'file, W> {
-    #[inline]
-    fn gutter_width(&self) -> u16 {
-        if self.grid {
-            self.lnum_width + 4
-        } else {
-            self.lnum_width + 2
+impl<'file, W: Write> Deref for Canvas<'file, W> {
+    type Target = W;
+    fn deref(&self) -> &Self::Target {
+        &self.out
+    }
+}
+impl<'file, W: Write> DerefMut for Canvas<'file, W> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.out
+    }
+}
+
+enum LineDrawState<'line> {
+    Continue(usize),
+    Break(&'line str),
+}
+enum LineDrawn<'line> {
+    Done,
+    Wrap(&'line str, usize),
+}
+
+impl<'file, W: Write> Canvas<'file, W> {
+    fn set_color(&mut self, code: u8, c: Color) -> Result<()> {
+        // In case of c.a == 0 and c.a == 1 are handling for special colorscheme by bat for non true
+        // color terminals. Color value is encoded in R. See `to_ansi_color()` in bat/src/terminal.rs
+        match c.a {
+            0 if c.r <= 7 => write!(self.out, "\x1b[{}m", c.r + code)?, // 16 colors; e.g. 3 => 33 (Yellow), 6 => 36 (Cyan) (code=30)
+            0 => write!(self.out, "\x1b[{};5;{}m", code + 8, c.r)?, // 256 colors; code=38 for fg, code=48 for bg
+            1 => { /* Pass through. Do nothing */ }
+            _ if self.true_color => {
+                write!(self.out, "\x1b[{};2;{};{};{}m", code + 8, c.r, c.g, c.b)?
+            }
+            _ => write!(
+                self.out,
+                "\x1b[{};5;{}m",
+                code + 8,
+                rgb_to_ansi256(c.r, c.g, c.b),
+            )?,
         }
+        Ok(())
     }
 
     fn set_bg(&mut self, c: Color) -> Result<()> {
-        // In case of c.a == 0 and c.a == 1 are handling for special colorscheme by bat for non true
-        // color terminals. Color value is encoded in R. See `to_ansi_color()` in bat/src/terminal.rs
-        match c.a {
-            0 if c.r <= 7 => write!(self.out, "\x1b[{}m", c.r + 40)?, // 16 colors; e.g. 0 => 40 (Black), 7 => 47 (White)
-            0 => write!(self.out, "\x1b[48;5;{}m", c.r)?,             // 256 colors
-            1 => { /* Pass through. Do nothing */ }
-            _ if self.true_color => write!(self.out, "\x1b[48;2;{};{};{}m", c.r, c.g, c.b)?,
-            _ => write!(self.out, "\x1b[48;5;{}m", rgb_to_ansi256(c.r, c.g, c.b))?,
-        }
-        Ok(())
+        self.set_color(40, c)
     }
 
     fn set_fg(&mut self, c: Color) -> Result<()> {
-        // In case of c.a == 0 and c.a == 1 are handling for special colorscheme by bat for non true
-        // color terminals. Color value is encoded in R. See `to_ansi_color()` in bat/src/terminal.rs
-        match c.a {
-            0 if c.r <= 7 => write!(self.out, "\x1b[{}m", c.r + 30)?, // 16 colors; e.g. 3 => 33 (Yellow), 6 => 36 (Cyan)
-            0 => write!(self.out, "\x1b[38;5;{}m", c.r)?,             // 256 colors
-            1 => { /* Pass through. Do nothing */ }
-            _ if self.true_color => write!(self.out, "\x1b[38;2;{};{};{}m", c.r, c.g, c.b)?,
-            _ => write!(self.out, "\x1b[38;5;{}m", rgb_to_ansi256(c.r, c.g, c.b))?,
-        }
-        Ok(())
+        self.set_color(30, c)
     }
 
     fn set_default_bg(&mut self) -> Result<()> {
@@ -307,30 +182,252 @@ impl<'file, W: Write> Drawer<'file, W> {
         Ok(())
     }
 
-    fn set_style(&mut self, s: Style) -> Result<()> {
-        self.set_bg(s.background)?;
-        self.set_fg(s.foreground)?;
+    fn reset_color(&mut self) -> Result<()> {
+        self.out.write_all(b"\x1b[0m")?;
         Ok(())
+    }
+
+    fn draw_spaces(&mut self, num: usize) -> Result<()> {
+        for _ in 0..num {
+            self.out.write_all(b" ")?;
+        }
+        Ok(())
+    }
+
+    // Returns number of tab characters in the text
+    fn draw_text<'line>(&mut self, text: &'line str, limit: usize) -> Result<LineDrawState<'line>> {
+        let mut width = 0;
+        for (i, c) in text.char_indices() {
+            width += if c == '\t' && self.tab_width > 0 {
+                let w = self.tab_width as usize;
+                if width + w > limit {
+                    self.draw_spaces(limit - width)?;
+                    // `+ 1` for skipping rest of \t
+                    return Ok(LineDrawState::Break(&text[i + 1..]));
+                }
+                self.draw_spaces(self.tab_width as usize)?;
+                w
+            } else {
+                let w = c.width_cjk().unwrap_or(0);
+                if width + w > limit {
+                    return Ok(LineDrawState::Break(&text[i..]));
+                }
+                write!(self.out, "{}", c)?;
+                w
+            };
+        }
+        Ok(LineDrawState::Continue(width))
+    }
+
+    fn draw_text_no_wrap(&mut self, text: &str) -> Result<usize> {
+        if self.tab_width == 0 {
+            write!(self.out, "{}", text)?;
+            return Ok(text.width_cjk());
+        }
+        let mut width = 0;
+        for c in text.chars() {
+            if c == '\t' && self.tab_width > 0 {
+                let w = self.tab_width as usize;
+                self.draw_spaces(w)?;
+                width += w;
+            } else {
+                write!(self.out, "{}", c)?;
+                width += c.width_cjk().unwrap_or(0);
+            }
+        }
+        Ok(width)
+    }
+
+    fn fill_spaces(&mut self, written_width: usize, max_width: usize) -> Result<()> {
+        if written_width < max_width {
+            self.draw_spaces(max_width - written_width)?;
+        }
+        self.reset_color()
+    }
+
+    fn draw_texts<'line>(
+        &mut self,
+        parts: &[(Style, &'line str)],
+        matched: bool,
+        max_width: usize,
+    ) -> Result<LineDrawn<'line>> {
+        if matched {
+            if let Some(bg) = self.match_color {
+                self.set_bg(bg)?;
+            }
+        }
+
+        let mut width = 0;
+        for (idx, (style, text)) in parts.iter().enumerate() {
+            if !matched && self.background {
+                self.set_bg(style.background)?;
+            }
+            self.set_fg(style.foreground)?;
+            self.set_font_style(style.font_style)?;
+            if self.wrap {
+                match self.draw_text(text, max_width - width)? {
+                    LineDrawState::Continue(w) => width += w,
+                    LineDrawState::Break(rest) => {
+                        self.reset_color()?;
+                        return Ok(LineDrawn::Wrap(rest, idx));
+                    }
+                }
+            } else {
+                width += self.draw_text_no_wrap(text)?;
+            }
+            self.unset_font_style(style.font_style)?;
+        }
+
+        if width == 0 && !matched {
+            self.set_default_bg()?; // For empty line
+        }
+        if matched || self.background {
+            self.fill_spaces(width, max_width)?;
+        } else {
+            self.reset_color()?;
+        }
+
+        Ok(LineDrawn::Done)
+    }
+}
+
+// Note: More flexible version of syntect::easy::HighlightLines for our use case
+struct LineHighlighter<'a> {
+    hl: Highlighter<'a>,
+    parse_state: ParseState,
+    hl_state: HighlightState,
+    syntaxes: &'a SyntaxSet,
+}
+
+impl<'a> LineHighlighter<'a> {
+    fn new(syntax: &SyntaxReference, theme: &'a Theme, syntaxes: &'a SyntaxSet) -> Self {
+        let hl = Highlighter::new(theme);
+        let parse_state = ParseState::new(syntax);
+        let hl_state = HighlightState::new(&hl, ScopeStack::new());
+        Self {
+            hl,
+            parse_state,
+            hl_state,
+            syntaxes,
+        }
+    }
+
+    fn skip_line(&mut self, line: &str) {
+        let ops = self.parse_state.parse_line(line, self.syntaxes);
+        for _ in HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl) {}
+    }
+
+    fn highlight<'line>(&mut self, line: &'line str) -> Vec<(Style, &'line str)> {
+        let ops = self.parse_state.parse_line(line, self.syntaxes);
+        HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl).collect()
+    }
+}
+// Like chunk::Lines, but includes newlines
+struct LinesInclusive<'a> {
+    lnum: usize,
+    prev: usize,
+    buf: &'a [u8],
+    iter: Memchr<'a>,
+}
+impl<'a> LinesInclusive<'a> {
+    pub fn new(buf: &'a [u8]) -> Self {
+        Self {
+            lnum: 1,
+            prev: 0,
+            buf,
+            iter: memchr_iter(b'\n', buf),
+        }
+    }
+}
+impl<'a> Iterator for LinesInclusive<'a> {
+    type Item = Line<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(idx) = self.iter.next() {
+            let lnum = self.lnum;
+            let end = idx + 1;
+            let line = &self.buf[self.prev..end];
+            self.prev = end;
+            self.lnum += 1;
+            Some(Line(line, lnum as u64))
+        } else if self.prev == self.buf.len() {
+            None
+        } else {
+            let line = &self.buf[self.prev..];
+            self.prev = self.buf.len();
+            Some(Line(line, self.lnum as u64))
+        }
+    }
+}
+
+// Drawer is responsible for one-time screen drawing
+struct Drawer<'file, W: Write> {
+    theme: &'file Theme,
+    grid: bool,
+    term_width: u16,
+    lnum_width: u16,
+    background: bool,
+    gutter_color: Color,
+    canvas: Canvas<'file, W>,
+}
+
+impl<'file, W: Write> Drawer<'file, W> {
+    fn new(out: W, opts: &PrinterOptions, theme: &'file Theme, chunks: &[(u64, u64)]) -> Self {
+        let last_lnum = chunks.last().map(|(_, e)| *e).unwrap_or(0);
+        let mut lnum_width = num_digits(last_lnum);
+        if chunks.len() > 1 {
+            lnum_width = cmp::max(lnum_width, 3); // Consider '...' in gutter
+        }
+
+        let gutter_color = theme.settings.gutter_foreground.unwrap_or(Color {
+            r: 128,
+            g: 128,
+            b: 128,
+            a: 255,
+        });
+
+        let canvas = Canvas {
+            theme,
+            true_color: opts.color_support == TermColorSupport::True,
+            tab_width: opts.tab_width as u16,
+            background: opts.background_color,
+            wrap: opts.text_wrap,
+            match_color: theme.settings.line_highlight.or(theme.settings.background),
+            out,
+        };
+
+        Drawer {
+            theme,
+            grid: opts.grid,
+            term_width: opts.term_width,
+            lnum_width,
+            background: opts.background_color,
+            gutter_color,
+            canvas,
+        }
+    }
+
+    #[inline]
+    fn gutter_width(&self) -> u16 {
+        if self.grid {
+            self.lnum_width + 4
+        } else {
+            self.lnum_width + 2
+        }
     }
 
     fn draw_horizontal_line(&mut self, sep: &str) -> Result<()> {
-        self.set_fg(self.gutter_color)?;
-        self.set_default_bg()?;
+        self.canvas.set_fg(self.gutter_color)?;
+        self.canvas.set_default_bg()?;
         let gutter_width = self.gutter_width();
         for _ in 0..gutter_width - 2 {
-            self.out.write_all("─".as_bytes())?;
+            self.canvas.write_all("─".as_bytes())?;
         }
-        self.out.write_all(sep.as_bytes())?;
+        self.canvas.write_all(sep.as_bytes())?;
         for _ in 0..self.term_width - gutter_width + 1 {
-            self.out.write_all("─".as_bytes())?;
+            self.canvas.write_all("─".as_bytes())?;
         }
-        self.reset_color()?;
-        writeln!(self.out)?;
-        Ok(())
-    }
-
-    fn reset_color(&mut self) -> Result<()> {
-        self.out.write_all(b"\x1b[0m")?;
+        self.canvas.reset_color()?;
+        writeln!(self.canvas)?;
         Ok(())
     }
 
@@ -340,203 +437,146 @@ impl<'file, W: Write> Drawer<'file, W> {
         } else {
             self.gutter_color
         };
-        self.set_fg(fg)?;
-        self.set_default_bg()?;
+        self.canvas.set_fg(fg)?;
+        self.canvas.set_default_bg()?;
         let width = num_digits(lnum);
-        for _ in 0..(self.lnum_width - width) {
-            self.out.write_all(b" ")?;
-        }
-        write!(self.out, " {}", lnum)?;
+        self.canvas
+            .draw_spaces((self.lnum_width - width) as usize)?;
+        write!(self.canvas, " {}", lnum)?;
         if self.grid {
             if matched {
-                self.set_fg(self.gutter_color)?;
+                self.canvas.set_fg(self.gutter_color)?;
             }
-            self.out.write_all(" │".as_bytes())?;
+            self.canvas.write_all(" │".as_bytes())?;
         }
-        self.set_default_bg()?;
-        write!(self.out, " ")?;
+        self.canvas.set_default_bg()?;
+        write!(self.canvas, " ")?;
         Ok(()) // Do not reset color because another color text will follow
     }
 
+    fn draw_wrapping_gutter(&mut self) -> Result<()> {
+        self.canvas.set_fg(self.gutter_color)?;
+        self.canvas.set_default_bg()?;
+        self.canvas.draw_spaces(self.lnum_width as usize + 2)?;
+        if self.grid {
+            self.canvas.write_all("│ ".as_bytes())?;
+        }
+        Ok(())
+    }
+
     fn draw_separator_line(&mut self) -> Result<()> {
-        self.set_fg(self.gutter_color)?;
-        self.set_default_bg()?;
+        self.canvas.set_fg(self.gutter_color)?;
+        self.canvas.set_default_bg()?;
         // + 1 for left margin and - 3 for length of "..."
         let left_margin = self.lnum_width + 1 - 3;
-        for _ in 0..left_margin {
-            self.out.write_all(b" ")?;
-        }
+        self.canvas.draw_spaces(left_margin as usize)?;
         let w = if self.grid {
-            write!(self.out, "... ├")?;
+            write!(self.canvas, "... ├")?;
             5
         } else {
-            write!(self.out, "...")?;
+            write!(self.canvas, "...")?;
             3
         };
-        self.set_default_bg()?;
+        self.canvas.set_default_bg()?;
         let body_width = self.term_width - left_margin - w; // This crashes when terminal width is smaller than gutter
         for _ in 0..body_width {
-            self.out.write_all("─".as_bytes())?;
+            self.canvas.write_all("╶".as_bytes())?;
         }
+        writeln!(self.canvas)?;
         Ok(()) // We don't need to reset color for next line
     }
 
-    // Returns number of tab characters in the text
-    fn draw_text(&mut self, text: &str) -> Result<usize> {
-        if self.tab_width == 0 {
-            write!(self.out, "{}", text)?;
-            return Ok(0); // XXX: This does not consider width of \t in terminal
-        }
-        let mut num_tabs = 0;
-        let mut start_idx = 0;
-        for (i, c) in text.char_indices() {
-            if c == '\t' {
-                let eaten = &text[start_idx..i];
-                write!(self.out, "{}", eaten)?;
-                for _ in 0..self.tab_width {
-                    self.out.write_all(b" ")?;
+    fn draw_line(
+        &mut self,
+        mut parts: Vec<(Style, &'_ str)>,
+        lnum: u64,
+        matched: bool,
+    ) -> Result<()> {
+        // The highlighter requires newline at the end. But we don't want it since we sometimes need to fill the rest
+        // of line with spaces. Chomp it.
+        if let Some((_, s)) = parts.last_mut() {
+            if s.ends_with('\n') {
+                *s = &s[..s.len() - 1];
+                if s.ends_with('\r') {
+                    *s = &s[..s.len() - 1];
                 }
-                start_idx = i + 1;
-                num_tabs += 1;
             }
         }
-        let rest = &text[start_idx..];
-        write!(self.out, "{}", rest)?;
-        Ok(num_tabs)
-    }
 
-    #[inline]
-    fn text_width(&self, text: &str, num_tabs: usize) -> usize {
-        num_tabs * (self.tab_width.saturating_sub(1) as usize) + text.width_cjk()
-    }
+        let body_width = (self.term_width - self.gutter_width()) as usize;
+        self.draw_line_number(lnum, matched)?;
+        let mut parts = parts.as_mut_slice();
 
-    fn fill_rest_with_spaces(&mut self, written_width: usize) -> Result<()> {
-        let term_width = self.term_width as usize;
-        if written_width < term_width {
-            for _ in 0..term_width - written_width {
-                self.out.write_all(b" ")?;
+        while let LineDrawn::Wrap(rest, idx) = self.canvas.draw_texts(parts, matched, body_width)? {
+            writeln!(self.canvas.out)?;
+            self.draw_wrapping_gutter()?;
+            if rest.is_empty() {
+                parts = &mut parts[idx + 1..];
+            } else {
+                parts = &mut parts[idx..];
+                parts[0].1 = rest; // Set rest of the text broken by text wrapping
             }
         }
-        self.reset_color()
+
+        writeln!(self.canvas.out)?;
+        Ok(())
     }
 
-    fn draw_code_line_bg<'a>(
-        &mut self,
-        parts: impl Iterator<Item = (Style, &'a str)>,
-    ) -> Result<()> {
-        let gutter_width = self.gutter_width() as usize;
-        let mut width = gutter_width;
-        for (style, text) in parts {
-            self.set_style(style)?;
-            self.set_font_style(style.font_style)?;
-            let num_tabs = self.draw_text(text)?;
-            self.unset_font_style(style.font_style)?;
-            width += self.text_width(text, num_tabs);
-        }
+    fn draw_body(&mut self, file: &File, mut hl: LineHighlighter<'_>) -> Result<()> {
+        assert!(!file.chunks.is_empty());
 
-        if width == gutter_width {
-            self.set_default_bg()?; // For empty line
-        }
+        let mut matched = file.line_numbers.as_ref();
+        let mut chunks = file.chunks.iter();
+        let mut chunk = chunks.next().unwrap(); // OK since chunks is not empty
 
-        self.fill_rest_with_spaces(width)
-    }
+        // Note: `bytes` contains newline at the end since SyntaxSet requires it. The newline will be trimmed when
+        // `HighlightedLine` instance is created.
+        for Line(bytes, lnum) in LinesInclusive::new(&file.contents) {
+            let (start, end) = *chunk;
+            if lnum < start {
+                hl.skip_line(String::from_utf8_lossy(bytes).as_ref()); // Discard parsed result
+                continue;
+            }
+            if start <= lnum && lnum <= end {
+                let matched = match matched.first().copied() {
+                    Some(n) if n == lnum => {
+                        matched = &matched[1..];
+                        true
+                    }
+                    _ => false,
+                };
+                let line = String::from_utf8_lossy(bytes);
+                // Collect to `Vec` rather than handing HighlightIterator as-is. HighlightIterator takes ownership of Highlighter
+                // while the iteration. When the highlighter is stored in `self`, it means the iterator takes ownership of `self`.
+                self.draw_line(hl.highlight(line.as_ref()), lnum, matched)?;
 
-    fn draw_code_line_no_bg<'a>(
-        &mut self,
-        parts: impl Iterator<Item = (Style, &'a str)>,
-    ) -> Result<()> {
-        for (style, text) in parts {
-            self.set_fg(style.foreground)?;
-            self.set_font_style(style.font_style)?;
-            self.draw_text(text)?;
-            self.unset_font_style(style.font_style)?;
-        }
-        self.reset_color()
-    }
-
-    fn draw_unmatched_code_line<'a>(
-        &mut self,
-        parts: impl Iterator<Item = (Style, &'a str)>,
-    ) -> Result<()> {
-        if self.background {
-            self.draw_code_line_bg(parts)
-        } else {
-            self.draw_code_line_no_bg(parts)
-        }
-    }
-
-    fn draw_matched_code_line<'a>(
-        &mut self,
-        bg: Color,
-        parts: impl Iterator<Item = (Style, &'a str)>,
-    ) -> Result<()> {
-        self.set_bg(bg)?;
-        let mut width = self.gutter_width() as usize;
-        for (style, text) in parts {
-            self.set_fg(style.foreground)?;
-            self.set_font_style(style.font_style)?;
-            let num_tabs = self.draw_text(text)?;
-            self.unset_font_style(style.font_style)?;
-            width += self.text_width(text, num_tabs);
-        }
-        self.fill_rest_with_spaces(width)
-    }
-
-    fn draw_line(&mut self, line: HighlightedLine<'file>) -> Result<()> {
-        match line {
-            HighlightedLine::Lossless {
-                lnum,
-                matched,
-                parts,
-            } => {
-                self.draw_line_number(lnum, matched)?;
-                if matched {
-                    if let Some(bg) = self.match_color {
-                        return self.draw_matched_code_line(bg, parts.into_iter());
+                if lnum == end {
+                    if let Some(c) = chunks.next() {
+                        self.draw_separator_line()?;
+                        chunk = c;
+                    } else {
+                        break;
                     }
                 }
-                self.draw_unmatched_code_line(parts.into_iter())
             }
-            HighlightedLine::Loss {
-                lnum,
-                matched,
-                parts,
-            } => {
-                self.draw_line_number(lnum, matched)?;
-                let parts = parts.iter().map(|(s, t)| (*s, t.as_str()));
-                if matched {
-                    if let Some(bg) = self.match_color {
-                        return self.draw_matched_code_line(bg, parts);
-                    }
-                }
-                self.draw_unmatched_code_line(parts)
-            }
-            HighlightedLine::Separator => self.draw_separator_line(),
         }
-    }
 
-    fn draw_lines(&mut self) -> Result<()> {
-        // Move out self.lines otherwise borrowck complains mutable borrow of &mut self.out and immutable borrow of &self.lines
-        let lines = std::mem::take(&mut self.lines);
-        for line in lines.into_iter() {
-            self.draw_line(line)?;
-            writeln!(self.out)?;
-        }
         Ok(())
     }
 
     fn draw_header(&mut self, path: &Path) -> Result<()> {
         self.draw_horizontal_line("─")?;
-        self.set_default_bg()?;
+        self.canvas.set_default_bg()?;
         let path = path.as_os_str().to_string_lossy();
-        self.set_bold()?;
-        write!(self.out, " {}", path)?;
+        self.canvas.set_bold()?;
+        write!(self.canvas, " {}", path)?;
         if self.background {
-            self.fill_rest_with_spaces(path.width_cjk() + 1)?;
+            self.canvas
+                .fill_spaces(path.width_cjk() + 1, self.term_width as usize)?;
         } else {
-            self.reset_color()?;
+            self.canvas.reset_color()?;
         }
-        writeln!(self.out)?;
+        writeln!(self.canvas)?;
         if self.grid {
             self.draw_horizontal_line("┬")?;
         }
@@ -548,10 +588,6 @@ impl<'file, W: Write> Drawer<'file, W> {
             self.draw_horizontal_line("┴")?;
         }
         Ok(())
-    }
-
-    fn flush(&mut self) -> Result<()> {
-        Ok(self.out.flush()?)
     }
 }
 
@@ -606,96 +642,6 @@ where
         &mut self.writer
     }
 
-    fn parse_highlights<'file>(
-        &self,
-        file: &'file File,
-        syntax: &SyntaxReference,
-        theme: &Theme,
-    ) -> Vec<HighlightedLine<'file>> {
-        assert!(!file.chunks.is_empty());
-        let mut hl = LineHighlighter::new(syntax, theme);
-
-        let mut lines = vec![];
-
-        let mut matched = file.line_numbers.as_ref();
-        let mut chunks = file.chunks.iter();
-        let mut chunk = chunks.next().unwrap(); // OK since chunks is not empty
-
-        // Note: `bytes` contains newline at the end since SyntaxSet requires it. The newline will be trimmed when
-        // `HighlightedLine` instance is created.
-        for Line(bytes, lnum) in LinesInclusive::new(&file.contents) {
-            let (start, end) = *chunk;
-            if lnum < start {
-                let line = String::from_utf8_lossy(bytes);
-                hl.skip_line(line.as_ref(), &self.syntaxes); // Discard parsed result
-                continue;
-            }
-            if start <= lnum && lnum <= end {
-                let matched = match matched.first().copied() {
-                    Some(n) if n == lnum => {
-                        matched = &matched[1..];
-                        true
-                    }
-                    _ => false,
-                };
-                match std::str::from_utf8(bytes) {
-                    Ok(line) => {
-                        let ranges = hl.highlight(line, &self.syntaxes);
-                        lines.push(HighlightedLine::loss_less(lnum, matched, ranges));
-                    }
-                    Err(_) => {
-                        let line = String::from_utf8_lossy(bytes);
-                        // `line` is Cow<'file>, but Cow::<'file>::as_ref() returns &'_ str which does not live long enough
-                        let ranges = hl.highlight_owned(&line, &self.syntaxes);
-                        lines.push(HighlightedLine::loss(lnum, matched, ranges));
-                    }
-                }
-                if lnum == end {
-                    if let Some(c) = chunks.next() {
-                        lines.push(HighlightedLine::Separator);
-                        chunk = c;
-                    } else {
-                        break;
-                    }
-                }
-            }
-        }
-
-        lines
-    }
-
-    fn build_drawer<'file>(
-        &self,
-        lines: Vec<HighlightedLine<'file>>,
-        theme: &'file Theme,
-        includes_separator: bool,
-    ) -> Drawer<'file, impl Write + '_> {
-        let last_lnum = lines[lines.len() - 1].line_number().unwrap(); // Separator is never at the end of line
-        let mut lnum_width = num_digits(last_lnum);
-        if includes_separator {
-            lnum_width = cmp::max(lnum_width, 3); // Consider '...' in gutter
-        }
-        let gutter_color = theme.settings.gutter_foreground.unwrap_or(Color {
-            r: 128,
-            g: 128,
-            b: 128,
-            a: 255,
-        });
-        Drawer {
-            lines,
-            theme,
-            grid: self.opts.grid,
-            term_width: self.opts.term_width,
-            lnum_width,
-            tab_width: self.opts.tab_width as u16,
-            background: self.opts.background_color,
-            gutter_color,
-            match_color: theme.settings.line_highlight.or(theme.settings.background),
-            true_color: self.opts.color_support == TermColorSupport::True,
-            out: BufWriter::new(self.writer.lock()), // Take lock here to print files in serial from multiple threads
-        }
-    }
-
     fn theme(&self) -> &Theme {
         let name = self.opts.theme.unwrap_or_else(|| {
             if self.opts.color_support == TermColorSupport::Ansi16 {
@@ -734,15 +680,20 @@ where
             return Ok(());
         }
 
+        let mut buf = vec![];
         let theme = self.theme();
         let syntax = self.find_syntax(&file.path)?;
-        let highlighted = self.parse_highlights(&file, syntax, theme);
-        let include_separator = file.chunks.len() > 1;
-        let mut drawer = self.build_drawer(highlighted, theme, include_separator); // Lock is acquired here
+
+        let mut drawer = Drawer::new(&mut buf, &self.opts, theme, &file.chunks);
         drawer.draw_header(&file.path)?;
-        drawer.draw_lines()?;
+        let hl = LineHighlighter::new(syntax, theme, &self.syntaxes);
+        drawer.draw_body(&file, hl)?;
         drawer.draw_footer()?;
-        drawer.flush()
+
+        // Take lock here to print files in serial from multiple threads
+        let mut output = self.writer.lock();
+        output.write_all(&buf)?;
+        Ok(output.flush()?)
     }
 }
 
@@ -778,10 +729,12 @@ mod tests {
     #[cfg(not(windows))]
     mod uitests {
         use super::*;
+        use std::cmp;
         use std::path::Path;
 
         fn read_chunks(path: PathBuf) -> File {
             let contents = fs::read(&path).unwrap();
+            let lines = contents.split_inclusive(|b| *b == b'\n').count() as u64;
             let mut lnums = vec![];
             let mut chunks = vec![];
             for (idx, line) in contents.split_inclusive(|b| *b == b'\n').enumerate() {
@@ -789,23 +742,22 @@ mod tests {
                 let pat = "*match to this line*".as_bytes();
                 if line.windows(pat.len()).any(|s| s == pat) {
                     lnums.push(lnum);
-                    chunks.push((lnum.saturating_sub(6), lnum + 6));
+                    chunks.push((lnum.saturating_sub(6), cmp::min(lnum + 6, lines)));
                 }
             }
             File::new(path, lnums, chunks, contents)
         }
 
-        fn run_uitest(infile: PathBuf, outfile: PathBuf, f: fn(&mut PrinterOptions<'_>) -> ()) {
+        fn run_uitest(file: File, expected_file: PathBuf, f: fn(&mut PrinterOptions<'_>) -> ()) {
             let stdout = DummyStdout(RefCell::new(vec![]));
             let mut opts = PrinterOptions::default();
             opts.term_width = 80;
             opts.color_support = TermColorSupport::True;
             f(&mut opts);
             let mut printer = SyntectPrinter::new(stdout, opts).unwrap();
-            let file = read_chunks(infile);
             printer.print(file).unwrap();
             let printed = mem::take(printer.writer_mut()).0.into_inner();
-            let expected = fs::read(outfile).unwrap();
+            let expected = fs::read(expected_file).unwrap();
             assert_eq!(
                 printed,
                 expected,
@@ -815,14 +767,18 @@ mod tests {
             );
         }
 
-        fn run_parametrized_uitest(mut input: &str, f: fn(&mut PrinterOptions<'_>) -> ()) {
+        fn run_parametrized_uitest_single_chunk(
+            mut input: &str,
+            f: fn(&mut PrinterOptions<'_>) -> (),
+        ) {
             let dir = Path::new(".").join("testdata").join("syntect");
             if input.starts_with("test_") {
                 input = &input["test_".len()..];
             }
             let infile = dir.join(format!("{}.rs", input));
             let outfile = dir.join(format!("{}.out", input));
-            run_uitest(infile, outfile, f);
+            let file = read_chunks(infile);
+            run_uitest(file, outfile, f);
         }
 
         macro_rules! uitest {
@@ -831,7 +787,7 @@ mod tests {
                     #[cfg(not(windows))]
                     #[test]
                     fn $input() {
-                        run_parametrized_uitest(stringify!($input), $f);
+                        run_parametrized_uitest_single_chunk(stringify!($input), $f);
                     }
                 )+
             }
@@ -862,6 +818,38 @@ mod tests {
             }),
             test_long_line(|_| {}),
             test_long_line_bg(|o| {
+                o.background_color = true;
+            }),
+            test_empty_lines(|_| {}),
+            test_wrap_between_text(|_| {}),
+            test_wrap_middle_of_text(|_| {}),
+            test_wrap_middle_of_spaces(|_| {}),
+            test_wrap_middle_of_tab(|_| {}),
+            test_wrap_twice(|_| {}),
+            test_wrap_no_grid(|o| {
+                o.grid = false;
+            }),
+            test_wrap_theme(|o| {
+                o.theme = Some("Nord");
+            }),
+            test_wrap_ansi256(|o| {
+                o.color_support = TermColorSupport::Ansi256;
+            }),
+            test_wrap_middle_text_bg(|o| {
+                o.background_color = true;
+            }),
+            test_wrap_between_bg(|o| {
+                o.background_color = true;
+            }),
+            test_no_wrap_default(|o| {
+                o.text_wrap = false;
+            }),
+            test_no_wrap_no_grid(|o| {
+                o.text_wrap = false;
+                o.grid = false;
+            }),
+            test_no_wrap_background(|o| {
+                o.text_wrap = false;
                 o.background_color = true;
             }),
         );
@@ -895,8 +883,8 @@ mod tests {
         }
     }
 
-    fn readme_chunk() -> File {
-        let readme = PathBuf::from("README.md");
+    fn sample_chunk(file: &str) -> File {
+        let readme = PathBuf::from(file);
         let lnums = vec![3];
         let chunks = vec![(1, 6)];
         let contents = fs::read(&readme).unwrap();
@@ -905,7 +893,7 @@ mod tests {
 
     #[test]
     fn test_error_write() {
-        let file = readme_chunk();
+        let file = sample_chunk("README.md");
         let opts = PrinterOptions::default();
         let printer = SyntectPrinter::new(ErrorStdout, opts).unwrap();
         let err = printer.print(file).unwrap_err();
@@ -950,5 +938,16 @@ mod tests {
             "pritned:\n{}",
             String::from_utf8_lossy(&printed)
         );
+    }
+
+    #[test]
+    fn test_no_syntax_found() {
+        let file = sample_chunk("LICENSE.txt");
+        let opts = PrinterOptions::default();
+        let stdout = DummyStdout(RefCell::new(vec![]));
+        let mut printer = SyntectPrinter::new(stdout, opts).unwrap();
+        printer.print(file).unwrap();
+        let printed = mem::take(printer.writer_mut()).0.into_inner();
+        assert!(!printed.is_empty());
     }
 }
