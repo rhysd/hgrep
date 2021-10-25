@@ -3,12 +3,12 @@ hgrep: Human-friendly GREP
 [![CI][ci-badge]][ci]
 [![crate][crates-io-badge]][crates-io]
 
-[hgrep][] is a grep tool to search files with given pattern and print the matched code snippets with human-friendly syntax
-highlighting. In short, it's a fusion of [bat][] and grep or other alternatives like [ripgrep][].
+[hgrep][] is a grep tool to search files with a given pattern and print the matched code snippets with human-friendly syntax
+highlighting. In short, this tool brings search results like the code search on GitHub to your local machine.
 
-This is similar to `-C` option of `grep` command, but hgrep focuses on human readable outputs. hgrep is useful to survey the
+This is similar to `-C` option of `grep` command, but hgrep focuses on human-readable outputs. hgrep is useful to survey the
 matches with contexts around them. When some matches are near enough, hgrep prints the lines within one code snippet. Unlike
-`grep -C`, hgrep adopts some heuristics around blank lines to determine efficient number of context lines.
+`grep -C`, hgrep adopts some heuristics around blank lines to determine an efficient number of context lines.
 
 Example:
 
@@ -20,13 +20,13 @@ grep -nH pattern -R ./dir | hgrep
 rg -nH pattern ./dir | hgrep
 ```
 
-As an optional feature, hgrep has builtin grep implementation thanks to ripgrep as library. It's a subset of `rg` command. And
-it's faster when there are so many matches since everything is done in the same process.
+As an optional feature, hgrep has built-in grep implementation thanks to [ripgrep][] as a library. It's a subset of `rg` command.
+And it's faster when there are so many matches since everything is done in the same process.
 
 Example:
 
 ```sh
-# Use builtin subset of ripgrep
+# Use built-in subset of ripgrep
 hgrep pattern ./dir
 ```
 
@@ -45,7 +45,7 @@ Please see [the usage section](#usage) for more details.
 ### Binary releases
 
 Visit [the releases page][releases] and download the zip file for your platform. Unarchive the file and put the executable file
-in some `$PATH` directory. Currently the following targets are supported. If you want a binary for some other platform, feel free
+in some `$PATH` directory. Currently, the following targets are supported. If you want a binary for some other platform, feel free
 to make an issue to request it.
 
 - Linux (x86_64)
@@ -54,7 +54,7 @@ to make an issue to request it.
 
 ### Via [Homebrew][homebrew]
 
-By adding hgrep repository as Homebrew tap, `hgrep` command can be installed and managed via Homebrew. Currently only for x86_64
+By adding hgrep repository as Homebrew tap, `hgrep` command can be installed and managed via Homebrew. Currently, only for x86_64
 macOS and Linux.
 
 ```sh
@@ -92,8 +92,8 @@ make install
 cargo install hgrep
 ```
 
-If you always use hgrep with reading the grep output from stdin and don't want the builtin ripgrep feature, it can be omitted.
-This reduces the number of dependencies, installation time, and the binary size.
+If you always use hgrep with reading the grep output from stdin and don't want the built-in ripgrep feature, it can be omitted.
+This reduces the number of dependencies, installation time, and binary size.
 
 ```sh
 cargo install hgrep --no-default-features --features bat-printer,syntect-printer
@@ -107,7 +107,7 @@ All features are optional and enabled by default. At least `bat-printer` or `syn
 
 | Feature           | Description                                                                                                                   |
 |-------------------|-------------------------------------------------------------------------------------------------------------------------------|
-| `ripgrep`         | Built-in grep implementation built on top of [ripgrep][] as library. Performance is better than piping `rg` in some cases.    |
+| `ripgrep`         | Built-in grep implementation built on top of [ripgrep][] as a library. Performance is better than piping `rg` in some cases.  |
 | `bat-printer`     | Printer implementation built on top of [bat][]'s pretty printer, which is battle-tested and provides some unique features.    |
 | `syntect-printer` | Our own printer implementation built with [syntect][] library. Performance and output layout are optimized for our use cases. |
 
@@ -148,17 +148,17 @@ specified by `-C`. If you don't want the heuristics, specify the same value to t
 grep -nH pattern -R paths... | hgrep -c 10 -C 20
 ```
 
-### Builtin ripgrep
+### Built-in ripgrep
 
-Optionally hgrep provides builtin grep implementation. It is a subset of ripgrep since it's built using ripgrep as library. And
-it's faster when there are so many matches because everything is done in the same process. The builtin grep feature is enabled by
+Optionally hgrep provides built-in grep implementation. It is a subset of ripgrep since it's built using ripgrep as library. And
+it's faster when there are so many matches because everything is done in the same process. The built-in grep feature is enabled by
 default and can be omitted by feature flags.
 
 ```sh
 hgrep [options...] pattern paths...
 ```
 
-Though almost all useful options are implemented, the builtin grep implementation is a subset of ripgrep. If you need full
+Though almost all useful options are implemented, the built-in grep implementation is a subset of ripgrep. If you need full
 functionalities, use `rg` command and eat its output by hgrep via stdin. Currently there are the following restrictions.
 
 - Preprocessor is not supported (e.g. search zip files)
@@ -174,30 +174,30 @@ implementation built on top of [bat][]'s pretty printer. And `syntect` printer i
 
 At first, there was `bat` printer only. And then `syntect` printer was implemented for better performance and optimized layout.
 
-#### Pros of each printers
+#### Pros of each printer
 
 - `bat` printer
   - Implementation is battle-tested. It is already used by many users on many platforms and terminals
   - The behavior is compatible with `bat` command. Its output layout is the same as `bat` command. It can load bat's assets cache
 - `syntect` printer
-  - Performance is much better. 2x to 4x faster (more match results gets better performance)
-  - Output layout is optimized for our use cases. For example, a line number at match is highlighted in different color
+  - Performance is much better. 2x to 4x faster (more match results get better performance)
+  - Output layout is optimized for our use cases. For example, a line number at a match is highlighted in a different color
   - Painting background color (`--background`) is supported. This is useful when your favorite theme does not fit to your
     terminal's background color
   - Detection for terminal color support is better. It automatically changes the default theme to 'ansi' when the terminal only
     supports 16 colors
 
-Currently `bat` is the default painter (unless `bat-printer` feature is disabled) because the implementation is not mature yet.
+Currently, `bat` is the default painter (unless `bat-printer` feature is disabled) because the implementation is not mature yet.
 But in 0.2 release, changing the default painter to `syntect` is planned.
 
 #### Why performance of `syntect` printer is better?
 
-Syntax highlighting is very CPU heavy task. Many regular expression matchings happen at each line. For accurate syntax
+Syntax highlighting is very CPU-heavy task. Many regular expression matchings happen at each line. For accurate syntax
 highlighting, a highlighter needs to parse the syntax at the beginning of the file. It means that printing a match at the last
-line of file is much heavier task than printing a match of the first line of the file.
+line of a file is a much heavier task than printing a match of the first line of the file.
 
 Since `syntect` printer is designed for calculating syntax highlights per file in parallel, its performance is much better. It's
-2x~4x faster than `bat` printer in some experiments. More match results gets better performance.
+2x~4x faster than `bat` printer in some experiments. More match results get better performance.
 
 In contrast, bat is not designed for multi-threads. It's not possible to share `bat::PrettyPrinter` instance among threads. It
 means that printing match results including syntax highlighting must be done in a single thread.
@@ -208,8 +208,8 @@ means that printing match results including syntax highlighting must be done in 
 
 ### Change color theme and layout
 
-Default color theme is `Monokai Extended` respecting `bat` command's default. Other theme can be specified via `--theme` option.
-To know names of themes, try `--list-themes` flag.
+The default color theme is `Monokai Extended` respecting `bat` command's default. Other theme can be specified via `--theme`
+option. To know names of themes, try `--list-themes` flag.
 
 ```sh
 grep -nH ... | hgrep --theme Nord
@@ -221,14 +221,14 @@ And hgrep respects `BAT_THEME` environment variable.
 export BAT_THEME=OneHalfDark
 ```
 
-Default layout is 'grid' respecting `bat` command's default. To print the matches without border lines, `--no-grid` option is
-available.
+The default layout is 'grid' respecting `bat` command's default. To print the matches without borderlines, `--no-grid` option
+is available.
 
 ```sh
 grep -nH ... | hgrep --no-grid
 ```
 
-And hgrep respects `BAT_STYLE` environment variable. When `plain` or `header` or `numbers` is set, hgrep removes border lines.
+And hgrep respects `BAT_STYLE` environment variable. When `plain` or `header` or `numbers` is set, hgrep removes borderlines.
 
 ```sh
 export BAT_STYLE=numbers
@@ -245,7 +245,7 @@ For example, if you're using Bash, put the following line in your `.bash_profile
 alias hgrep='hgrep --printer syntect --hidden'
 ```
 
-If you prefer a pager, try the following wrappre function. `--term-width` propagates the correct width of terminal window.
+If you prefer a pager, try the following wrapper function. `--term-width` propagates the correct width of the terminal window.
 
 ```sh
 # Use syntect-printer and less as pager. $COLUMNS corrects terminal window
@@ -259,7 +259,7 @@ function hgrep() {
 - Common options
   - `--min-context NUM` (`-c`): Minimum lines of leading and trailing context surrounding each match. Default value is 5
   - `--max-context NUM` (`-C`): Maximum lines of leading and trailing context surrounding each match. Default value is 10
-  - `--no-grid` (`-G`): Remove border lines for more compact output. `--grid` flag is an opposite of this flag
+  - `--no-grid` (`-G`): Remove borderlines for more compact output. `--grid` flag is an opposite of this flag
   - `--tab NUM`: Number of spaces for tab character. Set 0 to pass tabs through. Default value is 4
   - `--theme THEME`: Theme for syntax highlighting. Default value is the same as `bat` command
   - `--list-themes`: List all theme names available for --theme option
@@ -292,15 +292,15 @@ function hgrep() {
 - Only for `bat-printer` feature
   - `--custom-assets`: Load bat's custom assets from cache. Note that this flag may not work with some version of `bat` command
 
-See `--help` for full list of options.
+See `--help` for the full list of available options in your environment.
 
 ### Generate completion scripts
 
 Shell completion script for `hgrep` command is available. `--generate-completion-script` option generates completion script and
 prints it to stdout. [Bash][bash], [Zsh][zsh], [Fish][fish], [PowerShell][pwsh], [Elvish][elvish] are supported. See `--help` for
-argument of the option.
+the argument of the option.
 
-This is an example to setup the completion script on Zsh.
+This is an example of setup the completion script on Zsh.
 
 ```sh
 # Let's say we set comps=~/.zsh/site-functions
@@ -313,7 +313,7 @@ Some other alternatives instead of using hgrep.
 
 ### Small ShellScript to combine `ripgrep` and `bat`
 
-ripgrep and bat are well-designed tools so they can be used as building parts of small script.
+ripgrep and bat are well-designed tools so they can be used as building parts of a small script.
 
 ```sh
 rg -nH ... | while IFS= read -r line; do

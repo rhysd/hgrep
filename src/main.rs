@@ -53,12 +53,12 @@ fn cli<'a>() -> App<'a> {
             Arg::new("no-grid")
                 .short('G')
                 .long("no-grid")
-                .about("Remove border lines for more compact output"),
+                .about("Remove borderlines for more compact output"),
         )
         .arg(
             Arg::new("grid")
                 .long("grid")
-                .about("Add border lines to output. This flag is an opposite of --no-grid"),
+                .about("Add borderlines to output. This flag is an opposite of --no-grid"),
         )
         .arg(
             Arg::new("tab")
