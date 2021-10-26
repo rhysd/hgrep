@@ -1116,6 +1116,23 @@ mod tests {
                 o.grid = false;
                 o.background_color = true;
             }),
+            test_wide_char_region(|_| {}),
+            test_wide_char_region_bg(|o| {
+                o.background_color = true;
+            }),
+            test_wrap_match_at_second_line(|_| {}),
+            test_wrap_region_accross_line(|_| {}),
+            test_wrap_region_jp_accross_line(|_| {}),
+            test_wrap_match_at_second_line_bg(|o| {
+                o.background_color = true;
+            }),
+            test_region_at_end_of_line(|_| {}),
+            test_region_at_end_of_line_bg(|o| {
+                o.background_color = true;
+            }),
+            test_region_at_line_start(|_| {}),
+            test_wrap_region_line_start(|_| {}),
+            test_wrap_region_line_end(|_| {}),
         );
     }
 
