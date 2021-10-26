@@ -83,13 +83,21 @@ impl fmt::Display for PrintError {
     }
 }
 
+struct Token<'line> {
+    style: Style,
+    text: &'line str,
+}
+
+// Start/End boundary of the match region in the highlighted text in matched line
 struct RegionBoundary {
     start: Option<usize>, // This index is local to the text
     end: Option<usize>,   // This index is local to the text
+    // Original style of the text
     fg: Color,
     bg: Color,
 }
 
+// Match region in matched line
 struct Region(usize, usize);
 
 impl Region {
@@ -104,13 +112,13 @@ impl Region {
     // Calculate byte indices of start/end of the region within this text if they are included
     fn boundary(
         &self,
-        text_start: usize,
-        text_end: usize,
+        token_start: usize,
+        token_end: usize,
         style: &Style,
     ) -> Option<RegionBoundary> {
         let (rs, re) = (self.0, self.1);
-        let start = (text_start <= rs && rs <= text_end).then(|| rs - text_start);
-        let end = (text_start <= re && re <= text_end).then(|| re - text_start);
+        let start = (token_start <= rs && rs <= token_end).then(|| rs - token_start);
+        let end = (token_start <= re && re <= token_end).then(|| re - token_start);
         if start.is_none() && end.is_none() {
             return None;
         }
@@ -120,6 +128,10 @@ impl Region {
             fg: style.foreground,
             bg: style.background,
         })
+    }
+
+    fn contains(&self, byte_offset: usize) -> bool {
+        self.0 <= byte_offset && byte_offset <= self.1
     }
 }
 
@@ -374,37 +386,45 @@ impl<'file, W: Write> Canvas<'file, W> {
     fn draw_matched<'line>(
         &mut self,
         region: Option<&Region>,
-        parts: &[(Style, &'line str)],
+        tokens: &[Token<'line>],
         max_width: usize,
     ) -> Result<LineDrawn<'line>> {
         if let Some(bg) = self.match_color {
             self.set_bg(bg)?;
         }
 
-        let mut byte_offset = 0;
+        let mut start_offset = 0;
         let mut width = 0;
-        for (idx, (style, text)) in parts.iter().enumerate() {
-            let len = text.len();
-            self.set_fg(style.foreground)?;
-            self.set_font_style(style.font_style)?;
+        for (idx, tok) in tokens.iter().enumerate() {
+            let len = tok.text.len();
+            let end_offset = start_offset + len;
 
-            let boundary = region.and_then(|r| r.boundary(byte_offset, byte_offset + len, style));
+            let boundary = if let Some(region) = region {
+                // In region, the style should not be changed
+                if !region.contains(start_offset) {
+                    self.set_fg(tok.style.foreground)?;
+                    self.set_font_style(tok.style.font_style)?;
+                }
+                region.boundary(start_offset, end_offset, &tok.style)
+            } else {
+                None
+            };
 
             if self.wrap {
-                match self.draw_text(text, max_width - width, boundary)? {
+                match self.draw_text(tok.text, max_width - width, boundary)? {
                     LineDrawState::Continue(w) => width += w,
                     LineDrawState::Break(rest) => {
-                        let bytes = byte_offset + len - rest.len();
+                        let bytes = end_offset - rest.len();
                         return Ok(LineDrawn::Wrap(bytes, rest, idx));
                     }
                 }
             } else if let Some(boundary) = boundary {
-                width += self.draw_text_no_wrap_with_region(text, boundary)?;
+                width += self.draw_text_no_wrap_with_region(tok.text, boundary)?;
             } else {
-                width += self.draw_text_no_wrap(text)?;
+                width += self.draw_text_no_wrap(tok.text)?;
             }
-            self.unset_font_style(style.font_style)?;
-            byte_offset += len;
+            self.unset_font_style(tok.style.font_style)?;
+            start_offset += len;
         }
 
         self.fill_spaces(width, max_width)?;
@@ -414,35 +434,35 @@ impl<'file, W: Write> Canvas<'file, W> {
 
     fn draw<'line>(
         &mut self,
-        parts: &[(Style, &'line str)],
+        tokens: &[Token<'line>],
         matched: &Matched,
         max_width: usize,
     ) -> Result<LineDrawn<'line>> {
-        if let Some(region) = matched.region() {
-            return self.draw_matched(region, parts, max_width);
+        if let Some(maybe_region) = matched.region() {
+            return self.draw_matched(maybe_region, tokens, max_width);
         }
 
         let mut byte_offset = 0;
         let mut width = 0;
-        for (idx, (style, text)) in parts.iter().enumerate() {
+        for (idx, tok) in tokens.iter().enumerate() {
             if self.background {
-                self.set_bg(style.background)?;
+                self.set_bg(tok.style.background)?;
             }
-            self.set_fg(style.foreground)?;
-            self.set_font_style(style.font_style)?;
+            self.set_fg(tok.style.foreground)?;
+            self.set_font_style(tok.style.font_style)?;
             if self.wrap {
-                match self.draw_text(text, max_width - width, None)? {
+                match self.draw_text(tok.text, max_width - width, None)? {
                     LineDrawState::Continue(w) => width += w,
                     LineDrawState::Break(rest) => {
-                        let bytes = byte_offset + text.len() - rest.len();
+                        let bytes = byte_offset + tok.text.len() - rest.len();
                         return Ok(LineDrawn::Wrap(bytes, rest, idx));
                     }
                 }
             } else {
-                width += self.draw_text_no_wrap(text)?;
+                width += self.draw_text_no_wrap(tok.text)?;
             }
-            self.unset_font_style(style.font_style)?;
-            byte_offset += text.len();
+            self.unset_font_style(tok.style.font_style)?;
+            byte_offset += tok.text.len();
         }
 
         if width == 0 {
@@ -482,9 +502,13 @@ impl<'a> LineHighlighter<'a> {
         for _ in HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl) {}
     }
 
-    fn highlight<'line>(&mut self, line: &'line str) -> Vec<(Style, &'line str)> {
+    fn highlight<'line>(&mut self, line: &'line str) -> Vec<Token<'line>> {
         let ops = self.parse_state.parse_line(line, self.syntaxes);
-        HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl).collect()
+        let mut tokens = vec![];
+        for (style, text) in HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl) {
+            tokens.push(Token { style, text });
+        }
+        tokens
     }
 }
 // Like chunk::Lines, but includes newlines
@@ -658,28 +682,28 @@ impl<'file, W: Write> Drawer<'file, W> {
 
     fn draw_line(
         &mut self,
-        mut parts: Vec<(Style, &'_ str)>,
+        mut tokens: Vec<Token<'_>>,
         lnum: u64,
         mut matched: Matched,
     ) -> Result<()> {
         // The highlighter requires newline at the end. But we don't want it since
         // - we sometimes need to fill the rest of line with spaces
         // - we clear colors before writing newline
-        if let Some((_, s)) = parts.last_mut() {
-            if s.ends_with('\n') {
-                *s = &s[..s.len() - 1];
-                if s.ends_with('\r') {
-                    *s = &s[..s.len() - 1];
+        if let Some(Token { text: t, .. }) = tokens.last_mut() {
+            if t.ends_with('\n') {
+                *t = &t[..t.len() - 1];
+                if t.ends_with('\r') {
+                    *t = &t[..t.len() - 1];
                 }
             }
         }
 
         let body_width = (self.term_width - self.gutter_width()) as usize;
         self.draw_line_number(lnum, matched.yes())?;
-        let mut parts = parts.as_mut_slice();
+        let mut tokens = tokens.as_mut_slice();
 
         while let LineDrawn::Wrap(bytes, rest, idx) =
-            self.canvas.draw(parts, &matched, body_width)?
+            self.canvas.draw(tokens, &matched, body_width)?
         {
             if let Matched::Region(region) = matched {
                 let region = region.sub(bytes);
@@ -692,10 +716,10 @@ impl<'file, W: Write> Drawer<'file, W> {
             self.canvas.draw_newline()?;
             self.draw_wrapping_gutter()?;
             if rest.is_empty() {
-                parts = &mut parts[idx + 1..];
+                tokens = &mut tokens[idx + 1..];
             } else {
-                parts = &mut parts[idx..];
-                parts[0].1 = rest; // Set rest of the text broken by text wrapping
+                tokens = &mut tokens[idx..];
+                tokens[0].text = rest; // Set rest of the text broken by text wrapping
             }
         }
 
