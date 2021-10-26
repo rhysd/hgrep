@@ -191,6 +191,18 @@ enum LineDrawn<'line> {
 }
 
 impl<'file, W: Write> Canvas<'file, W> {
+    fn draw_spaces(&mut self, num: usize) -> Result<()> {
+        for _ in 0..num {
+            self.out.write_all(b" ")?;
+        }
+        Ok(())
+    }
+
+    fn draw_newline(&mut self) -> Result<()> {
+        writeln!(self.out, "\x1b[0m")?; // Reset on newline to ensure to reset color
+        Ok(())
+    }
+
     fn set_color(&mut self, code: u8, c: Color) -> Result<()> {
         // In case of c.a == 0 and c.a == 1 are handling for special colorscheme by bat for non true
         // color terminals. Color value is encoded in R. See `to_ansi_color()` in bat/src/terminal.rs
@@ -258,15 +270,10 @@ impl<'file, W: Write> Canvas<'file, W> {
         Ok(())
     }
 
-    fn draw_spaces(&mut self, num: usize) -> Result<()> {
-        for _ in 0..num {
-            self.out.write_all(b" ")?;
+    fn set_match_bg_color(&mut self) -> Result<()> {
+        if let Some(bg) = self.match_color {
+            self.set_bg(bg)?;
         }
-        Ok(())
-    }
-
-    fn draw_newline(&mut self) -> Result<()> {
-        writeln!(self.out, "\x1b[0m")?; // Reset on newline to ensure to reset color
         Ok(())
     }
 
@@ -389,9 +396,7 @@ impl<'file, W: Write> Canvas<'file, W> {
         tokens: &[Token<'line>],
         max_width: usize,
     ) -> Result<LineDrawn<'line>> {
-        if let Some(bg) = self.match_color {
-            self.set_bg(bg)?;
-        }
+        self.set_match_bg_color()?;
 
         let mut start_offset = 0;
         let mut width = 0;
@@ -427,6 +432,8 @@ impl<'file, W: Write> Canvas<'file, W> {
             start_offset += len;
         }
 
+        // Ensure to reset background color considering the case where a region is at the end of line
+        self.set_match_bg_color()?;
         self.fill_spaces(width, max_width)?;
 
         Ok(LineDrawn::Done)
