@@ -39,6 +39,8 @@ pub(crate) fn read_expected_chunks<S: AsRef<str>>(dir: &Path, input: S) -> Optio
         .lines()
         .filter(|s| !s.is_empty())
         .map(|line| {
+            // Format: One chunk per line.
+            //   {start line} {last line},{lnum1} {lnum2}...
             let mut s = line.split(',');
             let range = s.next().unwrap();
             let mut rs = range.split(' ');

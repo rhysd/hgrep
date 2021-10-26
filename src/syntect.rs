@@ -501,11 +501,9 @@ impl<'a> LineHighlighter<'a> {
 
     fn highlight<'line>(&mut self, line: &'line str) -> Vec<Token<'line>> {
         let ops = self.parse_state.parse_line(line, self.syntaxes);
-        let mut tokens = vec![];
-        for (style, text) in HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl) {
-            tokens.push(Token { style, text });
-        }
-        tokens
+        HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl)
+            .map(|(style, text)| Token { style, text })
+            .collect()
     }
 }
 // Like chunk::Lines, but includes newlines
@@ -945,8 +943,12 @@ mod tests {
                     let lnum = (idx + 1) as u64;
                     s = cmp::min(s, lnum);
                     e = cmp::max(e, lnum);
-                    if line.contains("*match to this line*") {
-                        lmats.push(LineMatch::lnum(lnum));
+                    if let (Some(start), Some(i)) = (line.find("*match to "), line.find(" line*")) {
+                        let end = i + " line*".len();
+                        lmats.push(LineMatch {
+                            line_number: lnum,
+                            range: Some((start, end)),
+                        });
                     }
                 } else {
                     break;
@@ -1045,6 +1047,9 @@ mod tests {
                 o.background_color = true;
             }),
             test_empty_lines(|_| {}),
+            test_empty_lines_bg(|o| {
+                o.background_color = true;
+            }),
             test_wrap_between_text(|_| {}),
             test_wrap_middle_of_text(|_| {}),
             test_wrap_middle_of_spaces(|_| {}),

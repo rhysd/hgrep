@@ -509,19 +509,40 @@ mod tests {
     use std::ffi::OsStr;
     use std::fs;
     use std::iter;
+    use std::mem;
     use std::path::Path;
     use std::sync::Mutex;
 
     #[derive(Default)]
     struct DummyPrinter(Mutex<Vec<File>>);
     impl Printer for &DummyPrinter {
-        fn print(&self, mut file: File) -> Result<()> {
-            // TODO: Check byte range within line
-            for lm in file.line_matches.iter_mut() {
-                lm.range = None;
-            }
+        fn print(&self, file: File) -> Result<()> {
             self.0.lock().unwrap().push(file);
             Ok(())
+        }
+    }
+
+    impl DummyPrinter {
+        fn validate_and_remove_region_ranges(&mut self) {
+            for file in self.0.get_mut().unwrap().iter_mut() {
+                let lines: Vec<_> = file.contents.split_inclusive(|b| *b == b'\n').collect();
+                for lmat in file.line_matches.iter_mut() {
+                    // Reset `lmat.range` to None since ranges in `expected` are `None`
+                    let (start, end) = mem::take(&mut lmat.range).unwrap();
+                    let line = lines[lmat.line_number as usize - 1];
+                    let matched_part = &line[start..end];
+                    assert_eq!(
+                        matched_part,
+                        b"*",
+                        "{:?} did not match to pattern '\\*$'. Line was {:?} (lnum={}). Byte range was ({}, {})",
+                        std::str::from_utf8(matched_part).unwrap(),
+                        std::str::from_utf8(line).unwrap(),
+                        lmat.line_number,
+                        start,
+                        end
+                    )
+                }
+            }
         }
     }
 
@@ -542,7 +563,7 @@ mod tests {
         let inputs = read_all_inputs(&dir);
 
         for input in inputs.iter() {
-            let printer = DummyPrinter::default();
+            let mut printer = DummyPrinter::default();
             let pat = r"\*$";
             let file = dir.join(format!("{}.in", input));
             let paths = iter::once(OsStr::new(&file));
@@ -552,18 +573,15 @@ mod tests {
             }
 
             let found = grep(&printer, pat, Some(paths), config).unwrap();
-
             let expected = read_expected_chunks(&dir, input)
                 .map(|f| vec![f])
                 .unwrap_or_else(Vec::new);
 
+            printer.validate_and_remove_region_ranges();
+            let got = printer.0.into_inner().unwrap();
+
             assert_eq!(found, !expected.is_empty(), "test file: {:?}", file);
-            assert_eq!(
-                expected,
-                printer.0.into_inner().unwrap(),
-                "test file: {:?}",
-                file
-            );
+            assert_eq!(expected, got, "test file: {:?}", file);
         }
     }
 
@@ -572,7 +590,7 @@ mod tests {
         let dir = Path::new("testdata").join("chunk");
         let inputs = read_all_inputs(&dir);
 
-        let printer = DummyPrinter::default();
+        let mut printer = DummyPrinter::default();
         let pat = r"\*$";
         let mut config = Config::new(3, 6);
         if cfg!(target_os = "windows") {
@@ -585,6 +603,8 @@ mod tests {
         let paths = paths.iter().map(AsRef::as_ref);
 
         let found = grep(&printer, pat, Some(paths), config).unwrap();
+
+        printer.validate_and_remove_region_ranges();
 
         let mut got = printer.0.into_inner().unwrap();
         got.sort_by(|a, b| a.path.cmp(&b.path));
