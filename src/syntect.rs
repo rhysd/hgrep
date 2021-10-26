@@ -92,9 +92,8 @@ struct Token<'line> {
 struct RegionBoundary {
     start: Option<usize>, // This index is local to the text
     end: Option<usize>,   // This index is local to the text
-    // Original style of the text
+    // Original style of the text. Background color is not necessary because it is fixed to match color
     fg: Color,
-    bg: Color,
 }
 
 // Match region in matched line
@@ -110,24 +109,14 @@ impl Region {
     }
 
     // Calculate byte indices of start/end of the region within this text if they are included
-    fn boundary(
-        &self,
-        token_start: usize,
-        token_end: usize,
-        style: &Style,
-    ) -> Option<RegionBoundary> {
+    fn boundary(&self, token_start: usize, token_end: usize, fg: Color) -> Option<RegionBoundary> {
         let (rs, re) = (self.0, self.1);
         let start = (token_start <= rs && rs <= token_end).then(|| rs - token_start);
         let end = (token_start <= re && re <= token_end).then(|| re - token_start);
         if start.is_none() && end.is_none() {
             return None;
         }
-        Some(RegionBoundary {
-            start,
-            end,
-            fg: style.foreground,
-            bg: style.background,
-        })
+        Some(RegionBoundary { start, end, fg })
     }
 
     fn contains(&self, byte_offset: usize) -> bool {
@@ -293,7 +282,7 @@ impl<'file, W: Write> Canvas<'file, W> {
         }
         if boundary.end == Some(offset) {
             self.set_fg(boundary.fg)?;
-            self.set_bg(boundary.bg)?;
+            self.set_match_bg_color()?;
         }
         Ok(())
     }
@@ -410,8 +399,9 @@ impl<'file, W: Write> Canvas<'file, W> {
                     self.set_fg(tok.style.foreground)?;
                     self.set_font_style(tok.style.font_style)?;
                 }
-                region.boundary(start_offset, end_offset, &tok.style)
+                region.boundary(start_offset, end_offset, tok.style.foreground)
             } else {
+                self.set_fg(tok.style.foreground)?;
                 None
             };
 

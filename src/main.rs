@@ -304,7 +304,7 @@ fn generate_completion_script(shell: &str) {
     } else if shell.eq_ignore_ascii_case("elvish") {
         generate(Elvish, &mut app, "hgrep", &mut stdout)
     } else {
-        unreachable!() // SHELL argument is validated by clap
+        unreachable!() // SHELL argument was validated by clap
     }
 }
 
@@ -406,17 +406,17 @@ fn app() -> Result<bool> {
         }
     }
 
-    if matches.is_present("no-wrap") {
-        printer_opts.text_wrap = TextWrapMode::Never;
-    }
     if let Some(mode) = matches.value_of("wrap") {
         if mode.eq_ignore_ascii_case("never") {
             printer_opts.text_wrap = TextWrapMode::Never;
         } else if mode.eq_ignore_ascii_case("char") {
             printer_opts.text_wrap = TextWrapMode::Char;
         } else {
-            unreachable!(); // Option value is validated by clap
+            unreachable!(); // Option value was validated by clap
         }
+    }
+    if matches.is_present("no-wrap") {
+        printer_opts.text_wrap = TextWrapMode::Never;
     }
 
     #[cfg(feature = "syntect-printer")]
