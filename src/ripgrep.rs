@@ -376,7 +376,6 @@ fn walk<'main>(
 }
 
 struct Matches<'a, M: Matcher> {
-    multiline: bool,
     count: &'a Option<Mutex<u64>>,
     path: PathBuf,
     matcher: &'a M,
@@ -397,32 +396,57 @@ impl<'a, M: Matcher> Sink for Matches<'a, M> {
         }
 
         let line_number = mat.line_number().unwrap();
-        let path = self.path.clone();
+        let path = &self.path;
 
-        let range = if self.multiline {
-            None
-        } else {
-            self.matcher
-                .find(mat.bytes())
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?
-                .map(|m| (m.start(), m.end()))
-        };
-        self.buf.push(GrepMatch {
-            path,
-            line_number,
-            range,
-        });
+        let range = self
+            .matcher
+            .find(mat.bytes())
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?
+            .map(|m| (m.start(), m.end()));
 
-        if self.multiline {
-            for i in 1..mat.lines().count() {
-                let line_number = line_number + i as u64;
-                let path = self.path.clone();
-                self.buf.push(GrepMatch {
-                    path,
-                    line_number,
-                    range: None,
-                });
+        #[inline]
+        fn region_in_line(
+            range: Option<(usize, usize)>,
+            line_start: usize,
+            line_end: usize,
+        ) -> Option<(usize, usize)> {
+            let (start, end) = range?;
+
+            let region_start = if start < line_start {
+                0
+            } else if line_start <= start && start < line_end {
+                start - line_start
+            } else {
+                // line_end <= start
+                return None;
+            };
+
+            let region_end = if end < line_start {
+                return None;
+            } else if line_start <= end && end < line_end {
+                end - line_start
+            } else {
+                // line_end <= end
+                line_end - line_start
+            };
+
+            if region_start == region_end {
+                return None;
             }
+            Some((region_start, region_end))
+        }
+
+        let mut start = 0;
+        let mut line_number = line_number;
+        for line in mat.lines() {
+            let end = start + line.len();
+            self.buf.push(GrepMatch {
+                path: path.to_owned(),
+                line_number,
+                range: region_in_line(range, start, end),
+            });
+            start = end;
+            line_number += 1;
         }
 
         Ok(true)
@@ -471,7 +495,6 @@ where
         let file = File::open(&path)?;
         let mut searcher = self.config.build_searcher();
         let mut matches = Matches {
-            multiline: self.config.multiline,
             count: &self.count,
             path,
             matcher: &self.matcher,
