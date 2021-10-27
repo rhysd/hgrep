@@ -591,12 +591,7 @@ mod tests {
             let pat = r"\*$";
             let file = dir.join(format!("{}.in", input));
             let paths = iter::once(OsStr::new(&file));
-            let mut config = Config::new(3, 6);
-            if cfg!(target_os = "windows") {
-                config.crlf(true);
-            }
-
-            let found = grep(&printer, pat, Some(paths), config).unwrap();
+            let found = grep(&printer, pat, Some(paths), Config::new(3, 6)).unwrap();
             let expected = read_expected_chunks(&dir, input)
                 .map(|f| vec![f])
                 .unwrap_or_else(Vec::new);
@@ -616,17 +611,13 @@ mod tests {
 
         let mut printer = DummyPrinter::default();
         let pat = r"\*$";
-        let mut config = Config::new(3, 6);
-        if cfg!(target_os = "windows") {
-            config.crlf(true);
-        }
         let paths = inputs
             .iter()
             .map(|s| dir.join(format!("{}.in", s)).into_os_string())
             .collect::<Vec<_>>();
         let paths = paths.iter().map(AsRef::as_ref);
 
-        let found = grep(&printer, pat, Some(paths), config).unwrap();
+        let found = grep(&printer, pat, Some(paths), Config::new(3, 6)).unwrap();
 
         printer.validate_and_remove_region_ranges();
 
@@ -646,11 +637,7 @@ mod tests {
         let paths = iter::once(path.as_os_str());
         let printer = DummyPrinter::default();
         let pat = "^this does not match to any line!!!!!!$";
-        let mut config = Config::new(3, 6);
-        if cfg!(target_os = "windows") {
-            config.crlf(true);
-        }
-        let found = grep(&printer, pat, Some(paths), config).unwrap();
+        let found = grep(&printer, pat, Some(paths), Config::new(3, 6)).unwrap();
         let files = printer.0.into_inner().unwrap();
         assert!(!found, "result: {:?}", files);
         assert!(files.is_empty(), "result: {:?}", files);
@@ -667,11 +654,7 @@ mod tests {
             let paths = iter::once(path.as_os_str());
             let printer = DummyPrinter::default();
             let pat = ".*";
-            let mut config = Config::new(3, 6);
-            if cfg!(target_os = "windows") {
-                config.crlf(true);
-            }
-            grep(&printer, pat, Some(paths), config).unwrap_err();
+            grep(&printer, pat, Some(paths), Config::new(3, 6)).unwrap_err();
             assert!(printer.0.into_inner().unwrap().is_empty());
         }
     }
@@ -688,11 +671,7 @@ mod tests {
         let path = Path::new("testdata").join("chunk").join("single_max.in");
         let paths = iter::once(path.as_os_str());
         let pat = ".*";
-        let mut config = Config::new(3, 6);
-        if cfg!(target_os = "windows") {
-            config.crlf(true);
-        }
-        let err = grep(ErrorPrinter, pat, Some(paths), config).unwrap_err();
+        let err = grep(ErrorPrinter, pat, Some(paths), Config::new(3, 6)).unwrap_err();
         let msg = format!("{}", err);
         assert_eq!(msg, "dummy error");
     }
@@ -762,9 +741,6 @@ mod tests {
         let printer = DummyPrinter::default();
 
         let mut config = Config::new(1, 2);
-        if cfg!(target_os = "windows") {
-            config.crlf(true);
-        }
         f(&mut config);
 
         let found = grep(&printer, pat, Some(paths), config).unwrap();
@@ -779,14 +755,21 @@ mod tests {
 
     #[test]
     fn test_multiline() {
-        #[cfg(not(windows))]
-        let file = "multiline.txt";
-        #[cfg(windows)]
-        let file = "multiline_windows.txt";
-
-        test_ripgrep_config(file, r"this\r?\nis the\r?\ntest string", |c| {
+        test_ripgrep_config("multiline.txt", r"this\r?\nis the\r?\ntest string", |c| {
             c.multiline(true);
         });
+    }
+
+    #[test]
+    fn test_multiline_crlf() {
+        test_ripgrep_config(
+            "multiline_windows.txt",
+            r"this\r?\nis the\r?\ntest string",
+            |c| {
+                c.crlf(true);
+                c.multiline(true);
+            },
+        );
     }
 
     #[test]

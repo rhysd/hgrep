@@ -927,9 +927,9 @@ mod tests {
         }
     }
 
-    #[cfg(not(windows))]
-    mod uitests {
+    mod ui {
         use super::*;
+        use pretty_assertions::assert_eq;
         use std::cmp;
         use std::path::Path;
 
@@ -974,6 +974,50 @@ mod tests {
             File::new(path, lmats, chunks, contents.into_bytes())
         }
 
+        #[cfg(not(windows))]
+        fn read_expected_file(expected_file: &Path) -> Vec<u8> {
+            fs::read(expected_file).unwrap()
+        }
+
+        #[cfg(windows)]
+        fn read_expected_file(expected_file: &Path) -> Vec<u8> {
+            let mut contents = fs::read(expected_file).unwrap();
+
+            // Replace '.\path\to\file' with './path/to/file'
+            let mut slash: Vec<u8> = expected_file
+                .to_str()
+                .unwrap()
+                .as_bytes()
+                .iter()
+                .copied()
+                .map(|b| if b == b'\\' { b'/' } else { b })
+                .collect();
+
+            // replace foo.out with foo.rs
+            slash.truncate(slash.len() - ".out".len());
+            slash.extend_from_slice(b".rs");
+
+            // Find index position of the slash path
+            let base = match contents.windows(slash.len()).position(|s| s == slash) {
+                Some(i) => i,
+                None => panic!(
+                    "File path {:?} (converted from {:?}) is not found in expected file contents:\n{}",
+                    String::from_utf8_lossy(&slash).as_ref(),
+                    &expected_file,
+                    String::from_utf8_lossy(&contents).as_ref()
+                ),
+            };
+
+            // Replace / with \
+            for (i, byte) in slash.into_iter().enumerate() {
+                if byte == b'/' {
+                    contents[base + i] = b'\\';
+                }
+            }
+
+            contents
+        }
+
         fn run_uitest(file: File, expected_file: PathBuf, f: fn(&mut PrinterOptions<'_>) -> ()) {
             let stdout = DummyStdout(RefCell::new(vec![]));
             let mut opts = PrinterOptions::default();
@@ -983,7 +1027,7 @@ mod tests {
             let mut printer = SyntectPrinter::new(stdout, opts).unwrap();
             printer.print(file).unwrap();
             let printed = mem::take(printer.writer_mut()).0.into_inner();
-            let expected = fs::read(expected_file).unwrap();
+            let expected = read_expected_file(&expected_file);
             assert_eq!(
                 printed,
                 expected,
@@ -1010,7 +1054,6 @@ mod tests {
         macro_rules! uitest {
             ($($input:ident($f:expr),)+) => {
                 $(
-                    #[cfg(not(windows))]
                     #[test]
                     fn $input() {
                         run_parametrized_uitest_single_chunk(stringify!($input), $f);
