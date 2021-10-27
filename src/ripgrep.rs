@@ -767,18 +767,24 @@ mod tests {
         }
         f(&mut config);
 
-        assert!(grep(&printer, pat, Some(paths), config).unwrap());
+        let found = grep(&printer, pat, Some(paths), config).unwrap();
+        assert!(found, "file={}", file);
 
         let mut files = printer.0.into_inner().unwrap();
-        assert_eq!(files.len(), 1);
+        assert_eq!(files.len(), 1, "file={}", file);
 
         let expected = read_ripgrep_expected(file);
-        assert_eq!(files.pop().unwrap(), expected);
+        assert_eq!(files.pop().unwrap(), expected, "file={}", file);
     }
 
     #[test]
     fn test_multiline() {
-        test_ripgrep_config("multiline.txt", r"this\r?\nis the\r?\ntest string", |c| {
+        #[cfg(not(windows))]
+        let file = "multiline.txt";
+        #[cfg(windows)]
+        let file = "multiline_windows.txt";
+
+        test_ripgrep_config(file, r"this\r?\nis the\r?\ntest string", |c| {
             c.multiline(true);
         });
     }
