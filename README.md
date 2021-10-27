@@ -4,11 +4,14 @@ hgrep: Human-friendly GREP
 [![crate][crates-io-badge]][crates-io]
 
 [hgrep][] is a grep tool to search files with a given pattern and print the matched code snippets with human-friendly syntax
-highlighting. In short, this tool brings search results like the code search on GitHub to your local machine.
+highlighting. This tool brings search results like the code search on GitHub to your local machine. In short, it's something like
+searching files with [ripgrep][] and showing results with [bat][].
 
-This is similar to `-C` option of `grep` command, but hgrep focuses on human-readable outputs. hgrep is useful to survey the
-matches with contexts around them. When some matches are near enough, hgrep prints the lines within one code snippet. Unlike
-`grep -C`, hgrep adopts some heuristics around blank lines to determine an efficient number of context lines.
+This is similar to `-C` option of `grep` command. hgrep is useful to survey the matches with contexts around them. When some
+matches are near enough, hgrep prints the lines within one code snippet. Unlike `grep -C`, hgrep adopts some heuristics around
+blank lines to determine an efficient number of context lines.
+
+<img src="https://github.com/rhysd/ss/raw/master/hgrep/main.png" alt="screenshot" width="766" height="739" />
 
 Example:
 
@@ -35,8 +38,6 @@ section for the comparison.
 
 - `syntect` printer: Our own implementation of printer using [syntect][] library. Performance and its output layout are more optimized
 - `bat` printer: Printer built on top of [bat][]'s pretty printer implementation, which is battle-tested and provides some unique features
-
-<img src="https://github.com/rhysd/ss/raw/master/hgrep/main.png" alt="screenshot" width="766" height="739" />
 
 Please see [the usage section](#usage) for more details.
 
@@ -150,9 +151,11 @@ grep -nH pattern -R paths... | hgrep -c 10 -C 20
 
 ### Built-in ripgrep
 
-Optionally hgrep provides built-in grep implementation. It is a subset of ripgrep since it's built using ripgrep as library. And
-it's faster when there are so many matches because everything is done in the same process. The built-in grep feature is enabled by
-default and can be omitted by feature flags.
+Optionally hgrep provides built-in grep implementation. It is a subset of ripgrep since it's built using ripgrep as a library.
+It's faster when there are so many matches because everything is done in the same process. In combination with `syntect-printer`
+feature, matched regions can be highilghted in a searched text color.
+
+The built-in grep feature is enabled by default and can be omitted by feature flags.
 
 ```sh
 hgrep [options...] pattern paths...
@@ -163,7 +166,7 @@ functionalities, use `rg` command and eat its output by hgrep via stdin. Current
 
 - Preprocessor is not supported (e.g. search zip files)
 - Memory map is not used until `--mmap` flag is specified
-- Adding/Removing file types are not supported. Only default file types are supported (see `--type-list`)
+- Adding and removing file types are not supported. Only default file types are supported (see `--type-list`)
 - `.ripgreprc` config file is not supported
 
 ### `bat` printer v.s. `syntect` printer
@@ -176,16 +179,17 @@ At first, there was `bat` printer only. And then `syntect` printer was implement
 
 #### Pros of each printer
 
-- `bat` printer
-  - Implementation is battle-tested. It is already used by many users on many platforms and terminals
-  - The behavior is compatible with `bat` command. Its output layout is the same as `bat` command. It can load bat's assets cache
 - `syntect` printer
   - Performance is much better. 2x to 4x faster (more match results get better performance)
-  - Output layout is optimized for our use cases. For example, a line number at a match is highlighted in a different color
+  - Output layout is optimized for our use cases. Matched regions are highlighted in a searched text color. A line number at a
+    match is highlighted in a different color.
   - Painting background color (`--background`) is supported. This is useful when your favorite theme does not fit to your
     terminal's background color
   - Detection for terminal color support is better. It automatically changes the default theme to 'ansi' when the terminal only
     supports 16 colors
+- `bat` printer
+  - Implementation is battle-tested. It is already used by many users on many platforms and terminals
+  - The behavior is compatible with `bat` command. Its output layout is the same as `bat` command. It can load bat's assets cache
 
 Currently, `bat` is the default painter (unless `bat-printer` feature is disabled) because the implementation is not mature yet.
 But in 0.2 release, changing the default painter to `syntect` is planned.

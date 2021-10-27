@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use hgrep::chunk::File;
+use hgrep::chunk::{File, LineMatch};
 use hgrep::printer::{Printer, PrinterOptions, TermColorSupport};
 use hgrep::ripgrep;
 use hgrep::syntect::{LockableWrite, SyntectPrinter};
@@ -42,7 +42,7 @@ fn large_file(c: &mut Criterion) {
         let e = cmp::min(l + 6, lines);
         files.push(File::new(
             path.into(),
-            vec![l],
+            vec![LineMatch::lnum(l)],
             vec![(s, e)],
             contents.clone().into_bytes(),
         ))

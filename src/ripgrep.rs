@@ -1,5 +1,5 @@
 use crate::chunk::Files;
-use crate::grep::Match;
+use crate::grep::GrepMatch;
 use crate::printer::Printer;
 use anyhow::Result;
 use grep_matcher::{LineTerminator, Matcher};
@@ -375,14 +375,14 @@ fn walk<'main>(
     rx.into_iter().collect()
 }
 
-struct Matches<'a> {
-    multiline: bool,
+struct Matches<'a, M: Matcher> {
     count: &'a Option<Mutex<u64>>,
     path: PathBuf,
-    buf: Vec<Match>,
+    matcher: &'a M,
+    buf: Vec<GrepMatch>,
 }
 
-impl<'a> Sink for Matches<'a> {
+impl<'a, M: Matcher> Sink for Matches<'a, M> {
     type Error = io::Error;
 
     fn matched(&mut self, _searcher: &Searcher, mat: &SinkMatch<'_>) -> Result<bool, Self::Error> {
@@ -394,16 +394,61 @@ impl<'a> Sink for Matches<'a> {
             }
             *c -= 1;
         }
+
         let line_number = mat.line_number().unwrap();
-        let path = self.path.clone();
-        self.buf.push(Match { path, line_number });
-        if self.multiline {
-            for i in 1..mat.lines().count() {
-                let line_number = line_number + i as u64;
-                let path = self.path.clone();
-                self.buf.push(Match { path, line_number });
+        let path = &self.path;
+
+        let range = self
+            .matcher
+            .find(mat.bytes())
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?
+            .map(|m| (m.start(), m.end()));
+
+        #[inline]
+        fn region_in_line(
+            range: Option<(usize, usize)>,
+            line_start: usize,
+            line_end: usize,
+        ) -> Option<(usize, usize)> {
+            let (start, end) = range?;
+
+            let region_start = if start < line_start {
+                0
+            } else if line_start <= start && start < line_end {
+                start - line_start
+            } else {
+                // line_end <= start
+                return None;
+            };
+
+            let region_end = if end < line_start {
+                return None;
+            } else if line_start <= end && end < line_end {
+                end - line_start
+            } else {
+                // line_end <= end
+                line_end - line_start
+            };
+
+            if region_start == region_end {
+                return None;
             }
+            Some((region_start, region_end))
         }
+
+        let mut start = 0;
+        let mut line_number = line_number;
+        for line in mat.lines() {
+            let end = start + line.len();
+            self.buf.push(GrepMatch {
+                path: path.to_owned(),
+                line_number,
+                range: region_in_line(range, start, end),
+            });
+            start = end;
+            line_number += 1;
+        }
+
         Ok(true)
     }
 }
@@ -441,7 +486,7 @@ where
         }
     }
 
-    fn search(&self, path: PathBuf) -> Result<Vec<Match>> {
+    fn search(&self, path: PathBuf) -> Result<Vec<GrepMatch>> {
         if let Some(count) = &self.count {
             if *count.lock().unwrap() == 0 {
                 return Ok(vec![]);
@@ -450,9 +495,9 @@ where
         let file = File::open(&path)?;
         let mut searcher = self.config.build_searcher();
         let mut matches = Matches {
-            multiline: self.config.multiline,
             count: &self.count,
             path,
+            matcher: &self.matcher,
             buf: vec![],
         };
         searcher.search_file(&self.matcher, &file, &mut matches)?;
@@ -481,12 +526,14 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chunk::File;
+    use crate::chunk::{File, LineMatch};
     use crate::test::{read_all_expected_chunks, read_expected_chunks};
+    use pretty_assertions::assert_eq;
     use regex::Regex;
     use std::ffi::OsStr;
     use std::fs;
     use std::iter;
+    use std::mem;
     use std::path::Path;
     use std::sync::Mutex;
 
@@ -496,6 +543,30 @@ mod tests {
         fn print(&self, file: File) -> Result<()> {
             self.0.lock().unwrap().push(file);
             Ok(())
+        }
+    }
+
+    impl DummyPrinter {
+        fn validate_and_remove_region_ranges(&mut self) {
+            for file in self.0.get_mut().unwrap().iter_mut() {
+                let lines: Vec<_> = file.contents.split_inclusive(|b| *b == b'\n').collect();
+                for lmat in file.line_matches.iter_mut() {
+                    // Reset `lmat.range` to None since ranges in `expected` are `None`
+                    let (start, end) = mem::take(&mut lmat.range).unwrap();
+                    let line = lines[lmat.line_number as usize - 1];
+                    let matched_part = &line[start..end];
+                    assert_eq!(
+                        matched_part,
+                        b"*",
+                        "{:?} did not match to pattern '\\*$'. Line was {:?} (lnum={}). Byte range was ({}, {})",
+                        std::str::from_utf8(matched_part).unwrap(),
+                        std::str::from_utf8(line).unwrap(),
+                        lmat.line_number,
+                        start,
+                        end
+                    )
+                }
+            }
         }
     }
 
@@ -516,28 +587,20 @@ mod tests {
         let inputs = read_all_inputs(&dir);
 
         for input in inputs.iter() {
-            let printer = DummyPrinter::default();
+            let mut printer = DummyPrinter::default();
             let pat = r"\*$";
             let file = dir.join(format!("{}.in", input));
             let paths = iter::once(OsStr::new(&file));
-            let mut config = Config::new(3, 6);
-            if cfg!(target_os = "windows") {
-                config.crlf(true);
-            }
-
-            let found = grep(&printer, pat, Some(paths), config).unwrap();
-
+            let found = grep(&printer, pat, Some(paths), Config::new(3, 6)).unwrap();
             let expected = read_expected_chunks(&dir, input)
                 .map(|f| vec![f])
                 .unwrap_or_else(Vec::new);
 
+            printer.validate_and_remove_region_ranges();
+            let got = printer.0.into_inner().unwrap();
+
             assert_eq!(found, !expected.is_empty(), "test file: {:?}", file);
-            assert_eq!(
-                expected,
-                printer.0.into_inner().unwrap(),
-                "test file: {:?}",
-                file
-            );
+            assert_eq!(expected, got, "test file: {:?}", file);
         }
     }
 
@@ -546,19 +609,17 @@ mod tests {
         let dir = Path::new("testdata").join("chunk");
         let inputs = read_all_inputs(&dir);
 
-        let printer = DummyPrinter::default();
+        let mut printer = DummyPrinter::default();
         let pat = r"\*$";
-        let mut config = Config::new(3, 6);
-        if cfg!(target_os = "windows") {
-            config.crlf(true);
-        }
         let paths = inputs
             .iter()
             .map(|s| dir.join(format!("{}.in", s)).into_os_string())
             .collect::<Vec<_>>();
         let paths = paths.iter().map(AsRef::as_ref);
 
-        let found = grep(&printer, pat, Some(paths), config).unwrap();
+        let found = grep(&printer, pat, Some(paths), Config::new(3, 6)).unwrap();
+
+        printer.validate_and_remove_region_ranges();
 
         let mut got = printer.0.into_inner().unwrap();
         got.sort_by(|a, b| a.path.cmp(&b.path));
@@ -576,11 +637,7 @@ mod tests {
         let paths = iter::once(path.as_os_str());
         let printer = DummyPrinter::default();
         let pat = "^this does not match to any line!!!!!!$";
-        let mut config = Config::new(3, 6);
-        if cfg!(target_os = "windows") {
-            config.crlf(true);
-        }
-        let found = grep(&printer, pat, Some(paths), config).unwrap();
+        let found = grep(&printer, pat, Some(paths), Config::new(3, 6)).unwrap();
         let files = printer.0.into_inner().unwrap();
         assert!(!found, "result: {:?}", files);
         assert!(files.is_empty(), "result: {:?}", files);
@@ -597,11 +654,7 @@ mod tests {
             let paths = iter::once(path.as_os_str());
             let printer = DummyPrinter::default();
             let pat = ".*";
-            let mut config = Config::new(3, 6);
-            if cfg!(target_os = "windows") {
-                config.crlf(true);
-            }
-            grep(&printer, pat, Some(paths), config).unwrap_err();
+            grep(&printer, pat, Some(paths), Config::new(3, 6)).unwrap_err();
             assert!(printer.0.into_inner().unwrap().is_empty());
         }
     }
@@ -618,11 +671,7 @@ mod tests {
         let path = Path::new("testdata").join("chunk").join("single_max.in");
         let paths = iter::once(path.as_os_str());
         let pat = ".*";
-        let mut config = Config::new(3, 6);
-        if cfg!(target_os = "windows") {
-            config.crlf(true);
-        }
-        let err = grep(ErrorPrinter, pat, Some(paths), config).unwrap_err();
+        let err = grep(ErrorPrinter, pat, Some(paths), Config::new(3, 6)).unwrap_err();
         let msg = format!("{}", err);
         assert_eq!(msg, "dummy error");
     }
@@ -638,5 +687,109 @@ mod tests {
         for line in output.lines() {
             assert!(re.is_match(line), "{:?} did not match to {:?}", line, re);
         }
+    }
+
+    fn read_ripgrep_expected(file_name: &str) -> File {
+        let path = Path::new("testdata").join("ripgrep").join(file_name);
+        let contents = fs::read_to_string(&path).unwrap();
+        let mut lines = contents.lines();
+
+        let mut chunks = vec![];
+        {
+            let chunks_line = lines.next().unwrap();
+            assert!(
+                chunks_line.starts_with("# chunks: "),
+                "actual={:?}",
+                chunks_line
+            );
+            let chunks_line = &chunks_line["# chunks: ".len()..];
+            for chunk in chunks_line.split(", ") {
+                let mut s = chunk.split(' ');
+                let start = s.next().unwrap().parse().unwrap();
+                let end = s.next().unwrap().parse().unwrap();
+                chunks.push((start, end));
+            }
+        }
+
+        let mut line_matches = vec![];
+        {
+            let matches_line = lines.next().unwrap();
+            assert!(
+                matches_line.starts_with("# lines: "),
+                "actual={:?}",
+                matches_line
+            );
+            let matches_line = &matches_line["# lines: ".len()..];
+            for mat in matches_line.split(", ") {
+                let mut s = mat.split(' ');
+                let line_number = s.next().unwrap().parse().unwrap();
+                let start = s.next().unwrap().parse().unwrap();
+                let end = s.next().unwrap().parse().unwrap();
+                line_matches.push(LineMatch {
+                    line_number,
+                    range: Some((start, end)),
+                })
+            }
+        }
+
+        File::new(path, line_matches, chunks, contents.into_bytes())
+    }
+
+    fn test_ripgrep_config(file: &str, pat: &str, f: fn(&mut Config) -> ()) {
+        let path = Path::new("testdata").join("ripgrep").join(file);
+        let paths = iter::once(path.as_os_str());
+        let printer = DummyPrinter::default();
+
+        let mut config = Config::new(1, 2);
+        f(&mut config);
+
+        let found = grep(&printer, pat, Some(paths), config).unwrap();
+        assert!(found, "file={}", file);
+
+        let mut files = printer.0.into_inner().unwrap();
+        assert_eq!(files.len(), 1, "file={}", file);
+
+        let expected = read_ripgrep_expected(file);
+        assert_eq!(files.pop().unwrap(), expected, "file={}", file);
+    }
+
+    #[test]
+    fn test_multiline() {
+        test_ripgrep_config("multiline.txt", r"this\r?\nis the\r?\ntest string", |c| {
+            c.multiline(true);
+        });
+    }
+
+    #[test]
+    fn test_multiline_crlf() {
+        test_ripgrep_config(
+            "multiline_windows.txt",
+            r"this\r?\nis the\r?\ntest string",
+            |c| {
+                c.crlf(true);
+                c.multiline(true);
+            },
+        );
+    }
+
+    #[test]
+    fn test_case_insensitive() {
+        test_ripgrep_config("case_insensitive.txt", r"this is test", |c| {
+            c.case_insensitive(true);
+        });
+    }
+
+    #[test]
+    fn test_fixed_strings() {
+        test_ripgrep_config("fixed_string.txt", r"this\sis\stest", |c| {
+            c.fixed_strings(true);
+        });
+    }
+
+    #[test]
+    fn test_pcre2() {
+        test_ripgrep_config("pcre2.txt", r"this\sis\stest", |c| {
+            c.pcre2(true);
+        });
     }
 }

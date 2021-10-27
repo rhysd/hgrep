@@ -83,6 +83,69 @@ impl fmt::Display for PrintError {
     }
 }
 
+struct Token<'line> {
+    style: Style,
+    text: &'line str,
+}
+
+// Start/End boundary of the match region in the highlighted text in matched line
+struct RegionBoundary {
+    start: Option<usize>, // This index is local to the text
+    end: Option<usize>,   // This index is local to the text
+    // Original style of the text. Background color is not necessary because it is fixed to match color
+    fg: Color,
+}
+
+// Match region in matched line
+struct Region(usize, usize);
+
+impl Region {
+    fn is_empty(&self) -> bool {
+        self.0 == self.1
+    }
+
+    fn sub(&self, diff: usize) -> Self {
+        Self(self.0.saturating_sub(diff), self.1.saturating_sub(diff))
+    }
+
+    // Calculate byte indices of start/end of the region within this text if they are included
+    fn boundary(&self, token_start: usize, token_end: usize, fg: Color) -> Option<RegionBoundary> {
+        let (rs, re) = (self.0, self.1);
+        let start = (token_start <= rs && rs <= token_end).then(|| rs - token_start);
+        let end = (token_start <= re && re <= token_end).then(|| re - token_start);
+        if start.is_none() && end.is_none() {
+            return None;
+        }
+        Some(RegionBoundary { start, end, fg })
+    }
+
+    fn contains(&self, byte_offset: usize) -> bool {
+        self.0 <= byte_offset && byte_offset <= self.1
+    }
+}
+
+enum Matched {
+    Region(Region),
+    Yes,
+    No,
+}
+impl Matched {
+    fn yes(&self) -> bool {
+        match self {
+            Matched::Region(..) => true,
+            Matched::Yes => true,
+            Matched::No => false,
+        }
+    }
+    fn region(&self) -> Option<Option<&Region>> {
+        match self {
+            Matched::Region(r) => Some(Some(r)),
+            Matched::Yes => Some(None),
+            Matched::No => None,
+        }
+    }
+}
+
 struct Canvas<'file, W: Write> {
     out: W,
     tab_width: u16,
@@ -90,6 +153,8 @@ struct Canvas<'file, W: Write> {
     true_color: bool,
     background: bool,
     match_color: Option<Color>,
+    region_fg_color: Option<Color>,
+    region_bg_color: Option<Color>,
     wrap: bool,
 }
 
@@ -111,10 +176,22 @@ enum LineDrawState<'line> {
 }
 enum LineDrawn<'line> {
     Done,
-    Wrap(&'line str, usize),
+    Wrap(usize, &'line str, usize),
 }
 
 impl<'file, W: Write> Canvas<'file, W> {
+    fn draw_spaces(&mut self, num: usize) -> Result<()> {
+        for _ in 0..num {
+            self.out.write_all(b" ")?;
+        }
+        Ok(())
+    }
+
+    fn draw_newline(&mut self) -> Result<()> {
+        writeln!(self.out, "\x1b[0m")?; // Reset on newline to ensure to reset color
+        Ok(())
+    }
+
     fn set_color(&mut self, code: u8, c: Color) -> Result<()> {
         // In case of c.a == 0 and c.a == 1 are handling for special colorscheme by bat for non true
         // color terminals. Color value is encoded in R. See `to_ansi_color()` in bat/src/terminal.rs
@@ -182,23 +259,48 @@ impl<'file, W: Write> Canvas<'file, W> {
         Ok(())
     }
 
-    fn draw_spaces(&mut self, num: usize) -> Result<()> {
-        for _ in 0..num {
-            self.out.write_all(b" ")?;
+    fn set_match_bg_color(&mut self) -> Result<()> {
+        if let Some(bg) = self.match_color {
+            self.set_bg(bg)?;
         }
         Ok(())
     }
 
-    fn draw_newline(&mut self) -> Result<()> {
-        writeln!(self.out, "\x1b[0m")?; // Reset on newline to ensure to reset color
+    fn set_region_color(&mut self) -> Result<()> {
+        if let Some(c) = self.region_fg_color {
+            self.set_fg(c)?;
+        }
+        if let Some(c) = self.region_bg_color {
+            self.set_bg(c)?;
+        }
+        Ok(())
+    }
+
+    fn set_boundary_color(&mut self, boundary: &RegionBoundary, offset: usize) -> Result<()> {
+        if boundary.start == Some(offset) {
+            self.set_region_color()?;
+        }
+        if boundary.end == Some(offset) {
+            self.set_fg(boundary.fg)?;
+            self.set_match_bg_color()?;
+        }
         Ok(())
     }
 
     // Returns number of tab characters in the text
-    fn draw_text<'line>(&mut self, text: &'line str, limit: usize) -> Result<LineDrawState<'line>> {
+    fn draw_text<'line>(
+        &mut self,
+        text: &'line str,
+        limit: usize,
+        boundary: Option<RegionBoundary>,
+    ) -> Result<LineDrawState<'line>> {
         let mut width = 0;
         let mut saw_zwj = false;
         for (i, c) in text.char_indices() {
+            if let Some(boundary) = &boundary {
+                self.set_boundary_color(boundary, i)?;
+            }
+
             width += if c == '\t' && self.tab_width > 0 {
                 let w = self.tab_width as usize;
                 if width + w > limit {
@@ -235,8 +337,29 @@ impl<'file, W: Write> Canvas<'file, W> {
             write!(self.out, "{}", text)?;
             return Ok(text.width_cjk());
         }
+
         let mut width = 0;
         for c in text.chars() {
+            if c == '\t' && self.tab_width > 0 {
+                let w = self.tab_width as usize;
+                self.draw_spaces(w)?;
+                width += w;
+            } else {
+                write!(self.out, "{}", c)?;
+                width += c.width_cjk().unwrap_or(0);
+            }
+        }
+        Ok(width)
+    }
+
+    fn draw_text_no_wrap_with_region(
+        &mut self,
+        text: &str,
+        boundary: RegionBoundary,
+    ) -> Result<usize> {
+        let mut width = 0;
+        for (i, c) in text.chars().enumerate() {
+            self.set_boundary_color(&boundary, i)?;
             if c == '\t' && self.tab_width > 0 {
                 let w = self.tab_width as usize;
                 self.draw_spaces(w)?;
@@ -256,40 +379,93 @@ impl<'file, W: Write> Canvas<'file, W> {
         Ok(())
     }
 
-    fn draw_texts<'line>(
+    fn draw_matched<'line>(
         &mut self,
-        parts: &[(Style, &'line str)],
-        matched: bool,
+        region: Option<&Region>,
+        tokens: &[Token<'line>],
         max_width: usize,
     ) -> Result<LineDrawn<'line>> {
-        if matched {
-            if let Some(bg) = self.match_color {
-                self.set_bg(bg)?;
+        self.set_match_bg_color()?;
+
+        let mut start_offset = 0;
+        let mut width = 0;
+        for (idx, tok) in tokens.iter().enumerate() {
+            let len = tok.text.len();
+            let end_offset = start_offset + len;
+
+            let boundary = if let Some(region) = region {
+                // In region, the style should not be changed
+                if !region.contains(start_offset) {
+                    self.set_fg(tok.style.foreground)?;
+                    self.set_font_style(tok.style.font_style)?;
+                }
+                region.boundary(start_offset, end_offset, tok.style.foreground)
+            } else {
+                self.set_fg(tok.style.foreground)?;
+                None
+            };
+
+            if self.wrap {
+                match self.draw_text(tok.text, max_width - width, boundary)? {
+                    LineDrawState::Continue(w) => width += w,
+                    LineDrawState::Break(rest) => {
+                        let bytes = end_offset - rest.len();
+                        return Ok(LineDrawn::Wrap(bytes, rest, idx));
+                    }
+                }
+            } else if let Some(boundary) = boundary {
+                width += self.draw_text_no_wrap_with_region(tok.text, boundary)?;
+            } else {
+                width += self.draw_text_no_wrap(tok.text)?;
             }
+            self.unset_font_style(tok.style.font_style)?;
+            start_offset += len;
         }
 
+        // Ensure to reset background color considering the case where a region is at the end of line
+        self.set_match_bg_color()?;
+        self.fill_spaces(width, max_width)?;
+
+        Ok(LineDrawn::Done)
+    }
+
+    fn draw<'line>(
+        &mut self,
+        tokens: &[Token<'line>],
+        matched: &Matched,
+        max_width: usize,
+    ) -> Result<LineDrawn<'line>> {
+        if let Some(maybe_region) = matched.region() {
+            return self.draw_matched(maybe_region, tokens, max_width);
+        }
+
+        let mut byte_offset = 0;
         let mut width = 0;
-        for (idx, (style, text)) in parts.iter().enumerate() {
-            if !matched && self.background {
-                self.set_bg(style.background)?;
+        for (idx, tok) in tokens.iter().enumerate() {
+            if self.background {
+                self.set_bg(tok.style.background)?;
             }
-            self.set_fg(style.foreground)?;
-            self.set_font_style(style.font_style)?;
+            self.set_fg(tok.style.foreground)?;
+            self.set_font_style(tok.style.font_style)?;
             if self.wrap {
-                match self.draw_text(text, max_width - width)? {
+                match self.draw_text(tok.text, max_width - width, None)? {
                     LineDrawState::Continue(w) => width += w,
-                    LineDrawState::Break(rest) => return Ok(LineDrawn::Wrap(rest, idx)),
+                    LineDrawState::Break(rest) => {
+                        let bytes = byte_offset + tok.text.len() - rest.len();
+                        return Ok(LineDrawn::Wrap(bytes, rest, idx));
+                    }
                 }
             } else {
-                width += self.draw_text_no_wrap(text)?;
+                width += self.draw_text_no_wrap(tok.text)?;
             }
-            self.unset_font_style(style.font_style)?;
+            self.unset_font_style(tok.style.font_style)?;
+            byte_offset += tok.text.len();
         }
 
-        if width == 0 && !matched {
+        if width == 0 {
             self.set_default_bg()?; // For empty line
         }
-        if matched || self.background {
+        if self.background {
             self.fill_spaces(width, max_width)?;
         }
 
@@ -323,9 +499,11 @@ impl<'a> LineHighlighter<'a> {
         for _ in HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl) {}
     }
 
-    fn highlight<'line>(&mut self, line: &'line str) -> Vec<(Style, &'line str)> {
+    fn highlight<'line>(&mut self, line: &'line str) -> Vec<Token<'line>> {
         let ops = self.parse_state.parse_line(line, self.syntaxes);
-        HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl).collect()
+        HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl)
+            .map(|(style, text)| Token { style, text })
+            .collect()
     }
 }
 // Like chunk::Lines, but includes newlines
@@ -391,12 +569,20 @@ impl<'file, W: Write> Drawer<'file, W> {
             a: 255,
         });
 
+        let (region_fg_color, region_bg_color) = if let Some(bg) = theme.settings.find_highlight {
+            (theme.settings.find_highlight_foreground, Some(bg))
+        } else {
+            (None, theme.settings.selection)
+        };
+
         let canvas = Canvas {
             theme,
             true_color: opts.color_support == TermColorSupport::True,
             tab_width: opts.tab_width as u16,
             background: opts.background_color,
             wrap: opts.text_wrap == TextWrapMode::Char,
+            region_fg_color,
+            region_bg_color,
             match_color: theme.settings.line_highlight.or(theme.settings.background),
             out,
         };
@@ -491,33 +677,44 @@ impl<'file, W: Write> Drawer<'file, W> {
 
     fn draw_line(
         &mut self,
-        mut parts: Vec<(Style, &'_ str)>,
+        mut tokens: Vec<Token<'_>>,
         lnum: u64,
-        matched: bool,
+        mut matched: Matched,
     ) -> Result<()> {
-        // The highlighter requires newline at the end. But we don't want it since we sometimes need to fill the rest
-        // of line with spaces. Chomp it.
-        if let Some((_, s)) = parts.last_mut() {
-            if s.ends_with('\n') {
-                *s = &s[..s.len() - 1];
-                if s.ends_with('\r') {
-                    *s = &s[..s.len() - 1];
+        // The highlighter requires newline at the end. But we don't want it since
+        // - we sometimes need to fill the rest of line with spaces
+        // - we clear colors before writing newline
+        if let Some(Token { text: t, .. }) = tokens.last_mut() {
+            if t.ends_with('\n') {
+                *t = &t[..t.len() - 1];
+                if t.ends_with('\r') {
+                    *t = &t[..t.len() - 1];
                 }
             }
         }
 
         let body_width = (self.term_width - self.gutter_width()) as usize;
-        self.draw_line_number(lnum, matched)?;
-        let mut parts = parts.as_mut_slice();
+        self.draw_line_number(lnum, matched.yes())?;
+        let mut tokens = tokens.as_mut_slice();
 
-        while let LineDrawn::Wrap(rest, idx) = self.canvas.draw_texts(parts, matched, body_width)? {
+        while let LineDrawn::Wrap(bytes, rest, idx) =
+            self.canvas.draw(tokens, &matched, body_width)?
+        {
+            if let Matched::Region(region) = matched {
+                let region = region.sub(bytes);
+                matched = if region.is_empty() {
+                    Matched::Yes // Selected text was already reandered
+                } else {
+                    Matched::Region(region)
+                }
+            }
             self.canvas.draw_newline()?;
             self.draw_wrapping_gutter()?;
             if rest.is_empty() {
-                parts = &mut parts[idx + 1..];
+                tokens = &mut tokens[idx + 1..];
             } else {
-                parts = &mut parts[idx..];
-                parts[0].1 = rest; // Set rest of the text broken by text wrapping
+                tokens = &mut tokens[idx..];
+                tokens[0].text = rest; // Set rest of the text broken by text wrapping
             }
         }
 
@@ -527,7 +724,7 @@ impl<'file, W: Write> Drawer<'file, W> {
     fn draw_body(&mut self, file: &File, mut hl: LineHighlighter<'_>) -> Result<()> {
         assert!(!file.chunks.is_empty());
 
-        let mut matched = file.line_numbers.as_ref();
+        let mut matched = file.line_matches.as_ref();
         let mut chunks = file.chunks.iter();
         let mut chunk = chunks.next().unwrap(); // OK since chunks is not empty
 
@@ -540,12 +737,16 @@ impl<'file, W: Write> Drawer<'file, W> {
                 continue;
             }
             if start <= lnum && lnum <= end {
-                let matched = match matched.first().copied() {
-                    Some(n) if n == lnum => {
+                let matched = match matched.first() {
+                    Some(m) if m.line_number == lnum => {
                         matched = &matched[1..];
-                        true
+                        if let Some((s, e)) = m.range {
+                            Matched::Region(Region(s, e))
+                        } else {
+                            Matched::Yes
+                        }
                     }
-                    _ => false,
+                    _ => Matched::No,
                 };
                 let line = String::from_utf8_lossy(bytes);
                 // Collect to `Vec` rather than handing HighlightIterator as-is. HighlightIterator takes ownership of Highlighter
@@ -676,7 +877,7 @@ where
     for<'a> W: LockableWrite<'a>,
 {
     fn print(&self, file: File) -> Result<()> {
-        if file.chunks.is_empty() || file.line_numbers.is_empty() {
+        if file.chunks.is_empty() || file.line_matches.is_empty() {
             return Ok(());
         }
 
@@ -700,7 +901,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chunk::File;
+    use crate::chunk::{File, LineMatch};
     use std::cell::{RefCell, RefMut};
     use std::fmt;
     use std::fs;
@@ -726,47 +927,95 @@ mod tests {
         }
     }
 
-    #[cfg(not(windows))]
-    mod uitests {
+    mod ui {
         use super::*;
+        use pretty_assertions::assert_eq;
         use std::cmp;
         use std::path::Path;
 
         fn read_chunk<'a>(
             iter: &mut impl Iterator<Item = (usize, &'a str)>,
-        ) -> Option<(Vec<u64>, (u64, u64))> {
-            let mut lnums = vec![];
+        ) -> Option<(Vec<LineMatch>, (u64, u64))> {
+            let mut lmats = vec![];
             let (mut s, mut e) = (u64::MAX, 0);
             for _ in 0..12 {
                 if let Some((idx, line)) = iter.next() {
                     let lnum = (idx + 1) as u64;
                     s = cmp::min(s, lnum);
                     e = cmp::max(e, lnum);
-                    if line.contains("*match to this line*") {
-                        lnums.push(lnum);
+                    if let (Some(start), Some(i)) = (line.find("*match to "), line.find(" line*")) {
+                        let end = i + " line*".len();
+                        lmats.push(LineMatch {
+                            line_number: lnum,
+                            range: Some((start, end)),
+                        });
                     }
                 } else {
                     break;
                 }
             }
-            if s == u64::MAX || e == 0 || lnums.is_empty() {
+            if s == u64::MAX || e == 0 || lmats.is_empty() {
                 return None;
             }
-            s = cmp::max(lnums[0].saturating_sub(6), s);
-            e = cmp::min(lnums[lnums.len() - 1] + 6, e);
-            Some((lnums, (s, e)))
+            s = cmp::max(lmats[0].line_number.saturating_sub(6), s);
+            e = cmp::min(lmats[lmats.len() - 1].line_number + 6, e);
+            Some((lmats, (s, e)))
         }
 
         fn read_chunks(path: PathBuf) -> File {
             let contents = fs::read_to_string(&path).unwrap();
-            let mut lnums = vec![];
+            let mut lmats = vec![];
             let mut chunks = vec![];
             let mut lines = contents.lines().enumerate();
             while let Some((ls, c)) = read_chunk(&mut lines) {
-                lnums.extend(ls);
+                lmats.extend(ls);
                 chunks.push(c);
             }
-            File::new(path, lnums, chunks, contents.into_bytes())
+            File::new(path, lmats, chunks, contents.into_bytes())
+        }
+
+        #[cfg(not(windows))]
+        fn read_expected_file(expected_file: &Path) -> Vec<u8> {
+            fs::read(expected_file).unwrap()
+        }
+
+        #[cfg(windows)]
+        fn read_expected_file(expected_file: &Path) -> Vec<u8> {
+            let mut contents = fs::read(expected_file).unwrap();
+
+            // Replace '.\path\to\file' with './path/to/file'
+            let mut slash: Vec<u8> = expected_file
+                .to_str()
+                .unwrap()
+                .as_bytes()
+                .iter()
+                .copied()
+                .map(|b| if b == b'\\' { b'/' } else { b })
+                .collect();
+
+            // replace foo.out with foo.rs
+            slash.truncate(slash.len() - ".out".len());
+            slash.extend_from_slice(b".rs");
+
+            // Find index position of the slash path
+            let base = match contents.windows(slash.len()).position(|s| s == slash) {
+                Some(i) => i,
+                None => panic!(
+                    "File path {:?} (converted from {:?}) is not found in expected file contents:\n{}",
+                    String::from_utf8_lossy(&slash).as_ref(),
+                    &expected_file,
+                    String::from_utf8_lossy(&contents).as_ref()
+                ),
+            };
+
+            // Replace / with \
+            for (i, byte) in slash.into_iter().enumerate() {
+                if byte == b'/' {
+                    contents[base + i] = b'\\';
+                }
+            }
+
+            contents
         }
 
         fn run_uitest(file: File, expected_file: PathBuf, f: fn(&mut PrinterOptions<'_>) -> ()) {
@@ -778,7 +1027,7 @@ mod tests {
             let mut printer = SyntectPrinter::new(stdout, opts).unwrap();
             printer.print(file).unwrap();
             let printed = mem::take(printer.writer_mut()).0.into_inner();
-            let expected = fs::read(expected_file).unwrap();
+            let expected = read_expected_file(&expected_file);
             assert_eq!(
                 printed,
                 expected,
@@ -805,7 +1054,6 @@ mod tests {
         macro_rules! uitest {
             ($($input:ident($f:expr),)+) => {
                 $(
-                    #[cfg(not(windows))]
                     #[test]
                     fn $input() {
                         run_parametrized_uitest_single_chunk(stringify!($input), $f);
@@ -842,6 +1090,9 @@ mod tests {
                 o.background_color = true;
             }),
             test_empty_lines(|_| {}),
+            test_empty_lines_bg(|o| {
+                o.background_color = true;
+            }),
             test_wrap_between_text(|_| {}),
             test_wrap_middle_of_text(|_| {}),
             test_wrap_middle_of_spaces(|_| {}),
@@ -908,6 +1159,24 @@ mod tests {
                 o.grid = false;
                 o.background_color = true;
             }),
+            test_wide_char_region(|_| {}),
+            test_wide_char_region_bg(|o| {
+                o.background_color = true;
+            }),
+            test_wrap_match_at_second_line(|_| {}),
+            test_wrap_region_accross_line(|_| {}),
+            test_wrap_region_jp_accross_line(|_| {}),
+            test_wrap_match_at_second_line_bg(|o| {
+                o.background_color = true;
+            }),
+            test_region_at_end_of_line(|_| {}),
+            test_region_at_end_of_line_bg(|o| {
+                o.background_color = true;
+            }),
+            test_region_at_line_start(|_| {}),
+            test_wrap_region_line_start(|_| {}),
+            test_wrap_region_line_end(|_| {}),
+            test_wrap_3_lines_emoji(|_| {}),
         );
     }
 
@@ -941,10 +1210,10 @@ mod tests {
 
     fn sample_chunk(file: &str) -> File {
         let readme = PathBuf::from(file);
-        let lnums = vec![3];
+        let lmats = vec![LineMatch::lnum(3)];
         let chunks = vec![(1, 6)];
         let contents = fs::read(&readme).unwrap();
-        File::new(readme, lnums, chunks, contents)
+        File::new(readme, lmats, chunks, contents)
     }
 
     #[test]
