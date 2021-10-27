@@ -1,0 +1,4 @@
+# Do not depend on vcruntime DLL at runtime.
+# See: https://github.com/BurntSushi/ripgrep/pull/1613
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
