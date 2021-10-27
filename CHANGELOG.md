@@ -1,15 +1,31 @@
+<a name="v0.1.8"></a>
+# [v0.1.8](https://github.com/rhysd/batgrep/releases/tag/v0.1.8) - 27 Oct 2021
+
+- `syntect-printer` supports text-wrapping. Longer lines than terminal width are now wrapped by default. It can handle wide characters including special emojis with zero-width joiner (U+200D) like 👨‍👩‍👧‍👦
+  <img width="521" alt="screenshot" src="https://user-images.githubusercontent.com/823277/139065592-8d18f8a0-9b10-49c7-8901-fd892d100792.png">
+- `syntect-printer` highlights matched regions in matched lines with a searched text color. Since match positions in matched lines are not included in output from `grep -nH`, currently this is only supported by combination of `syntect-printer` feature and `ripgrep` feature
+- `syntect-printer` now uses light dashed lines for the separator of snippets: `╶╶╶╶╶╶╶╶╶╶╶╶`
+- Add `--wrap MODE` option where `MODE` is one of `char` or `never` (the default value is `char`). More modes may be implemented in the future
+- In favor of `--wrap` option, `--no-wrap` flag is now deprecated and will be removed at v0.2.0. Use `--wrap never` instead
+- When building binaries for Windows, link C runtime statically. This avoid depending on vcruntime DLL at runtime
+- Critical section of `syntect-printer` was optimized. It slightly improved performance (around 4% faster in benchmarks)
+- Enable thin LTO for release build. It slightly improved performance (0~6% faster in benchmarks)
+
+[Changes][v0.1.8]
+
+
 <a name="v0.1.7"></a>
 # [v0.1.7](https://github.com/rhysd/batgrep/releases/tag/v0.1.7) - 24 Oct 2021
 
 - Fix highlighting was broken on 256 colors terminals when using `bat-printer`.
-- `bat-printer` enables text wrapping by default as `bat` command does. It can be disabled by `--no-wrap`.
-- `bat-printer` now looks at bat's cache directory when `--custom-assets` flag is specified. This is useful if you use some custom syntax highlighting or theme. Note that this may not work fine with some versions of `bat` command.
+- `bat-printer` enables text wrapping by default as `bat` command does. `--no-wrap` can disable text wrapping.
+- `bat-printer` now looks at bat's cache directory when `--custom-assets` flag is given. This is useful if you use some custom syntax highlighting or theme. Note that this may not work fine with some versions of `bat` command.
 - `bat-printer` automatically uses 'ansi' theme for terminals which enable only 16 colors since other themes don't work.
 - Add `--terminal-width` option to give the width of terminal explicitly. This is useful when piping the results to other command like `less`.
 - Fix build failure due to lack of assets (#4).
 - Fix some newlines were missing when printing results with `syntect-printer`.
 - Use `terminal_size` crate directly instead of using `console` crate. It removes 3 dependencies when `bat-printer` feature is not enabled.
-- The document has been improved. Especially if you like a pager such as `less`, I recommend to check 'Set default command options' section.
+- The document has been improved. Especially if you like a pager such as `less`, I recommend to check ['Set default command options'](https://github.com/rhysd/hgrep#set-default-command-options) section.
 - (Dev) Several tests and benchmarks for `syntect-printer` were added.
 
 [Changes][v0.1.7]
@@ -81,6 +97,7 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [Changes][v0.1.1]
 
 
+[v0.1.8]: https://github.com/rhysd/batgrep/compare/v0.1.7...v0.1.8
 [v0.1.7]: https://github.com/rhysd/batgrep/compare/v0.1.6...v0.1.7
 [v0.1.6]: https://github.com/rhysd/batgrep/compare/v0.1.5...v0.1.6
 [v0.1.5]: https://github.com/rhysd/batgrep/compare/v0.1.4...v0.1.5
