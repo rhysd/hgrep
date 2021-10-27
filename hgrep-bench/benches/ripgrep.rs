@@ -39,14 +39,14 @@ fn bench(c: &mut Criterion) {
     let dir = node_modules_path();
     c.bench_function("ripgrep::node_modules", |b| {
         b.iter(|| {
-            assert!(run_ripgrep(r"\bparcel\b", &dir));
+            assert!(run_ripgrep(r"\bparcel\b", dir));
         })
     });
 
     let file = package_lock_json_path();
     c.bench_function("ripgrep::package-lock.json", |b| {
         b.iter(|| {
-            assert!(run_ripgrep(r"\bparcel\b", &file));
+            assert!(run_ripgrep(r"\bparcel\b", file));
         })
     });
 }

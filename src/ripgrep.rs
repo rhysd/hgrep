@@ -8,14 +8,14 @@ use grep_regex::{RegexMatcher, RegexMatcherBuilder};
 use grep_searcher::{BinaryDetection, MmapChoice, Searcher, SearcherBuilder, Sink, SinkMatch};
 use ignore::overrides::OverrideBuilder;
 use ignore::types::{Types, TypesBuilder};
-use ignore::{WalkBuilder, WalkParallel, WalkState};
+use ignore::{Walk, WalkBuilder};
+use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
 use std::env;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io;
 use std::path::PathBuf;
-use std::sync::mpsc::channel;
 use std::sync::Mutex;
 
 // Note: 'main is a lifetime of scope of main() function
@@ -178,7 +178,7 @@ impl<'main> Config<'main> {
         self
     }
 
-    fn build_walker(&self, mut paths: impl Iterator<Item = &'main OsStr>) -> Result<WalkParallel> {
+    fn build_walker(&self, mut paths: impl Iterator<Item = &'main OsStr>) -> Result<Walk> {
         let target = paths.next().unwrap();
 
         let mut builder = OverrideBuilder::new(target);
@@ -212,7 +212,7 @@ impl<'main> Config<'main> {
             builder.add_custom_ignore_filename(".rgignore");
         }
 
-        Ok(builder.build_parallel())
+        Ok(builder.build())
     }
 
     fn build_regex_matcher(&self, pat: &str) -> Result<RegexMatcher> {
@@ -328,51 +328,30 @@ pub fn grep<'main, P: Printer + Sync>(
     paths: Option<impl Iterator<Item = &'main OsStr>>,
     config: Config<'main>,
 ) -> Result<bool> {
-    let paths = if let Some(paths) = paths {
-        walk(paths, &config)?
+    let entries = if let Some(paths) = paths {
+        config.build_walker(paths)?
     } else {
         let cwd = env::current_dir()?;
         let paths = std::iter::once(cwd.as_os_str());
-        walk(paths, &config)?
+        config.build_walker(paths)?
     };
 
-    if paths.is_empty() {
-        return Ok(false);
-    }
+    let paths = entries.filter_map(|entry| match entry {
+        Ok(entry) => {
+            if entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
+                Some(Ok(entry.into_path()))
+            } else {
+                None
+            }
+        }
+        Err(err) => Some(Err(anyhow::Error::new(err))),
+    });
 
     if config.pcre2 {
         Ripgrep::with_pcre2(pat, config, printer)?.grep(paths)
     } else {
         Ripgrep::with_regex(pat, config, printer)?.grep(paths)
     }
-}
-
-fn walk<'main>(
-    paths: impl Iterator<Item = &'main OsStr>,
-    config: &Config<'main>,
-) -> Result<Vec<PathBuf>> {
-    let walker = config.build_walker(paths)?;
-
-    let (tx, rx) = channel();
-    walker.run(|| {
-        // This function is called per threads for initialization.
-        let tx = tx.clone();
-        Box::new(move |entry| match entry {
-            Ok(entry) => {
-                if entry.file_type().map(|f| f.is_file()).unwrap_or(false) {
-                    tx.send(Ok(entry.into_path())).unwrap();
-                }
-                WalkState::Continue
-            }
-            Err(err) => {
-                tx.send(Err(anyhow::Error::new(err))).unwrap();
-                WalkState::Quit
-            }
-        })
-    });
-    drop(tx); // Notify sender finishes
-
-    rx.into_iter().collect()
 }
 
 struct Matches<'a, M: Matcher> {
@@ -486,12 +465,15 @@ where
         }
     }
 
-    fn search(&self, path: PathBuf) -> Result<Vec<GrepMatch>> {
+    // Return Result<Option<Vec<_>>> instead of Result<Vec<_>> to make the `filter_map` predicate easy
+    // in `grep()` method
+    fn search(&self, path: PathBuf) -> Result<Option<Vec<GrepMatch>>> {
         if let Some(count) = &self.count {
             if *count.lock().unwrap() == 0 {
-                return Ok(vec![]);
+                return Ok(None);
             }
         }
+
         let file = File::open(&path)?;
         let mut searcher = self.config.build_searcher();
         let mut matches = Matches {
@@ -500,12 +482,16 @@ where
             matcher: &self.matcher,
             buf: vec![],
         };
+
         searcher.search_file(&self.matcher, &file, &mut matches)?;
-        Ok(matches.buf)
+        if matches.buf.is_empty() {
+            return Ok(None);
+        }
+
+        Ok(Some(matches.buf))
     }
 
-    fn grep_file(&self, path: PathBuf) -> Result<bool> {
-        let matches = self.search(path)?;
+    fn print_matches(&self, matches: Vec<GrepMatch>) -> Result<bool> {
         let (min, max) = (self.config.min_context, self.config.max_context);
         let mut found = false;
         for file in Files::new(matches.into_iter().map(Ok), min, max) {
@@ -515,10 +501,17 @@ where
         Ok(found)
     }
 
-    fn grep(&self, paths: Vec<PathBuf>) -> Result<bool> {
+    fn grep<I>(&self, paths: I) -> Result<bool>
+    where
+        I: Iterator<Item = Result<PathBuf>> + Send,
+    {
         paths
-            .into_par_iter()
-            .map(|path| self.grep_file(path))
+            .par_bridge()
+            .filter_map(|path| match path {
+                Ok(path) => self.search(path).transpose(),
+                Err(err) => Some(Err(err)),
+            })
+            .map(|matches| self.print_matches(matches?))
             .try_reduce(|| false, |a, b| Ok(a || b))
     }
 }
