@@ -48,7 +48,7 @@ fn large_file(c: &mut Criterion) {
         ))
     }
 
-    c.bench_function("syntect-package-lock.json", |b| {
+    c.bench_function("syntect::package-lock.json", |b| {
         b.iter(|| {
             let mut opts = PrinterOptions::default();
             opts.color_support = TermColorSupport::True;
@@ -80,17 +80,17 @@ fn with_ripgrep(c: &mut Criterion) {
     }
 
     let dir = node_modules_path();
-    c.bench_function("ripgrep-large", |b| {
+    c.bench_function("syntect::ripgrep-large", |b| {
         b.iter(|| assert!(run_ripgrep(r"\bparcel\b", dir)))
     });
 
     let dir = Path::new("..").join("src");
-    c.bench_function("ripgrep-small", |b| {
+    c.bench_function("syntect::ripgrep-small", |b| {
         b.iter(|| assert!(run_ripgrep("Printer", &dir)))
     });
 
     let dir = Path::new("..").join("testdata").join("chunk");
-    c.bench_function("ripgrep-tiny", |b| {
+    c.bench_function("syntect::ripgrep-tiny", |b| {
         b.iter(|| assert!(run_ripgrep(r"\*$", &dir)))
     });
 }

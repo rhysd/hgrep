@@ -31,6 +31,12 @@ include = [
 categories = ["command-line-utilities", "text-processing"]
 keywords = ["grep", "search", "syntax-highlighting", "ripgrep", "bat"]
 
+[profile.bench]
+lto = "thin"
+
+[profile.release]
+lto = "thin"
+
 [[bin]]
 name = "hgrep"
 path = "src/main.rs"

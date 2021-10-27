@@ -1,19 +1,25 @@
 use std::fs;
 use std::path::Path;
 
-pub fn read_package_lock_json() -> (&'static str, String) {
-    let path = "package-lock.json";
-    let contents = fs::read_to_string(path).expect(
-        "put large file as \"package-lock.json\" at root of hgrep-bench directory by `npm install`",
+pub fn package_lock_json_path() -> &'static Path {
+    let path = Path::new("package-lock.json");
+    assert!(
+        path.is_file(),
+        "put \"package-lock.json\" file in hgrep-bench directory by `npm install`",
     );
-    (path, contents)
+    path
+}
+
+pub fn read_package_lock_json() -> (&'static Path, String) {
+    let path = package_lock_json_path();
+    (path, fs::read_to_string(path).unwrap())
 }
 
 pub fn node_modules_path() -> &'static Path {
     let path = Path::new("node_modules");
     assert!(
         path.is_dir(),
-        "put \"node_modules\" directory in hgrep-bench directory by `npm install`"
+        "put \"node_modules\" directory in hgrep-bench directory by `npm install`",
     );
     path
 }

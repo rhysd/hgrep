@@ -25,7 +25,7 @@ fn large_file(c: &mut Criterion) {
     })
     .collect::<Vec<_>>();
 
-    c.bench_function("bat", |b| {
+    c.bench_function("printer::bat", |b| {
         b.iter(|| {
             let _gag = Gag::stdout().unwrap();
             let mut opts = PrinterOptions::default();
@@ -38,7 +38,7 @@ fn large_file(c: &mut Criterion) {
         })
     });
 
-    c.bench_function("syntect", |b| {
+    c.bench_function("printer::syntect", |b| {
         b.iter(|| {
             let _gag = Gag::stdout().unwrap();
             let mut opts = PrinterOptions::default();
