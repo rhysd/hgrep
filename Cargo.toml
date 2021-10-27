@@ -35,6 +35,11 @@ keywords = ["grep", "search", "syntax-highlighting", "ripgrep", "bat"]
 name = "hgrep"
 path = "src/main.rs"
 
+[workspace]
+members = [
+    "hgrep-bench",
+]
+
 [features]
 default = ["ripgrep", "bat-printer", "syntect-printer"]
 ripgrep = [
@@ -83,7 +88,5 @@ flate2 = { version = "1", optional = true }
 rgb2ansi256 = { version = "0.1", optional = true }
 dirs-next = { version = "2.0", optional = true }
 
-[workspace]
-members = [
-    "hgrep-bench",
-]
+[dev-dependencies]
+pretty_assertions = "1"

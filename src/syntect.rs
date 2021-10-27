@@ -1133,6 +1133,7 @@ mod tests {
             test_region_at_line_start(|_| {}),
             test_wrap_region_line_start(|_| {}),
             test_wrap_region_line_end(|_| {}),
+            test_wrap_3_lines_emoji(|_| {}),
         );
     }
 

@@ -526,8 +526,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chunk::File;
+    use crate::chunk::{File, LineMatch};
     use crate::test::{read_all_expected_chunks, read_expected_chunks};
+    use pretty_assertions::assert_eq;
     use regex::Regex;
     use std::ffi::OsStr;
     use std::fs;
@@ -707,5 +708,99 @@ mod tests {
         for line in output.lines() {
             assert!(re.is_match(line), "{:?} did not match to {:?}", line, re);
         }
+    }
+
+    fn read_ripgrep_expected(file_name: &str) -> File {
+        let path = Path::new("testdata").join("ripgrep").join(file_name);
+        let contents = fs::read_to_string(&path).unwrap();
+        let mut lines = contents.lines();
+
+        let mut chunks = vec![];
+        {
+            let chunks_line = lines.next().unwrap();
+            assert!(
+                chunks_line.starts_with("# chunks: "),
+                "actual={:?}",
+                chunks_line
+            );
+            let chunks_line = &chunks_line["# chunks: ".len()..];
+            for chunk in chunks_line.split(", ") {
+                let mut s = chunk.split(' ');
+                let start = s.next().unwrap().parse().unwrap();
+                let end = s.next().unwrap().parse().unwrap();
+                chunks.push((start, end));
+            }
+        }
+
+        let mut line_matches = vec![];
+        {
+            let matches_line = lines.next().unwrap();
+            assert!(
+                matches_line.starts_with("# lines: "),
+                "actual={:?}",
+                matches_line
+            );
+            let matches_line = &matches_line["# lines: ".len()..];
+            for mat in matches_line.split(", ") {
+                let mut s = mat.split(' ');
+                let line_number = s.next().unwrap().parse().unwrap();
+                let start = s.next().unwrap().parse().unwrap();
+                let end = s.next().unwrap().parse().unwrap();
+                line_matches.push(LineMatch {
+                    line_number,
+                    range: Some((start, end)),
+                })
+            }
+        }
+
+        File::new(path, line_matches, chunks, contents.into_bytes())
+    }
+
+    fn test_ripgrep_config(file: &str, pat: &str, f: fn(&mut Config) -> ()) {
+        let path = Path::new("testdata").join("ripgrep").join(file);
+        let paths = iter::once(path.as_os_str());
+        let printer = DummyPrinter::default();
+
+        let mut config = Config::new(1, 2);
+        if cfg!(target_os = "windows") {
+            config.crlf(true);
+        }
+        f(&mut config);
+
+        assert!(grep(&printer, pat, Some(paths), config).unwrap());
+
+        let mut files = printer.0.into_inner().unwrap();
+        assert_eq!(files.len(), 1);
+
+        let expected = read_ripgrep_expected(file);
+        assert_eq!(files.pop().unwrap(), expected);
+    }
+
+    #[test]
+    fn test_multiline() {
+        test_ripgrep_config("multiline.txt", r"this\r?\nis the\r?\ntest string", |c| {
+            c.multiline(true);
+        });
+    }
+
+    #[test]
+    fn test_case_insensitive() {
+        test_ripgrep_config("case_insensitive.txt", r"this is test", |c| {
+            c.case_insensitive(true);
+        });
+    }
+
+    #[test]
+    fn test_fixed_strings() {
+        test_ripgrep_config("fixed_string.txt", r"this\sis\stest", |c| {
+            c.fixed_strings(true);
+        });
+    }
+
+    #[test]
+    fn test_pcre2() {
+        test_ripgrep_config("pcre2.txt", r"this\sis\stest", |c| {
+            c.pcre2(true);
+        });
     }
 }
