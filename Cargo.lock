@@ -674,7 +674,7 @@ dependencies = [
 
 [[package]]
 name = "hgrep"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "ansi_term",
  "anyhow",
