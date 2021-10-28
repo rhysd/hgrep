@@ -269,6 +269,7 @@ function hgrep() {
   - `--list-themes`: List all theme names available for --theme option
   - `--printer`: Printer to print the match results. 'bat' or 'syntect' is available. Default value is 'bat'
   - `--term-width`: Width (number of characters) of terminal window
+  - `--first-only` (`-f`): Show only the first code snippet per file
 - Only for `ripgrep` feature
   - `--no-ignore`: Don't respect ignore files (.gitignore, .ignore, etc.)
   - `--ignore-case` (`-i`): When this flag is provided, the given patterns will be searched case insensitively

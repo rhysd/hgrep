@@ -107,6 +107,11 @@ fn cli<'a>() -> App<'a> {
                 .possible_values(["char", "never"])
                 .case_insensitive(true)
                 .about("Text-wrapping mode. 'char' enables character-wise text-wrapping. 'never' disables text-wrapping")
+        ).arg(
+            Arg::new("first-only")
+                .short('f')
+                .long("first-only")
+                .about("Show only the first code snippet per file")
         )
         .arg(
             Arg::new("generate-completion-script")
@@ -417,6 +422,10 @@ fn app() -> Result<bool> {
     }
     if matches.is_present("no-wrap") {
         printer_opts.text_wrap = TextWrapMode::Never;
+    }
+
+    if matches.is_present("first-only") {
+        printer_opts.first_only = true;
     }
 
     #[cfg(feature = "syntect-printer")]

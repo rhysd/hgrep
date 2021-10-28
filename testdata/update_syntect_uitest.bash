@@ -71,6 +71,7 @@ cargo run -- '\*match to .+ line\*' -c 6 -C 6 -p syntect --term-width 80        
 cargo run -- '\*match to .+ line\*' -c 6 -C 6 -p syntect --term-width 80                           ./testdata/syntect/whole_line.rs                   > ./testdata/syntect/whole_line.out
 cargo run -- '\*match to .+ line\*' -c 6 -C 6 -p syntect --term-width 80                           ./testdata/syntect/wrap_whole_3_lines.rs           > ./testdata/syntect/wrap_whole_3_lines.out
 cargo run -- '\*match to .+ line\*' -c 6 -C 6 -p syntect --term-width 80                           ./testdata/syntect/wrap_3_lines_emoji.rs           > ./testdata/syntect/wrap_3_lines_emoji.out
+cargo run -- '\*match to .+ line\*' -c 6 -C 6 -p syntect --term-width 80 --first-only              ./testdata/syntect/first_only.rs                   > ./testdata/syntect/first_only.out
 
 # Previews
 cat ./testdata/syntect/ansi16_colors.out
@@ -129,3 +130,4 @@ cat ./testdata/syntect/wrap_region_line_end.out
 cat ./testdata/syntect/whole_line.out
 cat ./testdata/syntect/wrap_whole_3_lines.out
 cat ./testdata/syntect/wrap_3_lines_emoji.out
+cat ./testdata/syntect/first_only.out

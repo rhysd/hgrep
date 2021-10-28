@@ -550,6 +550,7 @@ struct Drawer<'file, W: Write> {
     term_width: u16,
     lnum_width: u16,
     background: bool,
+    first_only: bool,
     gutter_color: Color,
     canvas: Canvas<'file, W>,
 }
@@ -594,6 +595,7 @@ impl<'file, W: Write> Drawer<'file, W> {
             lnum_width,
             background: opts.background_color,
             gutter_color,
+            first_only: opts.first_only,
             canvas,
         }
     }
@@ -754,6 +756,9 @@ impl<'file, W: Write> Drawer<'file, W> {
                 self.draw_line(hl.highlight(line.as_ref()), lnum, matched)?;
 
                 if lnum == end {
+                    if self.first_only {
+                        break;
+                    }
                     if let Some(c) = chunks.next() {
                         self.draw_separator_line()?;
                         chunk = c;
@@ -1177,6 +1182,9 @@ mod tests {
             test_wrap_region_line_start(|_| {}),
             test_wrap_region_line_end(|_| {}),
             test_wrap_3_lines_emoji(|_| {}),
+            test_first_only(|o| {
+                o.first_only = true;
+            }),
         );
     }
 

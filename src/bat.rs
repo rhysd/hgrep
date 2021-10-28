@@ -52,7 +52,7 @@ fn get_cache_dir() -> Option<PathBuf> {
 }
 
 pub struct BatPrinter<'main> {
-    grid: bool,
+    opts: PrinterOptions<'main>,
     config: Config<'main>,
     assets: HighlightingAssets,
 }
@@ -104,7 +104,7 @@ impl<'main> BatPrinter<'main> {
         };
 
         Self {
-            grid: opts.grid,
+            opts,
             assets,
             config,
         }
@@ -148,17 +148,20 @@ impl<'main> BatPrinter<'main> {
         let input =
             Input::from_reader(Box::new(file.contents.as_ref())).with_name(Some(&file.path));
 
-        let ranges = file
-            .line_matches
-            .iter()
-            .map(|m| {
-                let n = m.line_number as usize;
-                LineRange::new(n, n)
-            })
-            .collect();
+        let ranges = file.line_matches.iter().map(|m| {
+            let n = m.line_number as usize;
+            LineRange::new(n, n)
+        });
+
+        let ranges = if self.opts.first_only {
+            ranges.take(1).collect()
+        } else {
+            ranges.collect()
+        };
+
         config.highlighted_lines = HighlightedLineRanges(LineRanges::from(ranges));
 
-        if !self.grid {
+        if !self.opts.grid {
             print!("\n\n"); // Empty lines as files separator
         }
 
