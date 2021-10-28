@@ -689,6 +689,7 @@ dependencies = [
  "grep-regex",
  "grep-searcher",
  "ignore",
+ "lazy_static",
  "memchr",
  "pathdiff",
  "pretty_assertions",

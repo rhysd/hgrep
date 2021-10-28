@@ -2,6 +2,7 @@ use crate::chunk::File;
 use crate::chunk::Line;
 use crate::printer::{Printer, PrinterOptions, TermColorSupport, TextWrapMode};
 use anyhow::Result;
+use flate2::read::ZlibDecoder;
 use memchr::{memchr_iter, Memchr};
 use rgb2ansi256::rgb_to_ansi256;
 use std::cmp;
@@ -39,7 +40,7 @@ impl<'a> LockableWrite<'a> for Stdout {
 
 pub fn list_themes<W: Write>(mut out: W) -> Result<()> {
     let mut seen = HashSet::new();
-    let bat_defaults = bincode::deserialize_from(flate2::read::ZlibDecoder::new(THEME_SET_BIN))?;
+    let bat_defaults = bincode::deserialize_from(ZlibDecoder::new(THEME_SET_BIN))?;
     let defaults = ThemeSet::load_defaults();
     for themes in &[bat_defaults, defaults] {
         for name in themes.themes.keys() {
@@ -849,8 +850,7 @@ impl<'file, W: Write> Drawer<'file, W> {
 }
 
 fn load_themes(name: Option<&str>) -> Result<ThemeSet> {
-    let bat_defaults: ThemeSet =
-        bincode::deserialize_from(flate2::read::ZlibDecoder::new(THEME_SET_BIN))?;
+    let bat_defaults: ThemeSet = bincode::deserialize_from(ZlibDecoder::new(THEME_SET_BIN))?;
     match name {
         None => Ok(bat_defaults),
         Some(name) if bat_defaults.themes.contains_key(name) => Ok(bat_defaults),
@@ -887,12 +887,26 @@ where
     for<'a> W: LockableWrite<'a>,
 {
     pub fn new(out: W, opts: PrinterOptions<'main>) -> Result<Self> {
-        Ok(Self {
-            writer: out,
-            syntaxes: bincode::deserialize_from(flate2::read::ZlibDecoder::new(SYNTAX_SET_BIN))?,
-            themes: load_themes(opts.theme)?,
+        Ok(Self::with_assets(
+            out,
+            bincode::deserialize_from(ZlibDecoder::new(SYNTAX_SET_BIN))?,
+            load_themes(opts.theme)?,
             opts,
-        })
+        ))
+    }
+
+    fn with_assets(
+        writer: W,
+        syntaxes: SyntaxSet,
+        themes: ThemeSet,
+        opts: PrinterOptions<'main>,
+    ) -> Self {
+        Self {
+            writer,
+            syntaxes,
+            themes,
+            opts,
+        }
     }
 
     pub fn writer_mut(&mut self) -> &mut W {
@@ -958,11 +972,29 @@ where
 mod tests {
     use super::*;
     use crate::chunk::{File, LineMatch};
+    use lazy_static::lazy_static;
     use std::cell::{RefCell, RefMut};
     use std::fmt;
     use std::fs;
     use std::mem;
     use std::path::PathBuf;
+
+    lazy_static! {
+        static ref SYNTAX_SET: SyntaxSet =
+            bincode::deserialize_from(ZlibDecoder::new(SYNTAX_SET_BIN)).unwrap();
+        static ref THEME_SET: ThemeSet = load_themes(None).unwrap();
+    }
+
+    fn syntax_set() -> SyntaxSet {
+        SYNTAX_SET.clone()
+    }
+
+    // ThemeSet does not implement Clone
+    fn theme_set() -> ThemeSet {
+        let mut ts = ThemeSet::new();
+        ts.themes = THEME_SET.themes.clone();
+        ts
+    }
 
     struct DummyStdoutLock<'a>(RefMut<'a, Vec<u8>>);
     impl<'a> Write for DummyStdoutLock<'a> {
@@ -1080,7 +1112,7 @@ mod tests {
             opts.term_width = 80;
             opts.color_support = TermColorSupport::True;
             f(&mut opts);
-            let mut printer = SyntectPrinter::new(stdout, opts).unwrap();
+            let mut printer = SyntectPrinter::with_assets(stdout, syntax_set(), theme_set(), opts);
             printer.print(file).unwrap();
             let printed = mem::take(printer.writer_mut()).0.into_inner();
             let expected = read_expected_file(&expected_file);
@@ -1286,7 +1318,7 @@ mod tests {
     fn test_error_write() {
         let file = sample_chunk("README.md");
         let opts = PrinterOptions::default();
-        let printer = SyntectPrinter::new(ErrorStdout, opts).unwrap();
+        let printer = SyntectPrinter::with_assets(ErrorStdout, syntax_set(), theme_set(), opts);
         let err = printer.print(file).unwrap_err();
         assert_eq!(&format!("{}", err), "dummy error!", "message={}", err);
     }
@@ -1321,7 +1353,7 @@ mod tests {
         let file = File::new(PathBuf::from("x.txt"), vec![], vec![], vec![]);
         let opts = PrinterOptions::default();
         let stdout = DummyStdout(RefCell::new(vec![]));
-        let mut printer = SyntectPrinter::new(stdout, opts).unwrap();
+        let mut printer = SyntectPrinter::with_assets(stdout, syntax_set(), theme_set(), opts);
         printer.print(file).unwrap();
         let printed = mem::take(printer.writer_mut()).0.into_inner();
         assert!(
@@ -1336,7 +1368,7 @@ mod tests {
         let file = sample_chunk("LICENSE.txt");
         let opts = PrinterOptions::default();
         let stdout = DummyStdout(RefCell::new(vec![]));
-        let mut printer = SyntectPrinter::new(stdout, opts).unwrap();
+        let mut printer = SyntectPrinter::with_assets(stdout, syntax_set(), theme_set(), opts);
         printer.print(file).unwrap();
         let printed = mem::take(printer.writer_mut()).0.into_inner();
         assert!(!printed.is_empty());
