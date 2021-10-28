@@ -156,6 +156,8 @@ struct Canvas<'file, W: Write> {
     region_fg_color: Option<Color>,
     region_bg_color: Option<Color>,
     wrap: bool,
+    current_fg_color: Option<Color>,
+    current_bg_color: Option<Color>,
 }
 
 impl<'file, W: Write> Deref for Canvas<'file, W> {
@@ -189,6 +191,8 @@ impl<'file, W: Write> Canvas<'file, W> {
 
     fn draw_newline(&mut self) -> Result<()> {
         writeln!(self.out, "\x1b[0m")?; // Reset on newline to ensure to reset color
+        self.current_fg_color = None;
+        self.current_bg_color = None;
         Ok(())
     }
 
@@ -213,11 +217,19 @@ impl<'file, W: Write> Canvas<'file, W> {
     }
 
     fn set_bg(&mut self, c: Color) -> Result<()> {
-        self.set_color(40, c)
+        if self.current_bg_color != Some(c) {
+            self.set_color(40, c)?;
+            self.current_bg_color = Some(c);
+        }
+        Ok(())
     }
 
     fn set_fg(&mut self, c: Color) -> Result<()> {
-        self.set_color(30, c)
+        if self.current_fg_color != Some(c) {
+            self.set_color(30, c)?;
+            self.current_fg_color = Some(c);
+        }
+        Ok(())
     }
 
     fn set_default_bg(&mut self) -> Result<()> {
@@ -584,6 +596,8 @@ impl<'file, W: Write> Drawer<'file, W> {
             wrap: opts.text_wrap == TextWrapMode::Char,
             region_fg_color,
             region_bg_color,
+            current_fg_color: None,
+            current_bg_color: None,
             match_color: theme.settings.line_highlight.or(theme.settings.background),
             out,
         };
