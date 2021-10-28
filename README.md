@@ -185,8 +185,9 @@ At first, there was `bat` printer only. And then `syntect` printer was implement
     match is highlighted in a different color.
   - Painting background color (`--background`) is supported. This is useful when your favorite theme does not fit to your
     terminal's background color
-  - Detection for terminal color support is better. It automatically changes the default theme to 'ansi' when the terminal only
-    supports 16 colors
+  - Compatibility for old terminals is better. It automatically changes the default theme to 'ansi' for 16-colors terminals. And
+    it provides `--ascii-lines` flag to draw border lines with ascii characters instead of Unicode characters like '├', '┬', and
+    so on
 - `bat` printer
   - Implementation is battle-tested. It is already used by many users on many platforms and terminals
   - The behavior is compatible with `bat` command. Its output layout is the same as `bat` command. It can load bat's assets cache
@@ -294,6 +295,7 @@ function hgrep() {
   - `--wrap MODE`: Text-wrapping mode. 'char' enables character-wise text-wrapping. 'never' disables text-wrapping. Default value is 'char'
 - Only for `syntect-printer` feature
   - `--background`: Paint background colors. This is useful when your favorite theme does not fit to your terminal's background color
+  - `--ascii-lines`: Use ascii characters for drawing border lines instead of Unicode characters
 - Only for `bat-printer` feature
   - `--custom-assets`: Load bat's custom assets from cache. Note that this flag may not work with some version of `bat` command
 

@@ -131,11 +131,17 @@ fn cli<'a>() -> App<'a> {
     );
 
     #[cfg(feature = "syntect-printer")]
-    let app = app.arg(
-        Arg::new("background")
-            .long("background")
-            .about("Paint background colors. This flag is only for syntect printer"),
-    );
+    let app = app
+        .arg(
+            Arg::new("background")
+                .long("background")
+                .about("Paint background colors. This flag is only for syntect printer"),
+        )
+        .arg(
+            Arg::new("ascii-lines").long("ascii-lines").about(
+                "Use ascii characters for drawing border lines instead of Unicode characters",
+            ),
+        );
 
     #[cfg(feature = "ripgrep")]
     let app = app
@@ -429,11 +435,21 @@ fn app() -> Result<bool> {
     }
 
     #[cfg(feature = "syntect-printer")]
-    if matches.is_present("background") {
-        printer_opts.background_color = true;
-        #[cfg(feature = "bat-printer")]
-        if printer_kind == PrinterKind::Bat {
-            anyhow::bail!("--background flag is only available for syntect printer since bat does not support painting background colors");
+    {
+        if matches.is_present("background") {
+            printer_opts.background_color = true;
+            #[cfg(feature = "bat-printer")]
+            if printer_kind == PrinterKind::Bat {
+                anyhow::bail!("--background flag is only available for syntect printer since bat does not support painting background colors");
+            }
+        }
+
+        if matches.is_present("ascii-lines") {
+            printer_opts.ascii_lines = true;
+            #[cfg(feature = "bat-printer")]
+            if printer_kind == PrinterKind::Bat {
+                anyhow::bail!("--ascii-lines flag is only available for syntect printer since bat does not support this feature");
+            }
         }
     }
 

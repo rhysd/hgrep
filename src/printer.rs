@@ -49,6 +49,7 @@ pub struct PrinterOptions<'main> {
     pub custom_assets: bool,
     pub text_wrap: TextWrapMode,
     pub first_only: bool,
+    pub ascii_lines: bool,
 }
 
 impl<'main> Default for PrinterOptions<'main> {
@@ -64,6 +65,7 @@ impl<'main> Default for PrinterOptions<'main> {
             term_width: terminal_size().map(|(Width(w), _)| w).unwrap_or(80), // Note: `tput` returns 80 when tty is not found
             text_wrap: TextWrapMode::Char,
             first_only: false,
+            ascii_lines: false,
         }
     }
 }
