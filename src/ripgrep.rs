@@ -365,10 +365,10 @@ impl<'a> LineRegions<'a> {
         Self { ranges, offset: 0 }
     }
 
-    fn line_ranges(&mut self, line: &[u8]) -> Vec<(usize, usize)> {
+    fn line_ranges(&mut self, line_len: usize) -> Vec<(usize, usize)> {
         // Invariant: self.ranges is sorted and not over-wrapped
         let line_start = self.offset;
-        let line_end = line_start + line.len();
+        let line_end = line_start + line_len;
 
         let mut ret = vec![];
         let mut next_start_idx = 0;
@@ -398,13 +398,15 @@ impl<'a> LineRegions<'a> {
                 line_end - line_start
             };
 
-            ret.push((start, end));
+            if start < end {
+                ret.push((start, end));
+            }
         }
 
         if next_start_idx > 0 {
             self.ranges = &self.ranges[next_start_idx..];
         }
-        self.offset = line_end;
+        self.offset = line_end; // Offset for next line
 
         ret
     }
@@ -447,7 +449,7 @@ impl<'a, M: Matcher> Sink for Matches<'a, M> {
             self.buf.push(GrepMatch {
                 path: path.to_owned(),
                 line_number,
-                ranges: regions.line_ranges(line),
+                ranges: regions.line_ranges(line.len()),
             });
             line_number += 1;
         }
@@ -808,5 +810,91 @@ mod tests {
         test_ripgrep_config("pcre2.txt", r"this\sis\stest", |c| {
             c.pcre2(true);
         });
+    }
+
+    macro_rules! line_regions_tests {
+        {$(
+            $name:ident(
+                $ranges:expr,
+                $line_lens:expr,
+                [$($expected:expr),*],
+            );
+        )+} => {
+            $(
+                #[test]
+                fn $name() {
+                    let ranges = &$ranges;
+                    let line_lens = &$line_lens;
+                    let expected = &[
+                        $(
+                            &$expected[..],
+                        )*
+                    ];
+
+                    let mut r = LineRegions::new(ranges);
+                    for (idx, len) in line_lens.iter().copied().enumerate() {
+                        assert_eq!(&r.line_ranges(len), expected[idx], "index={}", idx);
+                    }
+                }
+            )+
+        }
+    }
+
+    line_regions_tests! {
+        region_no_region(
+            [],
+            [2, 2, 2],
+            [[], [], []],
+        );
+        region_entire_line(
+            [(1, 5)],
+            [2, 2, 2],
+            [[(1, 2)], [(0, 2)], [(0, 1)]],
+        );
+        region_entire_lines(
+            [(2, 6)],
+            [2, 2, 2, 2],
+            [[], [(0, 2)], [(0, 2)], []],
+        );
+        region_entire_region(
+            [(1, 5)],
+            [10],
+            [[(1, 5)]],
+        );
+        region_left_most(
+            [(0, 3)],
+            [5],
+            [[(0, 3)]],
+        );
+        region_right_most(
+            [(3, 5)],
+            [5],
+            [[(3, 5)]],
+        );
+        region_accross_lines(
+            [(3, 5)],
+            [2, 2, 2, 2],
+            [[], [(1, 2)], [(0, 1)], []],
+        );
+        regions_accross_lines(
+            [(3, 5), (9, 11)],
+            [2, 2, 2, 2, 2, 2, 2],
+            [[], [(1, 2)], [(0, 1)], [], [(1, 2)], [(0, 1)], []],
+        );
+        regions_entire_lines(
+            [(1, 2), (5, 6)],
+            [4, 4],
+            [[(1, 2)], [(1, 2)]],
+        );
+        regions_multi_regions_in_line(
+            [(1, 2), (3, 4)],
+            [10],
+            [[(1, 2), (3, 4)]],
+        );
+        regions_multi_regions_in_lines(
+            [(1, 2), (3, 4), (6, 7), (8, 9)],
+            [5, 5],
+            [[(1, 2), (3, 4)], [(1, 2), (3, 4)]],
+        );
     }
 }

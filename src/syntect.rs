@@ -111,13 +111,13 @@ enum RegionBoundary {
 }
 
 #[derive(Debug)]
-struct RegionBoundaries<'draw> {
+struct RegionBoundaries<'regions> {
     offset: usize,
-    ranges: &'draw [(usize, usize)],
+    ranges: &'regions [(usize, usize)],
     fg: Color,
 }
 
-impl<'draw> RegionBoundaries<'draw> {
+impl<'regions> RegionBoundaries<'regions> {
     fn truncate_done_regions(&mut self, offset: usize) {
         if let Some(idx) = self.ranges.iter().position(|r| offset <= r.1) {
             if idx > 0 {
@@ -138,17 +138,17 @@ impl<'draw> RegionBoundaries<'draw> {
     }
 }
 
-struct Regions<'r> {
-    ranges: &'r [(usize, usize)],
+struct Regions<'regions> {
+    ranges: &'regions [(usize, usize)],
 }
 
-impl<'r> Regions<'r> {
+impl<'regions> Regions<'regions> {
     fn boundaries(
         &mut self,
         token_start: usize,
         token_end: usize,
         fg: Color,
-    ) -> Option<RegionBoundaries<'r>> {
+    ) -> Option<RegionBoundaries<'regions>> {
         if let Some(idx) = self.ranges.iter().position(|r| token_start <= r.1) {
             if idx > 0 {
                 self.ranges = &self.ranges[idx..];
@@ -453,9 +453,9 @@ impl<'file, W: Write> Canvas<'file, W> {
         Ok(())
     }
 
-    fn draw_matched<'r, 'line: 'r>(
+    fn draw_matched<'regions, 'line: 'regions>(
         &mut self,
-        mut regions: Regions<'r>,
+        mut regions: Regions<'regions>,
         tokens: &[Token<'line>],
         max_width: usize,
     ) -> Result<Option<Wrapping<'line>>> {
@@ -499,9 +499,9 @@ impl<'file, W: Write> Canvas<'file, W> {
         Ok(None)
     }
 
-    fn draw<'draw, 'line: 'draw>(
+    fn draw<'tokens, 'line: 'tokens>(
         &mut self,
-        tokens: &'draw [Token<'line>],
+        tokens: &'tokens [Token<'line>],
         max_width: usize,
     ) -> Result<Option<Wrapping<'line>>> {
         let mut byte_offset = 0;
@@ -781,9 +781,9 @@ impl<'file, W: Write> Drawer<'file, W> {
         self.canvas.draw_newline()
     }
 
-    fn draw_line<'line>(
+    fn draw_line(
         &mut self,
-        mut tokens: Vec<Token<'line>>,
+        mut tokens: Vec<Token<'_>>,
         lnum: u64,
         regions: Option<Vec<(usize, usize)>>,
     ) -> Result<()> {
@@ -802,7 +802,7 @@ impl<'file, W: Write> Drawer<'file, W> {
             let mut regions = regions.as_mut_slice();
             while let Some(wrapping) =
                 self.canvas
-                    .draw_matched(Regions { ranges: &regions }, tokens, body_width)?
+                    .draw_matched(Regions { ranges: regions }, tokens, body_width)?
             {
                 self.canvas.draw_newline()?;
                 self.draw_wrapping_gutter()?;
@@ -1082,11 +1082,20 @@ mod tests {
                     let lnum = (idx + 1) as u64;
                     s = cmp::min(s, lnum);
                     e = cmp::max(e, lnum);
-                    if let (Some(start), Some(i)) = (line.find("*match to "), line.find(" line*")) {
+
+                    let mut ranges = vec![];
+                    let mut l = line;
+                    let mut base = 0;
+                    while let (Some(start), Some(i)) = (l.find("*match to "), l.find(" line*")) {
                         let end = i + " line*".len();
+                        ranges.push((base + start, base + end));
+                        l = &l[end..];
+                        base += end;
+                    }
+                    if ranges.len() > 0 {
                         lmats.push(LineMatch {
                             line_number: lnum,
-                            ranges: vec![(start, end)],
+                            ranges,
                         });
                     }
                 } else {
@@ -1326,6 +1335,12 @@ mod tests {
                 o.ascii_lines = true;
                 o.grid = false;
             }),
+            test_multi_regions(|_| {}),
+            test_multi_regions_bg(|o| {
+                o.background_color = true;
+            }),
+            test_wrap_between_regions(|_| {}),
+            test_wrap_regions_japanese(|_| {}),
         );
     }
 
