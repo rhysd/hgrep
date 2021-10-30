@@ -16,7 +16,7 @@ pub(crate) fn read_matches<S: AsRef<str>>(dir: &Path, input: S) -> Vec<Result<Gr
                 Ok(GrepMatch {
                     path: path.into(),
                     line_number: idx as u64 + 1,
-                    range: None,
+                    ranges: vec![],
                 })
             })
         })

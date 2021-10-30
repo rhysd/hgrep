@@ -103,67 +103,83 @@ impl<'line> Token<'line> {
 // Some offset can be both start and end or end or start of region. In the case highlight does not
 // change so we can handle it as RegionBoundary::None. So actually start boundary and end boundary
 // are exclusive.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum RegionBoundary {
     Start,
     End(Color), // Foreground color for restoring from region color
     None,
 }
 
-// Match region in matched line
-struct Region {
-    // TODO: This will be Vec<(usize, usize)> when multiple regions are supported
-    range: Option<(usize, usize)>,
-}
-
-struct RegionBoundaries {
+#[derive(Debug)]
+struct RegionBoundaries<'draw> {
     offset: usize,
-    range: (usize, usize),
+    ranges: &'draw [(usize, usize)],
     fg: Color,
 }
 
-impl RegionBoundaries {
-    fn boundary_at(&self, idx_in_token: usize) -> RegionBoundary {
+impl<'draw> RegionBoundaries<'draw> {
+    fn truncate_done_regions(&mut self, offset: usize) {
+        if let Some(idx) = self.ranges.iter().position(|r| offset <= r.1) {
+            if idx > 0 {
+                self.ranges = &self.ranges[idx..];
+            }
+        }
+    }
+
+    fn boundary_at(&mut self, idx_in_token: usize) -> RegionBoundary {
         let offset = self.offset + idx_in_token;
-        let (start, end) = self.range;
-        if start == offset {
-            RegionBoundary::Start
-        } else if end == offset {
-            RegionBoundary::End(self.fg)
-        } else {
-            RegionBoundary::None
+        self.truncate_done_regions(offset); // Ensure the first region is not done yet
+
+        match self.ranges.first() {
+            Some((s, _)) if *s == offset => RegionBoundary::Start,
+            Some((_, e)) if *e == offset => RegionBoundary::End(self.fg),
+            _ => RegionBoundary::None,
         }
     }
 }
 
-impl Region {
-    fn slide_left(&mut self, bytes: usize) {
-        if let Some((s, e)) = self.range {
-            let s = s.saturating_sub(bytes);
-            let e = e.saturating_sub(bytes);
-            self.range = (s != e).then(|| (s, e));
-        }
-    }
+struct Regions<'r> {
+    ranges: &'r [(usize, usize)],
+}
 
+impl<'r> Regions<'r> {
     fn boundaries(
-        &self,
+        &mut self,
         token_start: usize,
         token_end: usize,
         fg: Color,
-    ) -> Option<RegionBoundaries> {
-        let (rs, re) = self.range?;
-        let include_start = token_start <= rs && rs <= token_end;
-        let include_end = token_start <= re && re <= token_end;
-        (include_start || include_end).then(|| RegionBoundaries {
+    ) -> Option<RegionBoundaries<'r>> {
+        if let Some(idx) = self.ranges.iter().position(|r| token_start <= r.1) {
+            if idx > 0 {
+                self.ranges = &self.ranges[idx..];
+            }
+        }
+
+        let count = self
+            .ranges
+            .iter()
+            .copied()
+            .take_while(|(s, e)| {
+                let include_start = token_start <= *s && *s <= token_end;
+                let include_end = token_start <= *e && *e <= token_end;
+                include_start || include_end
+            })
+            .count();
+
+        if count == 0 {
+            return None;
+        }
+
+        Some(RegionBoundaries {
             offset: token_start,
-            range: (rs, re),
+            ranges: &self.ranges[..count], // Include ranges only related to the token
             fg,
         })
     }
 
     fn contains(&self, byte_offset: usize) -> bool {
-        if let Some((s, e)) = self.range {
-            s <= byte_offset && byte_offset <= e
+        if let Some((s, e)) = self.ranges.first() {
+            *s <= byte_offset && byte_offset <= *e
         } else {
             false
         }
@@ -214,10 +230,6 @@ impl<'line> Wrapping<'line> {
             remaining_text,
             last_token_idx,
         }
-    }
-
-    fn slide_region(&self, region: &mut Region) {
-        region.slide_left(self.consumed_bytes);
     }
 
     fn eat_written_tokens<'a>(&self, mut tokens: &'a mut [Token<'line>]) -> &'a mut [Token<'line>] {
@@ -354,12 +366,12 @@ impl<'file, W: Write> Canvas<'file, W> {
         &mut self,
         text: &'line str,
         limit: usize,
-        boundaries: Option<RegionBoundaries>,
+        mut boundaries: Option<RegionBoundaries<'_>>,
     ) -> Result<LineDrawState<'line>> {
         let mut width = 0;
         let mut saw_zwj = false;
         for (i, c) in text.char_indices() {
-            if let Some(boundaries) = &boundaries {
+            if let Some(boundaries) = &mut boundaries {
                 self.set_boundary_color(boundaries.boundary_at(i))?;
             }
 
@@ -414,10 +426,10 @@ impl<'file, W: Write> Canvas<'file, W> {
         Ok(width)
     }
 
-    fn draw_text_no_wrap_with_region(
+    fn draw_text_no_wrap_with_region<'regions>(
         &mut self,
         text: &str,
-        boundaries: RegionBoundaries,
+        mut boundaries: RegionBoundaries<'regions>,
     ) -> Result<usize> {
         let mut width = 0;
         for (i, c) in text.chars().enumerate() {
@@ -441,9 +453,9 @@ impl<'file, W: Write> Canvas<'file, W> {
         Ok(())
     }
 
-    fn draw_matched<'line>(
+    fn draw_matched<'r, 'line: 'r>(
         &mut self,
-        region: &Region,
+        mut regions: Regions<'r>,
         tokens: &[Token<'line>],
         max_width: usize,
     ) -> Result<Option<Wrapping<'line>>> {
@@ -456,12 +468,12 @@ impl<'file, W: Write> Canvas<'file, W> {
             let end_offset = start_offset + len;
 
             // In region, the style should not be changed
-            if !region.contains(start_offset) {
+            if !regions.contains(start_offset) {
                 self.set_fg(tok.style.foreground)?;
                 self.set_font_style(tok.style.font_style)?;
             }
 
-            let boundaries = region.boundaries(start_offset, end_offset, tok.style.foreground);
+            let boundaries = regions.boundaries(start_offset, end_offset, tok.style.foreground);
 
             if self.wrap {
                 match self.draw_text(tok.text, max_width - width, boundaries)? {
@@ -487,16 +499,11 @@ impl<'file, W: Write> Canvas<'file, W> {
         Ok(None)
     }
 
-    fn draw<'line>(
+    fn draw<'draw, 'line: 'draw>(
         &mut self,
-        tokens: &[Token<'line>],
-        region: &Option<Region>,
+        tokens: &'draw [Token<'line>],
         max_width: usize,
     ) -> Result<Option<Wrapping<'line>>> {
-        if let Some(region) = region {
-            return self.draw_matched(region, tokens, max_width);
-        }
-
         let mut byte_offset = 0;
         let mut width = 0;
         for (idx, tok) in tokens.iter().enumerate() {
@@ -774,11 +781,11 @@ impl<'file, W: Write> Drawer<'file, W> {
         self.canvas.draw_newline()
     }
 
-    fn draw_line(
+    fn draw_line<'line>(
         &mut self,
-        mut tokens: Vec<Token<'_>>,
+        mut tokens: Vec<Token<'line>>,
         lnum: u64,
-        mut region: Option<Region>,
+        regions: Option<Vec<(usize, usize)>>,
     ) -> Result<()> {
         // The highlighter requires newline at the end. But we don't want it since
         // - we sometimes need to fill the rest of line with spaces
@@ -788,17 +795,37 @@ impl<'file, W: Write> Drawer<'file, W> {
         }
 
         let body_width = (self.term_width - self.gutter_width()) as usize;
-        self.draw_line_number(lnum, region.is_some())?;
+        self.draw_line_number(lnum, regions.is_some())?;
         let mut tokens = tokens.as_mut_slice();
 
-        while let Some(wrapping) = self.canvas.draw(tokens, &region, body_width)? {
-            if let Some(r) = &mut region {
-                wrapping.slide_region(r);
+        if let Some(mut regions) = regions {
+            let mut regions = regions.as_mut_slice();
+            while let Some(wrapping) =
+                self.canvas
+                    .draw_matched(Regions { ranges: &regions }, tokens, body_width)?
+            {
+                self.canvas.draw_newline()?;
+                self.draw_wrapping_gutter()?;
+
+                for (s, e) in regions.iter_mut() {
+                    *s = s.saturating_sub(wrapping.consumed_bytes);
+                    *e = e.saturating_sub(wrapping.consumed_bytes);
+                }
+                // Remove (0, 0) ranges at head of regions as the result of the slide
+                let idx = regions.iter().take_while(|(s, e)| s == e).count();
+                if idx > 0 {
+                    regions = &mut regions[idx..];
+                }
+
+                tokens = wrapping.eat_written_tokens(tokens);
             }
-            self.canvas.draw_newline()?;
-            self.draw_wrapping_gutter()?;
-            tokens = wrapping.eat_written_tokens(tokens);
-        }
+        } else {
+            while let Some(wrapping) = self.canvas.draw(tokens, body_width)? {
+                self.canvas.draw_newline()?;
+                self.draw_wrapping_gutter()?;
+                tokens = wrapping.eat_written_tokens(tokens);
+            }
+        };
 
         self.canvas.draw_newline()
     }
@@ -819,17 +846,17 @@ impl<'file, W: Write> Drawer<'file, W> {
                 continue;
             }
             if start <= lnum && lnum <= end {
-                let region = match matched.first() {
-                    Some(m) if m.line_number == lnum => {
-                        matched = &matched[1..];
-                        Some(Region { range: m.range })
+                let regions = match matched.split_first() {
+                    Some((m, ms)) if m.line_number == lnum => {
+                        matched = ms;
+                        Some(m.ranges.clone()) // XXX: Cannot move out ranges in line match
                     }
                     _ => None,
                 };
                 let line = String::from_utf8_lossy(bytes);
                 // Collect to `Vec` rather than handing HighlightIterator as-is. HighlightIterator takes ownership of Highlighter
                 // while the iteration. When the highlighter is stored in `self`, it means the iterator takes ownership of `self`.
-                self.draw_line(hl.highlight(line.as_ref()), lnum, region)?;
+                self.draw_line(hl.highlight(line.as_ref()), lnum, regions)?;
 
                 if lnum == end {
                     if self.first_only {
@@ -1059,7 +1086,7 @@ mod tests {
                         let end = i + " line*".len();
                         lmats.push(LineMatch {
                             line_number: lnum,
-                            range: Some((start, end)),
+                            ranges: vec![(start, end)],
                         });
                     }
                 } else {

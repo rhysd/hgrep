@@ -354,6 +354,62 @@ pub fn grep<'main, P: Printer + Sync>(
     }
 }
 
+#[derive(Default)]
+struct LineRegions<'a> {
+    ranges: &'a [(usize, usize)],
+    offset: usize,
+}
+
+impl<'a> LineRegions<'a> {
+    fn new(ranges: &'a [(usize, usize)]) -> Self {
+        Self { ranges, offset: 0 }
+    }
+
+    fn line_ranges(&mut self, line: &[u8]) -> Vec<(usize, usize)> {
+        // Invariant: self.ranges is sorted and not over-wrapped
+        let line_start = self.offset;
+        let line_end = line_start + line.len();
+
+        let mut ret = vec![];
+        let mut next_start_idx = 0;
+        for (idx, (range_start, range_end)) in self.ranges.iter().copied().enumerate() {
+            // ls < le < rs < re
+            if line_end < range_start {
+                break;
+            }
+
+            let start = if range_start < line_start {
+                0
+            } else if line_start <= range_start && range_start < line_end {
+                range_start - line_start
+            } else {
+                // line_end <= range_start
+                break;
+            };
+
+            let end = if range_end < line_start {
+                // This range is not useful for later lines
+                next_start_idx = idx;
+                continue;
+            } else if line_start <= range_end && range_end < line_end {
+                range_end - line_start
+            } else {
+                // line_end <= range_end
+                line_end - line_start
+            };
+
+            ret.push((start, end));
+        }
+
+        if next_start_idx > 0 {
+            self.ranges = &self.ranges[next_start_idx..];
+        }
+        self.offset = line_end;
+
+        ret
+    }
+}
+
 struct Matches<'a, M: Matcher> {
     count: &'a Option<Mutex<u64>>,
     path: PathBuf,
@@ -377,54 +433,22 @@ impl<'a, M: Matcher> Sink for Matches<'a, M> {
         let line_number = mat.line_number().unwrap();
         let path = &self.path;
 
-        let range = self
-            .matcher
-            .find(mat.bytes())
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?
-            .map(|m| (m.start(), m.end()));
+        let mut ranges = vec![];
+        self.matcher
+            .find_iter(mat.bytes(), |m| {
+                ranges.push((m.start(), m.end()));
+                true
+            })
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?;
+        let mut regions = LineRegions::new(&ranges);
 
-        #[inline]
-        fn region_in_line(
-            range: Option<(usize, usize)>,
-            line_start: usize,
-            line_end: usize,
-        ) -> Option<(usize, usize)> {
-            let (start, end) = range?;
-
-            let region_start = if start < line_start {
-                0
-            } else if line_start <= start && start < line_end {
-                start - line_start
-            } else {
-                // line_end <= start
-                return None;
-            };
-
-            let region_end = if end < line_start {
-                return None;
-            } else if line_start <= end && end < line_end {
-                end - line_start
-            } else {
-                // line_end <= end
-                line_end - line_start
-            };
-
-            if region_start == region_end {
-                return None;
-            }
-            Some((region_start, region_end))
-        }
-
-        let mut start = 0;
         let mut line_number = line_number;
         for line in mat.lines() {
-            let end = start + line.len();
             self.buf.push(GrepMatch {
                 path: path.to_owned(),
                 line_number,
-                range: region_in_line(range, start, end),
+                ranges: regions.line_ranges(line),
             });
-            start = end;
             line_number += 1;
         }
 
@@ -545,7 +569,7 @@ mod tests {
                 let lines: Vec<_> = file.contents.split_inclusive(|b| *b == b'\n').collect();
                 for lmat in file.line_matches.iter_mut() {
                     // Reset `lmat.range` to None since ranges in `expected` are `None`
-                    let (start, end) = mem::take(&mut lmat.range).unwrap();
+                    let (start, end) = mem::take(&mut lmat.ranges)[0];
                     let line = lines[lmat.line_number as usize - 1];
                     let matched_part = &line[start..end];
                     assert_eq!(
@@ -720,7 +744,7 @@ mod tests {
                 let end = s.next().unwrap().parse().unwrap();
                 line_matches.push(LineMatch {
                     line_number,
-                    range: Some((start, end)),
+                    ranges: vec![(start, end)],
                 })
             }
         }
