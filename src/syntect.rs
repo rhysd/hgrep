@@ -132,7 +132,13 @@ impl<'regions> RegionBoundaries<'regions> {
 
         match self.ranges.first() {
             Some((s, _)) if *s == offset => RegionBoundary::Start,
-            Some((_, e)) if *e == offset => RegionBoundary::End(self.fg),
+            Some((_, e)) if *e == offset => {
+                // When the end of region is also the start of next region, highlight does not change
+                match self.ranges.get(1) {
+                    Some((s, _)) if *s == offset => RegionBoundary::None,
+                    _ => RegionBoundary::End(self.fg),
+                }
+            }
             _ => RegionBoundary::None,
         }
     }
@@ -1438,5 +1444,38 @@ mod tests {
         printer.print(file).unwrap();
         let printed = mem::take(printer.writer_mut()).0.into_inner();
         assert!(!printed.is_empty());
+    }
+
+    #[test]
+    fn test_adjacent_regions() {
+        let contents = b"this is test\n";
+        let ranges = (0..contents.len()).map(|i| (i, i + 1)).collect();
+        let lmats = vec![LineMatch {
+            line_number: 1,
+            ranges,
+        }];
+        let chunks = vec![(1, 1)];
+        let file = File::new(PathBuf::from("test.txt"), lmats, chunks, contents.to_vec());
+
+        let opts = PrinterOptions::default();
+        let stdout = DummyStdout(RefCell::new(vec![]));
+        let mut printer = SyntectPrinter::with_assets(stdout, syntax_set(), theme_set(), opts);
+        printer.print(file).unwrap();
+
+        let printed = mem::take(printer.writer_mut()).0.into_inner();
+        let mut lines = printed.split_inclusive(|b| *b == b'\n');
+
+        // One region per one character, but color codes between adjacent regions are not inserted
+        let expected = b"\x1b[38;2;0;0;0m\x1b[48;2;255;231;146mthis is test";
+        let this_is_test_line = lines.nth(3).unwrap();
+        let found = this_is_test_line
+            .windows(expected.len())
+            .find(|s| s == expected)
+            .is_some();
+        assert!(
+            found,
+            "line={:?}",
+            std::str::from_utf8(this_is_test_line).unwrap()
+        );
     }
 }
