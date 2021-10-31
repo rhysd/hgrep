@@ -1,6 +1,9 @@
 use std::fs;
 use std::path::Path;
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 pub fn package_lock_json_path() -> &'static Path {
     let path = Path::new("package-lock.json");
     assert!(
