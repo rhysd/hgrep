@@ -56,7 +56,7 @@ pub struct GrepMatch {
     pub path: PathBuf,
     pub line_number: u64,
     // Byte offsets of start/end positions within the line
-    pub range: Option<(usize, usize)>,
+    pub ranges: Vec<(usize, usize)>,
 }
 
 pub struct GrepLines<R: BufRead> {
@@ -83,7 +83,7 @@ fn parse_line(line: Vec<u8>) -> Result<GrepMatch> {
         Some(lnum) => Ok(GrepMatch {
             path: PathBuf::from(bytes_to_os_string(path)),
             line_number: lnum,
-            range: None,
+            ranges: vec![], // Regions are not supported
         }),
         None => ParseError::err(line, "Could not parse line number as unsigned integer"),
     }
@@ -128,17 +128,17 @@ fn test_read_ok() {
         GrepMatch {
             path: PathBuf::from("/path/to/foo.txt"),
             line_number: 1,
-            range: None,
+            ranges: vec![],
         },
         GrepMatch {
             path: PathBuf::from("/path/to/bar.txt"),
             line_number: 100,
-            range: None,
+            ranges: vec![],
         },
         GrepMatch {
             path: PathBuf::from("/path/to/bar.txt"),
             line_number: 110,
-            range: None,
+            ranges: vec![],
         },
     ];
 

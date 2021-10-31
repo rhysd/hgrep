@@ -13,14 +13,14 @@ use std::path::PathBuf;
 pub struct LineMatch {
     pub line_number: u64,
     // Byte offsets of start/end positions within the line. Inherit from GrepMatch
-    pub range: Option<(usize, usize)>,
+    pub ranges: Vec<(usize, usize)>,
 }
 
 impl LineMatch {
     pub fn lnum(line_number: u64) -> Self {
         Self {
             line_number,
-            range: None,
+            ranges: vec![],
         }
     }
 }
@@ -182,7 +182,7 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
         let GrepMatch {
             path,
             mut line_number,
-            range,
+            ranges,
         } = match self.iter.next()? {
             Ok(m) => m,
             Err(e) => {
@@ -199,7 +199,10 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
         };
         // Assumes that matched lines are sorted by source location
         let mut lines = Lines::new(&contents);
-        let mut lmats = vec![LineMatch { line_number, range }];
+        let mut lmats = vec![LineMatch {
+            line_number,
+            ranges,
+        }];
         let mut chunks = Vec::new();
 
         'chunks: loop {
@@ -235,7 +238,7 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
                         line_number = m.line_number;
                         lmats.push(LineMatch {
                             line_number,
-                            range: m.range,
+                            ranges: m.ranges,
                         });
                     }
                 }
@@ -254,7 +257,7 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
             // First match line of next chunk
             lmats.push(LineMatch {
                 line_number,
-                range: m.range,
+                ranges: m.ranges,
             });
         }
 
