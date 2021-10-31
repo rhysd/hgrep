@@ -1332,7 +1332,8 @@ mod tests {
         let chunks = vec![(1, 1)];
         let file = File::new(PathBuf::from("test.txt"), lmats, chunks, contents.to_vec());
 
-        let opts = PrinterOptions::default();
+        let mut opts = PrinterOptions::default();
+        opts.color_support = TermColorSupport::True;
         let stdout = DummyStdout(RefCell::new(vec![]));
         let mut printer = SyntectPrinter::with_assets(stdout, syntax_set(), theme_set(), opts);
         printer.print(file).unwrap();
@@ -1341,7 +1342,7 @@ mod tests {
         let mut lines = printed.split_inclusive(|b| *b == b'\n');
 
         // One region per one character, but color codes between adjacent regions are not inserted
-        let expected = b"\x1b[48;2;255;231;146m\x1b[38;2;0;0;0mthis is test";
+        let expected = b"\x1b[38;2;0;0;0m\x1b[48;2;255;231;146mthis is test";
         let this_is_test_line = lines.nth(3).unwrap();
         let found = this_is_test_line
             .windows(expected.len())
