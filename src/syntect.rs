@@ -13,6 +13,7 @@ use std::io::Write;
 use std::io::{self, Stdout, StdoutLock};
 use std::ops::{Deref, DerefMut};
 use std::path::Path;
+use std::str::Chars;
 use syntect::highlighting::{
     Color, FontStyle, HighlightIterator, HighlightState, Highlighter, Style, Theme, ThemeSet,
 };
@@ -100,108 +101,113 @@ impl<'line> Token<'line> {
     }
 }
 
-// Some offset can be both start and end or end or start of region. In the case highlight does not
-// change so we can handle it as RegionBoundary::None. So actually start boundary and end boundary
-// are exclusive.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 enum RegionBoundary {
     Start,
-    End(Color), // Foreground color for restoring from region color
-    None,
+    End,
 }
 
-#[derive(Debug)]
-struct RegionBoundaries<'regions> {
-    offset: usize,
-    ranges: &'regions [(usize, usize)],
-    fg: Color,
+enum DrawEvent {
+    RegionStart,
+    RegionEnd,
+    Char(char),
+    TokenBoundary(Style), // Previous style
+    Done,
 }
 
-impl<'regions> RegionBoundaries<'regions> {
-    fn truncate_done_regions(&mut self, offset: usize) {
-        if let Some(idx) = self.ranges.iter().position(|r| offset <= r.1) {
-            if idx > 0 {
-                self.ranges = &self.ranges[idx..];
-            }
+struct DrawEvents<'a, 'line: 'a> {
+    tokens: &'a [Token<'line>],
+    chars_in_token: Chars<'line>,
+    regions: &'a [(usize, usize)],
+    current_style: Style,
+    in_region: bool,
+    byte_offset: usize,
+}
+
+impl<'a, 'line: 'a> DrawEvents<'a, 'line> {
+    fn new(tokens: &'a [Token<'line>], regions: &'a [(usize, usize)]) -> Self {
+        let (chars_in_token, current_style, tokens) =
+            if let Some((head, tail)) = tokens.split_first() {
+                (head.text.chars(), head.style, tail)
+            } else {
+                ("".chars(), Style::default(), tokens)
+            };
+
+        Self {
+            tokens,
+            chars_in_token,
+            regions,
+            current_style,
+            in_region: false,
+            byte_offset: 0,
         }
     }
 
-    fn boundary_at(&mut self, idx_in_token: usize) -> RegionBoundary {
-        let offset = self.offset + idx_in_token;
-        self.truncate_done_regions(offset); // Ensure the first region is not done yet
+    fn region_boundary(&mut self) -> Option<RegionBoundary> {
+        let o = self.byte_offset;
 
-        match self.ranges.first() {
-            Some((s, _)) if *s == offset => RegionBoundary::Start,
-            Some((_, e)) if *e == offset => {
-                // When the end of region is also the start of next region, highlight does not change
-                match self.ranges.get(1) {
-                    Some((s, _)) if *s == offset => RegionBoundary::None,
-                    _ => RegionBoundary::End(self.fg),
-                }
+        // Eat done regions
+        let num_done_regions = self.regions.iter().take_while(|(_, e)| *e < o).count();
+        if num_done_regions > 0 {
+            self.regions = &self.regions[num_done_regions..];
+        }
+
+        let (s, e) = *self.regions.first()?;
+        if o == s {
+            if o == e {
+                None
+            } else {
+                Some(RegionBoundary::Start)
             }
-            _ => RegionBoundary::None,
-        }
-    }
-}
-
-struct Regions<'regions> {
-    ranges: &'regions [(usize, usize)],
-}
-
-impl<'regions> Regions<'regions> {
-    fn boundaries(
-        &mut self,
-        token_start: usize,
-        token_end: usize,
-        fg: Color,
-    ) -> Option<RegionBoundaries<'regions>> {
-        if let Some(idx) = self.ranges.iter().position(|r| token_start <= r.1) {
-            if idx > 0 {
-                self.ranges = &self.ranges[idx..];
+        } else if o == e {
+            // When the next region is adjcent, skip changing highlight
+            match self.regions.get(1) {
+                Some((s, _)) if o == *s => None,
+                _ => Some(RegionBoundary::End),
             }
-        }
-
-        let count = self
-            .ranges
-            .iter()
-            .copied()
-            .take_while(|(s, e)| {
-                let include_start = token_start <= *s && *s <= token_end;
-                let include_end = token_start <= *e && *e <= token_end;
-                include_start || include_end
-            })
-            .count();
-
-        if count == 0 {
-            return None;
-        }
-
-        Some(RegionBoundaries {
-            offset: token_start,
-            ranges: &self.ranges[..count], // Include ranges only related to the token
-            fg,
-        })
-    }
-
-    fn contains(&self, byte_offset: usize) -> bool {
-        if let Some((s, e)) = self.ranges.first() {
-            *s <= byte_offset && byte_offset <= *e
         } else {
-            false
+            None
+        }
+    }
+
+    fn next_event(&mut self) -> DrawEvent {
+        match self.region_boundary() {
+            Some(RegionBoundary::Start) if !self.in_region => {
+                self.in_region = true;
+                return DrawEvent::RegionStart;
+            }
+            Some(RegionBoundary::End) if self.in_region => {
+                self.in_region = false;
+                return DrawEvent::RegionEnd;
+            }
+            _ => { /* fall through */ }
+        }
+
+        if let Some(c) = self.chars_in_token.next() {
+            self.byte_offset += c.len_utf8();
+            return DrawEvent::Char(c);
+        }
+
+        if let Some((head, tail)) = self.tokens.split_first() {
+            let prev_style = self.current_style;
+            self.current_style = head.style;
+            self.chars_in_token = head.text.chars();
+            self.tokens = tail;
+            DrawEvent::TokenBoundary(prev_style)
+        } else {
+            DrawEvent::Done
         }
     }
 }
 
 struct Canvas<'file, W: Write> {
     out: W,
-    tab_width: u16,
     theme: &'file Theme,
     true_color: bool,
     has_background: bool,
     match_bg: Option<Color>,
     region_fg: Option<Color>,
     region_bg: Option<Color>,
-    wrap: bool,
     current_fg: Option<Color>,
     current_bg: Option<Color>,
 }
@@ -215,37 +221,6 @@ impl<'file, W: Write> Deref for Canvas<'file, W> {
 impl<'file, W: Write> DerefMut for Canvas<'file, W> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.out
-    }
-}
-
-enum LineDrawState<'line> {
-    Continue(usize),
-    Break(&'line str),
-}
-
-struct Wrapping<'line> {
-    consumed_bytes: usize,
-    remaining_text: &'line str,
-    last_token_idx: usize,
-}
-
-impl<'line> Wrapping<'line> {
-    fn new(consumed_bytes: usize, remaining_text: &'line str, last_token_idx: usize) -> Self {
-        Self {
-            consumed_bytes,
-            remaining_text,
-            last_token_idx,
-        }
-    }
-
-    fn eat_written_tokens<'a>(&self, mut tokens: &'a mut [Token<'line>]) -> &'a mut [Token<'line>] {
-        if self.remaining_text.is_empty() {
-            &mut tokens[self.last_token_idx + 1..]
-        } else {
-            tokens = &mut tokens[self.last_token_idx..];
-            tokens[0].text = self.remaining_text; // Set rest of the text broken by text wrapping
-            tokens
-        }
     }
 }
 
@@ -309,6 +284,13 @@ impl<'file, W: Write> Canvas<'file, W> {
         Ok(())
     }
 
+    fn set_background(&mut self, c: Color) -> Result<()> {
+        if self.has_background {
+            self.set_bg(c)?;
+        }
+        Ok(())
+    }
+
     fn set_bold(&mut self) -> Result<()> {
         self.out.write_all(b"\x1b[1m")?;
         Ok(())
@@ -339,11 +321,24 @@ impl<'file, W: Write> Canvas<'file, W> {
         Ok(())
     }
 
+    fn set_style(&mut self, style: Style) -> Result<()> {
+        self.set_background(style.background)?;
+        self.set_fg(style.foreground)?;
+        self.set_font_style(style.font_style)?;
+        Ok(())
+    }
+
     fn set_match_bg_color(&mut self) -> Result<()> {
         if let Some(bg) = self.match_bg {
             self.set_bg(bg)?;
         }
         Ok(())
+    }
+
+    fn set_match_style(&mut self, style: Style) -> Result<()> {
+        self.set_fg(style.foreground)?;
+        self.set_match_bg_color()?;
+        self.set_font_style(style.font_style)
     }
 
     fn set_region_color(&mut self) -> Result<()> {
@@ -356,191 +351,11 @@ impl<'file, W: Write> Canvas<'file, W> {
         Ok(())
     }
 
-    fn set_boundary_color(&mut self, boundary: RegionBoundary) -> Result<()> {
-        match boundary {
-            RegionBoundary::Start => self.set_region_color(),
-            RegionBoundary::End(fg) => {
-                self.set_fg(fg)?;
-                self.set_match_bg_color()
-            }
-            RegionBoundary::None => Ok(()),
-        }
-    }
-
-    // Returns number of tab characters in the text
-    fn draw_text<'line>(
-        &mut self,
-        text: &'line str,
-        limit: usize,
-        mut boundaries: Option<RegionBoundaries<'_>>,
-    ) -> Result<LineDrawState<'line>> {
-        let mut width = 0;
-        let mut saw_zwj = false;
-        for (i, c) in text.char_indices() {
-            if let Some(boundaries) = &mut boundaries {
-                self.set_boundary_color(boundaries.boundary_at(i))?;
-            }
-
-            width += if c == '\t' && self.tab_width > 0 {
-                let w = self.tab_width as usize;
-                if width + w > limit {
-                    self.draw_spaces(limit - width)?;
-                    // `+ 1` for skipping rest of \t
-                    return Ok(LineDrawState::Break(&text[i + 1..]));
-                }
-                self.draw_spaces(self.tab_width as usize)?;
-                w
-            } else {
-                // Handle zero width joiner
-                let w = if c == '\u{200d}' {
-                    saw_zwj = true;
-                    0
-                } else if saw_zwj {
-                    saw_zwj = false;
-                    0 // Do not count width while joining current character into previous one with ZWJ
-                } else {
-                    c.width_cjk().unwrap_or(0)
-                };
-                if width + w > limit {
-                    self.draw_spaces(limit - width)?;
-                    return Ok(LineDrawState::Break(&text[i..]));
-                }
-                write!(self.out, "{}", c)?;
-                w
-            };
-        }
-        Ok(LineDrawState::Continue(width))
-    }
-
-    fn draw_text_no_wrap(&mut self, text: &str) -> Result<usize> {
-        if self.tab_width == 0 {
-            write!(self.out, "{}", text)?;
-            return Ok(text.width_cjk());
-        }
-
-        let mut width = 0;
-        for c in text.chars() {
-            if c == '\t' && self.tab_width > 0 {
-                let w = self.tab_width as usize;
-                self.draw_spaces(w)?;
-                width += w;
-            } else {
-                write!(self.out, "{}", c)?;
-                width += c.width_cjk().unwrap_or(0);
-            }
-        }
-        Ok(width)
-    }
-
-    fn draw_text_no_wrap_with_region<'regions>(
-        &mut self,
-        text: &str,
-        mut boundaries: RegionBoundaries<'regions>,
-    ) -> Result<usize> {
-        let mut width = 0;
-        for (i, c) in text.chars().enumerate() {
-            self.set_boundary_color(boundaries.boundary_at(i))?;
-            if c == '\t' && self.tab_width > 0 {
-                let w = self.tab_width as usize;
-                self.draw_spaces(w)?;
-                width += w;
-            } else {
-                write!(self.out, "{}", c)?;
-                width += c.width_cjk().unwrap_or(0);
-            }
-        }
-        Ok(width)
-    }
-
     fn fill_spaces(&mut self, written_width: usize, max_width: usize) -> Result<()> {
         if written_width < max_width {
             self.draw_spaces(max_width - written_width)?;
         }
         Ok(())
-    }
-
-    fn draw_matched<'regions, 'line: 'regions>(
-        &mut self,
-        mut regions: Regions<'regions>,
-        tokens: &[Token<'line>],
-        max_width: usize,
-    ) -> Result<Option<Wrapping<'line>>> {
-        self.set_match_bg_color()?;
-
-        let mut start_offset = 0;
-        let mut width = 0;
-        for (idx, tok) in tokens.iter().enumerate() {
-            let len = tok.text.len();
-            let end_offset = start_offset + len;
-
-            // In region, the style should not be changed
-            if !regions.contains(start_offset) {
-                self.set_fg(tok.style.foreground)?;
-                self.set_font_style(tok.style.font_style)?;
-            }
-
-            let boundaries = regions.boundaries(start_offset, end_offset, tok.style.foreground);
-
-            if self.wrap {
-                match self.draw_text(tok.text, max_width - width, boundaries)? {
-                    LineDrawState::Continue(w) => width += w,
-                    LineDrawState::Break(rest) => {
-                        let bytes = end_offset - rest.len();
-                        return Ok(Some(Wrapping::new(bytes, rest, idx)));
-                    }
-                }
-            } else if let Some(boundaries) = boundaries {
-                width += self.draw_text_no_wrap_with_region(tok.text, boundaries)?;
-            } else {
-                width += self.draw_text_no_wrap(tok.text)?;
-            }
-            self.unset_font_style(tok.style.font_style)?;
-            start_offset += len;
-        }
-
-        // Ensure to reset background color considering the case where a region is at the end of line
-        self.set_match_bg_color()?;
-        self.fill_spaces(width, max_width)?;
-
-        Ok(None)
-    }
-
-    fn draw<'tokens, 'line: 'tokens>(
-        &mut self,
-        tokens: &'tokens [Token<'line>],
-        max_width: usize,
-    ) -> Result<Option<Wrapping<'line>>> {
-        let mut byte_offset = 0;
-        let mut width = 0;
-        for (idx, tok) in tokens.iter().enumerate() {
-            if self.has_background {
-                self.set_bg(tok.style.background)?;
-            }
-            self.set_fg(tok.style.foreground)?;
-            self.set_font_style(tok.style.font_style)?;
-            if self.wrap {
-                match self.draw_text(tok.text, max_width - width, None)? {
-                    LineDrawState::Continue(w) => width += w,
-                    LineDrawState::Break(rest) => {
-                        let bytes = byte_offset + tok.text.len() - rest.len();
-                        return Ok(Some(Wrapping::new(bytes, rest, idx)));
-                    }
-                }
-            } else {
-                width += self.draw_text_no_wrap(tok.text)?;
-            }
-            self.unset_font_style(tok.style.font_style)?;
-            byte_offset += tok.text.len();
-        }
-
-        if width == 0 {
-            self.set_default_bg()?; // For empty line
-        }
-        if self.has_background {
-            self.fill_spaces(width, max_width)?;
-        }
-
-        Ok(None)
     }
 }
 
@@ -651,6 +466,8 @@ struct Drawer<'file, W: Write> {
     background: bool,
     first_only: bool,
     gutter_color: Color,
+    wrap: bool,
+    tab_width: u16,
     chars: LineChars<'file>,
     canvas: Canvas<'file, W>,
 }
@@ -679,9 +496,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         let canvas = Canvas {
             theme,
             true_color: opts.color_support == TermColorSupport::True,
-            tab_width: opts.tab_width as u16,
             has_background: opts.background_color,
-            wrap: opts.text_wrap == TextWrapMode::Char,
             region_fg,
             region_bg,
             current_fg: None,
@@ -703,6 +518,8 @@ impl<'file, W: Write> Drawer<'file, W> {
             lnum_width,
             background: opts.background_color,
             gutter_color,
+            wrap: opts.text_wrap == TextWrapMode::Char,
+            tab_width: opts.tab_width as u16,
             first_only: opts.first_only,
             chars,
             canvas,
@@ -787,6 +604,18 @@ impl<'file, W: Write> Drawer<'file, W> {
         self.canvas.draw_newline()
     }
 
+    fn draw_text_wrappping(&mut self, matched: bool, style: Style, in_region: bool) -> Result<()> {
+        self.canvas.draw_newline()?;
+        self.draw_wrapping_gutter()?;
+        if in_region {
+            self.canvas.set_region_color()
+        } else if matched {
+            self.canvas.set_match_style(style)
+        } else {
+            self.canvas.set_style(style)
+        }
+    }
+
     fn draw_line(
         &mut self,
         mut tokens: Vec<Token<'_>>,
@@ -801,37 +630,83 @@ impl<'file, W: Write> Drawer<'file, W> {
         }
 
         let body_width = (self.term_width - self.gutter_width()) as usize;
-        self.draw_line_number(lnum, regions.is_some())?;
-        let mut tokens = tokens.as_mut_slice();
+        let matched = regions.is_some();
 
-        if let Some(mut regions) = regions {
-            let mut regions = regions.as_mut_slice();
-            while let Some(wrapping) =
-                self.canvas
-                    .draw_matched(Regions { ranges: regions }, tokens, body_width)?
-            {
-                self.canvas.draw_newline()?;
-                self.draw_wrapping_gutter()?;
+        let tokens = tokens.as_slice();
+        let regions = regions.as_ref().map(AsRef::as_ref).unwrap_or(&[][..]);
+        let mut events = DrawEvents::new(tokens, regions);
 
-                for (s, e) in regions.iter_mut() {
-                    *s = s.saturating_sub(wrapping.consumed_bytes);
-                    *e = e.saturating_sub(wrapping.consumed_bytes);
+        self.draw_line_number(lnum, matched)?;
+        if matched {
+            self.canvas.set_match_style(events.current_style)?;
+        } else if !tokens.is_empty() {
+            self.canvas.set_style(events.current_style)?;
+        }
+
+        let mut width = 0; // Text width written to terminal
+        let mut saw_zwj = false;
+        loop {
+            match events.next_event() {
+                DrawEvent::Char('\t') if self.tab_width > 0 => {
+                    let w = self.tab_width as usize;
+                    if width + w > body_width && self.wrap {
+                        self.canvas.draw_spaces(body_width - width)?;
+                        self.draw_text_wrappping(matched, events.current_style, events.in_region)?;
+                        width = 0;
+                    } else {
+                        self.canvas.draw_spaces(w)?;
+                        width += w;
+                    }
                 }
-                // Remove (0, 0) ranges at head of regions as the result of the slide
-                let idx = regions.iter().take_while(|(s, e)| s == e).count();
-                if idx > 0 {
-                    regions = &mut regions[idx..];
+                DrawEvent::Char(c) => {
+                    // Handle zero width joiner
+                    let w = if c == '\u{200d}' {
+                        saw_zwj = true;
+                        0
+                    } else if saw_zwj {
+                        saw_zwj = false;
+                        0 // Do not count width while joining current character into previous one with ZWJ
+                    } else {
+                        c.width_cjk().unwrap_or(0)
+                    };
+                    if width + w > body_width && self.wrap {
+                        self.canvas.draw_spaces(body_width - width)?;
+                        self.draw_text_wrappping(matched, events.current_style, events.in_region)?;
+                        width = 0;
+                    }
+                    write!(self.canvas, "{}", c)?;
+                    width += w;
                 }
+                DrawEvent::TokenBoundary(prev_style) => {
+                    if !events.in_region {
+                        self.canvas.unset_font_style(prev_style.font_style)?;
+                        if !matched {
+                            self.canvas
+                                .set_background(events.current_style.background)?;
+                        }
+                        self.canvas.set_fg(events.current_style.foreground)?;
+                        self.canvas
+                            .set_font_style(events.current_style.font_style)?;
+                    }
+                }
+                DrawEvent::RegionStart => {
+                    self.canvas.set_region_color()?;
+                }
+                DrawEvent::RegionEnd => {
+                    self.canvas.set_match_style(events.current_style)?;
+                }
+                DrawEvent::Done => break,
+            }
+        }
 
-                tokens = wrapping.eat_written_tokens(tokens);
-            }
-        } else {
-            while let Some(wrapping) = self.canvas.draw(tokens, body_width)? {
-                self.canvas.draw_newline()?;
-                self.draw_wrapping_gutter()?;
-                tokens = wrapping.eat_written_tokens(tokens);
-            }
-        };
+        if matched {
+            self.canvas.set_match_bg_color()?;
+        } else if width == 0 {
+            self.canvas.set_default_bg()?;
+        }
+        if self.canvas.has_background || matched {
+            self.canvas.fill_spaces(width, body_width)?;
+        }
 
         self.canvas.draw_newline()
     }
@@ -1466,7 +1341,7 @@ mod tests {
         let mut lines = printed.split_inclusive(|b| *b == b'\n');
 
         // One region per one character, but color codes between adjacent regions are not inserted
-        let expected = b"\x1b[38;2;0;0;0m\x1b[48;2;255;231;146mthis is test";
+        let expected = b"\x1b[48;2;255;231;146m\x1b[38;2;0;0;0mthis is test";
         let this_is_test_line = lines.nth(3).unwrap();
         let found = this_is_test_line
             .windows(expected.len())
