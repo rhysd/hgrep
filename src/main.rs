@@ -586,8 +586,7 @@ fn main() {
         Ok(true) => 0,
         Ok(false) => 1,
         Err(err) => {
-            let red = ansi_term::Colour::Red.bold();
-            eprintln!("{} {}", red.paint("error:"), err);
+            eprintln!("\x1b[1;91merror:\x1b[0m {}", err);
             2
         }
     };
