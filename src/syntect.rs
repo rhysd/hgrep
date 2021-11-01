@@ -105,6 +105,7 @@ impl<'line> Token<'line> {
 enum RegionBoundary {
     Start,
     End,
+    NotFound,
 }
 
 enum DrawEvent {
@@ -143,7 +144,7 @@ impl<'a, 'line: 'a> DrawEvents<'a, 'line> {
         }
     }
 
-    fn region_boundary(&mut self) -> Option<RegionBoundary> {
+    fn region_boundary(&mut self) -> RegionBoundary {
         let o = self.byte_offset;
 
         // Eat done regions
@@ -152,31 +153,26 @@ impl<'a, 'line: 'a> DrawEvents<'a, 'line> {
             self.regions = &self.regions[num_done_regions..];
         }
 
-        let (s, e) = *self.regions.first()?;
-        if o == s {
-            if o == e {
-                None
-            } else {
-                Some(RegionBoundary::Start)
+        match self.regions.first().copied() {
+            Some((s, e)) if o == s && o < e => RegionBoundary::Start,
+            Some((_, e)) if o == e => {
+                // When the next region is adjcent, skip changing highlight
+                match self.regions.get(1) {
+                    Some((s, _)) if o == *s => RegionBoundary::NotFound,
+                    _ => RegionBoundary::End,
+                }
             }
-        } else if o == e {
-            // When the next region is adjcent, skip changing highlight
-            match self.regions.get(1) {
-                Some((s, _)) if o == *s => None,
-                _ => Some(RegionBoundary::End),
-            }
-        } else {
-            None
+            _ => RegionBoundary::NotFound,
         }
     }
 
     fn next_event(&mut self) -> DrawEvent {
         match self.region_boundary() {
-            Some(RegionBoundary::Start) if !self.in_region => {
+            RegionBoundary::Start if !self.in_region => {
                 self.in_region = true;
                 return DrawEvent::RegionStart;
             }
-            Some(RegionBoundary::End) if self.in_region => {
+            RegionBoundary::End if self.in_region => {
                 self.in_region = false;
                 return DrawEvent::RegionEnd;
             }
@@ -627,6 +623,9 @@ impl<'file, W: Write> Drawer<'file, W> {
         // - we clear colors before writing newline
         if let Some(tok) = tokens.last_mut() {
             tok.chomp();
+            if tok.text.is_empty() {
+                tokens.pop(); // As the result of `chomp()`, text may be empty. Empty token can be removed
+            }
         }
 
         let body_width = (self.term_width - self.gutter_width()) as usize;
