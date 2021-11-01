@@ -200,16 +200,86 @@ impl<'a, 'line: 'a> DrawEvents<'a, 'line> {
     }
 }
 
+#[derive(Default)]
+struct ColorWriter {
+    fg: Option<Color>,
+    bg: Option<Color>,
+    font: Option<FontStyle>,
+    current_fg: Option<Color>,
+    current_bg: Option<Color>,
+    true_color: bool,
+}
+
+impl ColorWriter {
+    fn set_color<W: Write>(&mut self, w: &mut W, code: u8, c: Color) -> Result<()> {
+        // In case of c.a == 0 and c.a == 1 are handling for special colorscheme by bat for non true
+        // color terminals. Color value is encoded in R. See `to_ansi_color()` in bat/src/terminal.rs
+        match c.a {
+            0 if c.r <= 7 => write!(w, "\x1b[{}m", c.r + code)?, // 16 colors; e.g. 3 => 33 (Yellow), 6 => 36 (Cyan) (code=30)
+            0 => write!(w, "\x1b[{};5;{}m", code + 8, c.r)?, // 256 colors; code=38 for fg, code=48 for bg
+            1 => { /* Pass through. Do nothing */ }
+            _ if self.true_color => write!(w, "\x1b[{};2;{};{};{}m", code + 8, c.r, c.g, c.b)?,
+            _ => write!(w, "\x1b[{};5;{}m", code + 8, rgb_to_ansi256(c.r, c.g, c.b),)?,
+        }
+        Ok(())
+    }
+
+    fn set_bg(&mut self, c: Color) {
+        if self.current_bg != Some(c) {
+            self.bg = Some(c);
+            self.current_bg = Some(c);
+        }
+    }
+
+    fn set_fg(&mut self, c: Color) {
+        if self.current_fg != Some(c) {
+            self.fg = Some(c);
+            self.current_fg = Some(c);
+        }
+    }
+
+    fn set_font_style(&mut self, style: FontStyle) {
+        self.font = Some(style);
+    }
+
+    fn flash<W: Write>(&mut self, out: &mut W) -> Result<()> {
+        if let Some(s) = self.font {
+            if s.contains(FontStyle::BOLD) {
+                out.write_all(b"\x1b[1m")?;
+            }
+            if s.contains(FontStyle::UNDERLINE) {
+                out.write_all(b"\x1b[4m")?;
+            }
+            self.font = None;
+        }
+        if let Some(c) = self.bg {
+            self.set_color(out, 40, c)?;
+            self.bg = None;
+        }
+        if let Some(c) = self.fg {
+            self.set_color(out, 30, c)?;
+            self.fg = None;
+        }
+        Ok(())
+    }
+
+    fn clear(&mut self) {
+        self.fg = None;
+        self.bg = None;
+        self.font = None;
+        self.current_fg = None;
+        self.current_bg = None;
+    }
+}
+
 struct Canvas<'file, W: Write> {
     out: W,
     theme: &'file Theme,
-    true_color: bool,
     has_background: bool,
     match_bg: Option<Color>,
     region_fg: Option<Color>,
     region_bg: Option<Color>,
-    current_fg: Option<Color>,
-    current_bg: Option<Color>,
+    color: ColorWriter,
 }
 
 impl<'file, W: Write> Deref for Canvas<'file, W> {
@@ -234,81 +304,30 @@ impl<'file, W: Write> Canvas<'file, W> {
 
     fn draw_newline(&mut self) -> Result<()> {
         writeln!(self.out, "\x1b[0m")?; // Reset on newline to ensure to reset color
-        self.current_fg = None;
-        self.current_bg = None;
+        self.color.clear();
         Ok(())
     }
 
-    fn set_color(&mut self, code: u8, c: Color) -> Result<()> {
-        // In case of c.a == 0 and c.a == 1 are handling for special colorscheme by bat for non true
-        // color terminals. Color value is encoded in R. See `to_ansi_color()` in bat/src/terminal.rs
-        match c.a {
-            0 if c.r <= 7 => write!(self.out, "\x1b[{}m", c.r + code)?, // 16 colors; e.g. 3 => 33 (Yellow), 6 => 36 (Cyan) (code=30)
-            0 => write!(self.out, "\x1b[{};5;{}m", code + 8, c.r)?, // 256 colors; code=38 for fg, code=48 for bg
-            1 => { /* Pass through. Do nothing */ }
-            _ if self.true_color => {
-                write!(self.out, "\x1b[{};2;{};{};{}m", code + 8, c.r, c.g, c.b)?
-            }
-            _ => write!(
-                self.out,
-                "\x1b[{};5;{}m",
-                code + 8,
-                rgb_to_ansi256(c.r, c.g, c.b),
-            )?,
-        }
-        Ok(())
+    fn set_bg(&mut self, c: Color) {
+        self.color.set_bg(c);
     }
 
-    fn set_bg(&mut self, c: Color) -> Result<()> {
-        if self.current_bg != Some(c) {
-            self.set_color(40, c)?;
-            self.current_bg = Some(c);
-        }
-        Ok(())
+    fn set_fg(&mut self, c: Color) {
+        self.color.set_fg(c);
     }
 
-    fn set_fg(&mut self, c: Color) -> Result<()> {
-        if self.current_fg != Some(c) {
-            self.set_color(30, c)?;
-            self.current_fg = Some(c);
-        }
-        Ok(())
-    }
-
-    fn set_default_bg(&mut self) -> Result<()> {
+    fn set_default_bg(&mut self) {
         if self.has_background {
             if let Some(bg) = self.theme.settings.background {
-                self.set_bg(bg)?;
+                self.set_bg(bg);
             }
         }
-        Ok(())
     }
 
-    fn set_background(&mut self, c: Color) -> Result<()> {
+    fn set_background(&mut self, c: Color) {
         if self.has_background {
-            self.set_bg(c)?;
+            self.set_bg(c);
         }
-        Ok(())
-    }
-
-    fn set_bold(&mut self) -> Result<()> {
-        self.out.write_all(b"\x1b[1m")?;
-        Ok(())
-    }
-
-    fn set_underline(&mut self) -> Result<()> {
-        self.out.write_all(b"\x1b[4m")?;
-        Ok(())
-    }
-
-    fn set_font_style(&mut self, style: FontStyle) -> Result<()> {
-        if style.contains(FontStyle::BOLD) {
-            self.set_bold()?;
-        }
-        if style.contains(FontStyle::UNDERLINE) {
-            self.set_underline()?;
-        }
-        Ok(())
     }
 
     fn unset_font_style(&mut self, style: FontStyle) -> Result<()> {
@@ -321,34 +340,45 @@ impl<'file, W: Write> Canvas<'file, W> {
         Ok(())
     }
 
-    fn set_style(&mut self, style: Style) -> Result<()> {
-        self.set_background(style.background)?;
-        self.set_fg(style.foreground)?;
-        self.set_font_style(style.font_style)?;
+    fn flash(&mut self) -> Result<()> {
+        self.color.flash(&mut self.out)
+    }
+
+    fn write_bytes(&mut self, b: &[u8]) -> Result<()> {
+        self.color.flash(&mut self.out)?;
+        self.out.write_all(b)?;
         Ok(())
     }
 
-    fn set_match_bg_color(&mut self) -> Result<()> {
+    fn set_font_style(&mut self, style: FontStyle) {
+        self.color.set_font_style(style);
+    }
+
+    fn set_style(&mut self, style: Style) {
+        self.set_background(style.background);
+        self.set_fg(style.foreground);
+        self.set_font_style(style.font_style);
+    }
+
+    fn set_match_bg_color(&mut self) {
         if let Some(bg) = self.match_bg {
-            self.set_bg(bg)?;
+            self.set_bg(bg);
         }
-        Ok(())
     }
 
-    fn set_match_style(&mut self, style: Style) -> Result<()> {
-        self.set_fg(style.foreground)?;
-        self.set_match_bg_color()?;
-        self.set_font_style(style.font_style)
+    fn set_match_style(&mut self, style: Style) {
+        self.set_fg(style.foreground);
+        self.set_match_bg_color();
+        self.set_font_style(style.font_style);
     }
 
-    fn set_region_color(&mut self) -> Result<()> {
+    fn set_region_color(&mut self) {
         if let Some(c) = self.region_fg {
-            self.set_fg(c)?;
+            self.set_fg(c);
         }
         if let Some(c) = self.region_bg {
-            self.set_bg(c)?;
+            self.set_bg(c);
         }
-        Ok(())
     }
 
     fn fill_spaces(&mut self, written_width: usize, max_width: usize) -> Result<()> {
@@ -493,15 +523,16 @@ impl<'file, W: Write> Drawer<'file, W> {
             (None, theme.settings.selection)
         };
 
+        let mut color = ColorWriter::default();
+        color.true_color = opts.color_support == TermColorSupport::True;
+
         let canvas = Canvas {
             theme,
-            true_color: opts.color_support == TermColorSupport::True,
             has_background: opts.background_color,
             region_fg,
             region_bg,
-            current_fg: None,
-            current_bg: None,
             match_bg: theme.settings.line_highlight.or(theme.settings.background),
+            color,
             out,
         };
 
@@ -536,15 +567,15 @@ impl<'file, W: Write> Drawer<'file, W> {
     }
 
     fn draw_horizontal_line(&mut self, sep: &str) -> Result<()> {
-        self.canvas.set_fg(self.gutter_color)?;
-        self.canvas.set_default_bg()?;
+        self.canvas.set_fg(self.gutter_color);
+        self.canvas.set_default_bg();
         let gutter_width = self.gutter_width();
         for _ in 0..gutter_width - 2 {
-            self.canvas.write_all(self.chars.horizontal.as_bytes())?;
+            self.canvas.write_bytes(self.chars.horizontal.as_bytes())?;
         }
         self.canvas.write_all(sep.as_bytes())?;
         for _ in 0..self.term_width - gutter_width + 1 {
-            self.canvas.write_all(self.chars.horizontal.as_bytes())?;
+            self.canvas.write_bytes(self.chars.horizontal.as_bytes())?;
         }
         self.canvas.draw_newline()
     }
@@ -555,51 +586,56 @@ impl<'file, W: Write> Drawer<'file, W> {
         } else {
             self.gutter_color
         };
-        self.canvas.set_fg(fg)?;
-        self.canvas.set_default_bg()?;
+        self.canvas.set_fg(fg);
+        self.canvas.set_default_bg();
         let width = num_digits(lnum);
         self.canvas
             .draw_spaces((self.lnum_width - width) as usize)?;
+        self.canvas.flash()?;
         write!(self.canvas, " {}", lnum)?;
         if self.grid {
             if matched {
-                self.canvas.set_fg(self.gutter_color)?;
+                self.canvas.set_fg(self.gutter_color);
             }
+            self.canvas.flash()?;
             write!(self.canvas, " {}", self.chars.vertical)?;
         }
-        self.canvas.set_default_bg()?;
+        self.canvas.set_default_bg();
         write!(self.canvas, " ")?;
         Ok(()) // Do not reset color because another color text will follow
     }
 
     fn draw_wrapping_gutter(&mut self) -> Result<()> {
-        self.canvas.set_fg(self.gutter_color)?;
-        self.canvas.set_default_bg()?;
+        self.canvas.set_fg(self.gutter_color);
+        self.canvas.set_default_bg();
         self.canvas.draw_spaces(self.lnum_width as usize + 2)?;
         if self.grid {
+            self.canvas.flash()?;
             write!(self.canvas, "{} ", self.chars.vertical)?;
         }
         Ok(())
     }
 
     fn draw_separator_line(&mut self) -> Result<()> {
-        self.canvas.set_fg(self.gutter_color)?;
-        self.canvas.set_default_bg()?;
+        self.canvas.set_fg(self.gutter_color);
+        self.canvas.set_default_bg();
         // + 1 for left margin and - 3 for length of "..."
         let left_margin = self.lnum_width + 1 - 3;
         self.canvas.draw_spaces(left_margin as usize)?;
         let w = if self.grid {
+            self.canvas.flash()?;
             write!(self.canvas, "... {}", self.chars.vertical_and_right)?;
             5
         } else {
+            self.canvas.flash()?;
             write!(self.canvas, "...")?;
             3
         };
-        self.canvas.set_default_bg()?;
+        self.canvas.set_default_bg();
         let body_width = self.term_width - left_margin - w; // This crashes when terminal width is smaller than gutter
         for _ in 0..body_width {
             self.canvas
-                .write_all(self.chars.dashed_horizontal.as_bytes())?;
+                .write_bytes(self.chars.dashed_horizontal.as_bytes())?;
         }
         self.canvas.draw_newline()
     }
@@ -608,12 +644,13 @@ impl<'file, W: Write> Drawer<'file, W> {
         self.canvas.draw_newline()?;
         self.draw_wrapping_gutter()?;
         if in_region {
-            self.canvas.set_region_color()
+            self.canvas.set_region_color();
         } else if matched {
-            self.canvas.set_match_style(style)
+            self.canvas.set_match_style(style);
         } else {
-            self.canvas.set_style(style)
+            self.canvas.set_style(style);
         }
+        Ok(())
     }
 
     fn draw_line(
@@ -638,9 +675,9 @@ impl<'file, W: Write> Drawer<'file, W> {
 
         self.draw_line_number(lnum, matched)?;
         if matched {
-            self.canvas.set_match_style(events.current_style)?;
+            self.canvas.set_match_style(events.current_style);
         } else if !tokens.is_empty() {
-            self.canvas.set_style(events.current_style)?;
+            self.canvas.set_style(events.current_style);
         }
 
         let mut width = 0; // Text width written to terminal
@@ -674,6 +711,7 @@ impl<'file, W: Write> Drawer<'file, W> {
                         self.draw_text_wrappping(matched, events.current_style, events.in_region)?;
                         width = 0;
                     }
+                    self.canvas.flash()?;
                     write!(self.canvas, "{}", c)?;
                     width += w;
                 }
@@ -681,28 +719,26 @@ impl<'file, W: Write> Drawer<'file, W> {
                     if !events.in_region {
                         self.canvas.unset_font_style(prev_style.font_style)?;
                         if !matched {
-                            self.canvas
-                                .set_background(events.current_style.background)?;
+                            self.canvas.set_background(events.current_style.background);
                         }
-                        self.canvas.set_fg(events.current_style.foreground)?;
-                        self.canvas
-                            .set_font_style(events.current_style.font_style)?;
+                        self.canvas.set_fg(events.current_style.foreground);
+                        self.canvas.set_font_style(events.current_style.font_style);
                     }
                 }
                 DrawEvent::RegionStart => {
-                    self.canvas.set_region_color()?;
+                    self.canvas.set_region_color();
                 }
                 DrawEvent::RegionEnd => {
-                    self.canvas.set_match_style(events.current_style)?;
+                    self.canvas.set_match_style(events.current_style);
                 }
                 DrawEvent::Done => break,
             }
         }
 
         if matched {
-            self.canvas.set_match_bg_color()?;
+            self.canvas.set_match_bg_color();
         } else if width == 0 {
-            self.canvas.set_default_bg()?;
+            self.canvas.set_default_bg();
         }
         if self.canvas.has_background || matched {
             self.canvas.fill_spaces(width, body_width)?;
@@ -758,9 +794,10 @@ impl<'file, W: Write> Drawer<'file, W> {
 
     fn draw_header(&mut self, path: &Path) -> Result<()> {
         self.draw_horizontal_line(self.chars.horizontal)?;
-        self.canvas.set_default_bg()?;
+        self.canvas.set_default_bg();
         let path = path.as_os_str().to_string_lossy();
-        self.canvas.set_bold()?;
+        self.canvas.set_font_style(FontStyle::BOLD);
+        self.canvas.flash()?;
         write!(self.canvas, " {}", path)?;
         if self.background {
             self.canvas
@@ -1352,7 +1389,7 @@ mod tests {
         let mut lines = printed.split_inclusive(|b| *b == b'\n');
 
         // One region per one character, but color codes between adjacent regions are not inserted
-        let expected = b"\x1b[38;2;0;0;0m\x1b[48;2;255;231;146mthis is test";
+        let expected = b"\x1b[48;2;255;231;146m\x1b[38;2;0;0;0mthis is test";
         let this_is_test_line = lines.nth(3).unwrap();
         let found = this_is_test_line
             .windows(expected.len())
