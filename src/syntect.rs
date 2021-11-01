@@ -482,12 +482,16 @@ impl<'file, W: Write> Drawer<'file, W> {
             lnum_width = cmp::max(lnum_width, 3); // Consider '...' in gutter
         }
 
-        let gutter_color = theme.settings.gutter_foreground.unwrap_or(Color {
-            r: 128,
-            g: 128,
-            b: 128,
-            a: 255,
-        });
+        let gutter_color = theme
+            .settings
+            .gutter_foreground
+            .or(theme.settings.minimap_border)
+            .unwrap_or(Color {
+                r: 128,
+                g: 128,
+                b: 128,
+                a: 255,
+            });
 
         let (region_fg, region_bg) = if let Some(bg) = theme.settings.find_highlight {
             (theme.settings.find_highlight_foreground, Some(bg))
