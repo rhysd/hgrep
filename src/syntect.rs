@@ -85,6 +85,7 @@ impl fmt::Display for PrintError {
     }
 }
 
+#[derive(Debug)]
 struct Token<'line> {
     style: Style,
     text: &'line str,
@@ -233,19 +234,44 @@ struct Palette {
     gutter_bg: Color,
 }
 
-// TODO: Add palette for 16-colors
 impl Palette {
-    fn new(theme: &Theme) -> Self {
-        const NO_COLOR: Color = Color {
-            r: 0,
-            g: 0,
-            b: 0,
-            a: 1, // Special color which means pass though
-        };
+    const NO_COLOR: Color = Color {
+        r: 0,
+        g: 0,
+        b: 0,
+        a: 1, // Special color which means pass though
+    };
+    const YELLOW_COLOR_16: Color = Color {
+        r: 3, // Yellow
+        g: 0,
+        b: 0,
+        a: 0,
+    };
+    const BLACK_COLOR_16: Color = Color {
+        r: 0, // Black
+        g: 0,
+        b: 0,
+        a: 0,
+    };
+    const ANSI16: Palette = Palette {
+        foreground: Self::NO_COLOR,
+        background: Self::NO_COLOR,
+        match_bg: Self::NO_COLOR,
+        match_lnum_fg: Self::YELLOW_COLOR_16,
+        region_fg: Self::BLACK_COLOR_16,
+        region_bg: Self::YELLOW_COLOR_16,
+        gutter_fg: Self::NO_COLOR,
+        gutter_bg: Self::NO_COLOR,
+    };
 
-        let background = theme.settings.background.unwrap_or(NO_COLOR);
-        let foreground = theme.settings.foreground.unwrap_or(NO_COLOR);
+    fn new(theme: &Theme) -> Self {
+        let background = theme.settings.background.unwrap_or(Self::NO_COLOR);
+        let foreground = theme.settings.foreground.unwrap_or(Self::NO_COLOR);
         let foreground = blend_fg_color(foreground, background);
+
+        if foreground.a == 1 && background.a == 1 {
+            return Self::ANSI16;
+        }
 
         let gutter_bg = theme.settings.gutter.unwrap_or(background);
         let match_lnum_fg = theme.settings.gutter_foreground.unwrap_or(foreground);
@@ -325,16 +351,15 @@ impl<W: Write> Canvas<W> {
         match c.a {
             0 if c.r <= 7 => write!(self.out, "\x1b[{}m", c.r + code)?, // 16 colors; e.g. 3 => 33 (Yellow), 6 => 36 (Cyan) (code=30)
             0 => write!(self.out, "\x1b[{};5;{}m", code + 8, c.r)?, // 256 colors; code=38 for fg, code=48 for bg
-            1 => { /* Pass through. Do nothing */ }
+            1 if code == 40 => { /* Pass through */ }
+            1 => write!(self.out, "\x1b[0m")?, // Pass though. Reset color to set default terminal font color
             _ if self.true_color => {
-                write!(self.out, "\x1b[{};2;{};{};{}m", code + 8, c.r, c.g, c.b)?
+                write!(self.out, "\x1b[{};2;{};{};{}m", code + 8, c.r, c.g, c.b)?;
             }
-            _ => write!(
-                self.out,
-                "\x1b[{};5;{}m",
-                code + 8,
-                rgb_to_ansi256(c.r, c.g, c.b),
-            )?,
+            _ => {
+                let c = rgb_to_ansi256(c.r, c.g, c.b);
+                write!(self.out, "\x1b[{};5;{}m", code + 8, c,)?;
+            }
         }
         Ok(())
     }
@@ -584,11 +609,16 @@ impl<'file, W: Write> Drawer<'file, W> {
             lnum_width = cmp::max(lnum_width, 3); // Consider '...' in gutter
         }
 
+        let palette = if opts.color_support == TermColorSupport::Ansi16 {
+            Palette::ANSI16
+        } else {
+            Palette::new(theme)
+        };
         let canvas = Canvas {
             out,
             true_color: opts.color_support == TermColorSupport::True,
             has_background: opts.background_color,
-            palette: Palette::new(theme),
+            palette,
             current_fg: None,
             current_bg: None,
         };
