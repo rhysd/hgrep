@@ -435,12 +435,16 @@ impl<W: Write> Canvas<W> {
         self.set_bg(self.palette.region_bg)
     }
 
-    fn set_gutter_color(&mut self) -> Result<()> {
-        self.set_fg(self.palette.gutter_fg)?;
+    fn set_gutter_bg_color(&mut self) -> Result<()> {
         if self.has_background {
             self.set_background(self.palette.gutter_bg)?;
         }
         Ok(())
+    }
+
+    fn set_gutter_color(&mut self) -> Result<()> {
+        self.set_fg(self.palette.gutter_fg)?;
+        self.set_gutter_bg_color()
     }
 
     fn set_match_lnum_color(&mut self) -> Result<()> {
@@ -837,7 +841,7 @@ impl<'file, W: Write> Drawer<'file, W> {
 
     fn draw_header(&mut self, path: &Path) -> Result<()> {
         self.draw_horizontal_line(self.chars.horizontal)?;
-        self.canvas.set_default_bg()?;
+        self.canvas.set_gutter_bg_color()?;
         let path = path.as_os_str().to_string_lossy();
         self.canvas.set_default_fg()?;
         self.canvas.set_bold()?;
