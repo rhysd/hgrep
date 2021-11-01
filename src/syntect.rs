@@ -280,6 +280,13 @@ impl<'file, W: Write> Canvas<'file, W> {
         Ok(())
     }
 
+    fn set_default_fg(&mut self) -> Result<()> {
+        if let Some(fg) = self.theme.settings.foreground {
+            self.set_fg(fg)?;
+        }
+        Ok(())
+    }
+
     fn set_background(&mut self, c: Color) -> Result<()> {
         if self.has_background {
             self.set_bg(c)?;
@@ -455,7 +462,6 @@ impl<'a> Iterator for LinesInclusive<'a> {
 
 // Drawer is responsible for one-time screen drawing
 struct Drawer<'file, W: Write> {
-    theme: &'file Theme,
     grid: bool,
     term_width: u16,
     lnum_width: u16,
@@ -508,7 +514,6 @@ impl<'file, W: Write> Drawer<'file, W> {
         };
 
         Drawer {
-            theme,
             grid: opts.grid,
             term_width: opts.term_width,
             lnum_width,
@@ -546,12 +551,11 @@ impl<'file, W: Write> Drawer<'file, W> {
     }
 
     fn draw_line_number(&mut self, lnum: u64, matched: bool) -> Result<()> {
-        let fg = if matched {
-            self.theme.settings.foreground.unwrap()
+        if matched {
+            self.canvas.set_default_fg()?;
         } else {
-            self.gutter_color
-        };
-        self.canvas.set_fg(fg)?;
+            self.canvas.set_fg(self.gutter_color)?;
+        }
         self.canvas.set_default_bg()?;
         let width = num_digits(lnum);
         self.canvas
@@ -759,6 +763,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         self.draw_horizontal_line(self.chars.horizontal)?;
         self.canvas.set_default_bg()?;
         let path = path.as_os_str().to_string_lossy();
+        self.canvas.set_default_fg()?;
         self.canvas.set_bold()?;
         write!(self.canvas, " {}", path)?;
         if self.background {
