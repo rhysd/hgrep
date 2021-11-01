@@ -85,29 +85,6 @@ impl fmt::Display for PrintError {
     }
 }
 
-#[inline]
-#[allow(clippy::many_single_char_names)]
-fn blend_fg_color(fg: Color, bg: Color) -> Color {
-    if fg.a == 0xff || fg.a == 0 || fg.a == 1 {
-        return fg; // 0 and 1 are special cases for 16 colors and 256 colors themes
-    }
-    let x = fg.a as u32;
-    let y = (255 - fg.a) as u32;
-    let r = (fg.r as u32 * x + bg.r as u32 * y) / 255;
-    let g = (fg.g as u32 * x + bg.g as u32 * y) / 255;
-    let b = (fg.b as u32 * x + bg.b as u32 * y) / 255;
-    Color {
-        r: r as u8,
-        g: g as u8,
-        b: b as u8,
-        a: 255,
-    }
-}
-
-fn maybe_blend_fg_color(fg: Option<Color>, bg: Option<Color>) -> Option<Color> {
-    Some(blend_fg_color(fg?, bg?))
-}
-
 struct Token<'line> {
     style: Style,
     text: &'line str,
@@ -219,57 +196,89 @@ impl<'a, 'line: 'a> DrawEvents<'a, 'line> {
     }
 }
 
+#[inline]
+#[allow(clippy::many_single_char_names)]
+fn blend_fg_color(fg: Color, bg: Color) -> Color {
+    if fg.a == 0xff || fg.a == 0 || fg.a == 1 {
+        return fg; // 0 and 1 are special cases for 16 colors and 256 colors themes
+    }
+    let x = fg.a as u32;
+    let y = (255 - fg.a) as u32;
+    let r = (fg.r as u32 * x + bg.r as u32 * y) / 255;
+    let g = (fg.g as u32 * x + bg.g as u32 * y) / 255;
+    let b = (fg.b as u32 * x + bg.b as u32 * y) / 255;
+    Color {
+        r: r as u8,
+        g: g as u8,
+        b: b as u8,
+        a: 255,
+    }
+}
+
+#[inline]
+fn half_blend_fg_color(mut fg: Color, bg: Color) -> Color {
+    fg.a /= 2;
+    blend_fg_color(fg, bg)
+}
+
 #[derive(Debug)]
 struct Palette {
-    foreground: Option<Color>,
-    background: Option<Color>,
-    match_bg: Option<Color>,
-    region_fg: Option<Color>,
-    region_bg: Option<Color>,
-    gutter_fg: Option<Color>,
-    gutter_bg: Option<Color>,
-    matched_lnum_fg: Option<Color>,
+    foreground: Color,
+    background: Color,
+    match_bg: Color,
+    match_lnum_fg: Color,
+    region_fg: Color,
+    region_bg: Color,
+    gutter_fg: Color,
+    gutter_bg: Color,
 }
 
 // TODO: Add palette for 16-colors
 impl Palette {
     fn new(theme: &Theme) -> Self {
-        let background = theme.settings.background;
-        let foreground = maybe_blend_fg_color(theme.settings.foreground, background);
+        const NO_COLOR: Color = Color {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: 1, // Special color which means pass though
+        };
 
-        let gutter_bg = theme.settings.gutter.or(theme.settings.background);
-        let matched_lnum_fg = theme
-            .settings
-            .gutter_foreground
-            .or(theme.settings.foreground);
-        let gutter_fg = matched_lnum_fg.map(|mut c| {
-            c.a /= 2;
-            c
-        });
-        let gutter_fg = maybe_blend_fg_color(gutter_fg, gutter_bg);
-        let matched_lnum_fg = maybe_blend_fg_color(matched_lnum_fg, gutter_bg);
+        let background = theme.settings.background.unwrap_or(NO_COLOR);
+        let foreground = theme.settings.foreground.unwrap_or(NO_COLOR);
+        let foreground = blend_fg_color(foreground, background);
+
+        let gutter_bg = theme.settings.gutter.unwrap_or(background);
+        let match_lnum_fg = theme.settings.gutter_foreground.unwrap_or(foreground);
+
+        let gutter_fg = half_blend_fg_color(match_lnum_fg, gutter_bg);
+
+        let match_lnum_fg = blend_fg_color(match_lnum_fg, gutter_bg);
+        let match_bg = if let Some(bg) = theme.settings.line_highlight {
+            bg
+        } else {
+            half_blend_fg_color(foreground, background)
+        };
 
         let (region_fg, region_bg) = if let Some(bg) = theme.settings.find_highlight {
             let fg = theme
                 .settings
                 .find_highlight_foreground
-                .map(|c| blend_fg_color(c, bg));
-            (fg, Some(bg))
+                .unwrap_or(foreground);
+            let fg = blend_fg_color(fg, bg);
+            (fg, bg)
         } else {
-            (None, theme.settings.selection)
+            (background, foreground)
         };
-
-        let match_bg = theme.settings.line_highlight.or(theme.settings.background);
 
         Self {
             foreground,
             background,
             match_bg,
+            match_lnum_fg,
             region_fg,
             region_bg,
             gutter_fg,
             gutter_bg,
-            matched_lnum_fg,
         }
     }
 }
@@ -348,18 +357,13 @@ impl<W: Write> Canvas<W> {
 
     fn set_default_bg(&mut self) -> Result<()> {
         if self.has_background {
-            if let Some(bg) = self.palette.background {
-                self.set_bg(bg)?;
-            }
+            self.set_bg(self.palette.background)?;
         }
         Ok(())
     }
 
     fn set_default_fg(&mut self) -> Result<()> {
-        if let Some(fg) = self.palette.foreground {
-            self.set_fg(fg)?;
-        }
-        Ok(())
+        self.set_fg(self.palette.foreground)
     }
 
     fn set_background(&mut self, c: Color) -> Result<()> {
@@ -417,10 +421,7 @@ impl<W: Write> Canvas<W> {
     }
 
     fn set_match_bg_color(&mut self) -> Result<()> {
-        if let Some(bg) = self.palette.match_bg {
-            self.set_bg(bg)?;
-        }
-        Ok(())
+        self.set_bg(self.palette.match_bg)
     }
 
     fn set_match_style(&mut self, style: Style) -> Result<()> {
@@ -430,35 +431,22 @@ impl<W: Write> Canvas<W> {
     }
 
     fn set_region_color(&mut self) -> Result<()> {
-        if let Some(c) = self.palette.region_fg {
-            self.set_fg(c)?;
-        }
-        if let Some(c) = self.palette.region_bg {
-            self.set_bg(c)?;
-        }
-        Ok(())
+        self.set_fg(self.palette.region_fg)?;
+        self.set_bg(self.palette.region_bg)
     }
 
     fn set_gutter_color(&mut self) -> Result<()> {
-        if let Some(c) = self.palette.gutter_fg {
-            self.set_fg(c)?;
-        }
+        self.set_fg(self.palette.gutter_fg)?;
         if self.has_background {
-            if let Some(c) = self.palette.gutter_bg {
-                self.set_background(c)?;
-            }
+            self.set_background(self.palette.gutter_bg)?;
         }
         Ok(())
     }
 
-    fn set_matched_lnum_color(&mut self) -> Result<()> {
-        if let Some(c) = self.palette.matched_lnum_fg {
-            self.set_fg(c)?;
-        }
+    fn set_match_lnum_color(&mut self) -> Result<()> {
+        self.set_fg(self.palette.match_lnum_fg)?;
         if self.has_background {
-            if let Some(c) = self.palette.gutter_bg {
-                self.set_background(c)?;
-            }
+            self.set_background(self.palette.gutter_bg)?;
         }
         Ok(())
     }
@@ -643,7 +631,7 @@ impl<'file, W: Write> Drawer<'file, W> {
 
     fn draw_line_number(&mut self, lnum: u64, matched: bool) -> Result<()> {
         if matched {
-            self.canvas.set_matched_lnum_color()?;
+            self.canvas.set_match_lnum_color()?;
         } else {
             self.canvas.set_gutter_color()?;
         }
