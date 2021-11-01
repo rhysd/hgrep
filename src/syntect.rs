@@ -85,6 +85,29 @@ impl fmt::Display for PrintError {
     }
 }
 
+#[inline]
+#[allow(clippy::many_single_char_names)]
+fn blend_fg_color(fg: Color, bg: Color) -> Color {
+    if fg.a == 0xff || fg.a == 0 || fg.a == 1 {
+        return fg; // 0 and 1 are special cases for 16 colors and 256 colors themes
+    }
+    let x = fg.a as u32;
+    let y = (255 - fg.a) as u32;
+    let r = (fg.r as u32 * x + bg.r as u32 * y) / 255;
+    let g = (fg.g as u32 * x + bg.g as u32 * y) / 255;
+    let b = (fg.b as u32 * x + bg.b as u32 * y) / 255;
+    Color {
+        r: r as u8,
+        g: g as u8,
+        b: b as u8,
+        a: 255,
+    }
+}
+
+fn maybe_blend_fg_color(fg: Option<Color>, bg: Option<Color>) -> Option<Color> {
+    Some(blend_fg_color(fg?, bg?))
+}
+
 struct Token<'line> {
     style: Style,
     text: &'line str,
@@ -196,31 +219,83 @@ impl<'a, 'line: 'a> DrawEvents<'a, 'line> {
     }
 }
 
-struct Canvas<'file, W: Write> {
-    out: W,
-    theme: &'file Theme,
-    true_color: bool,
-    has_background: bool,
+#[derive(Debug)]
+struct Palette {
+    foreground: Option<Color>,
+    background: Option<Color>,
     match_bg: Option<Color>,
     region_fg: Option<Color>,
     region_bg: Option<Color>,
+    gutter_fg: Option<Color>,
+    gutter_bg: Option<Color>,
+    matched_lnum_fg: Option<Color>,
+}
+
+// TODO: Add palette for 16-colors
+impl Palette {
+    fn new(theme: &Theme) -> Self {
+        let background = theme.settings.background;
+        let foreground = maybe_blend_fg_color(theme.settings.foreground, background);
+
+        let gutter_bg = theme.settings.gutter.or(theme.settings.background);
+        let matched_lnum_fg = theme
+            .settings
+            .gutter_foreground
+            .or(theme.settings.foreground);
+        let gutter_fg = matched_lnum_fg.map(|mut c| {
+            c.a /= 2;
+            c
+        });
+        let gutter_fg = maybe_blend_fg_color(gutter_fg, gutter_bg);
+        let matched_lnum_fg = maybe_blend_fg_color(matched_lnum_fg, gutter_bg);
+
+        let (region_fg, region_bg) = if let Some(bg) = theme.settings.find_highlight {
+            let fg = theme
+                .settings
+                .find_highlight_foreground
+                .map(|c| blend_fg_color(c, bg));
+            (fg, Some(bg))
+        } else {
+            (None, theme.settings.selection)
+        };
+
+        let match_bg = theme.settings.line_highlight.or(theme.settings.background);
+
+        Self {
+            foreground,
+            background,
+            match_bg,
+            region_fg,
+            region_bg,
+            gutter_fg,
+            gutter_bg,
+            matched_lnum_fg,
+        }
+    }
+}
+
+struct Canvas<W: Write> {
+    out: W,
+    true_color: bool,
+    has_background: bool,
+    palette: Palette,
     current_fg: Option<Color>,
     current_bg: Option<Color>,
 }
 
-impl<'file, W: Write> Deref for Canvas<'file, W> {
+impl<W: Write> Deref for Canvas<W> {
     type Target = W;
     fn deref(&self) -> &Self::Target {
         &self.out
     }
 }
-impl<'file, W: Write> DerefMut for Canvas<'file, W> {
+impl<W: Write> DerefMut for Canvas<W> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.out
     }
 }
 
-impl<'file, W: Write> Canvas<'file, W> {
+impl<W: Write> Canvas<W> {
     fn draw_spaces(&mut self, num: usize) -> Result<()> {
         for _ in 0..num {
             self.out.write_all(b" ")?;
@@ -273,7 +348,7 @@ impl<'file, W: Write> Canvas<'file, W> {
 
     fn set_default_bg(&mut self) -> Result<()> {
         if self.has_background {
-            if let Some(bg) = self.theme.settings.background {
+            if let Some(bg) = self.palette.background {
                 self.set_bg(bg)?;
             }
         }
@@ -281,7 +356,7 @@ impl<'file, W: Write> Canvas<'file, W> {
     }
 
     fn set_default_fg(&mut self) -> Result<()> {
-        if let Some(fg) = self.theme.settings.foreground {
+        if let Some(fg) = self.palette.foreground {
             self.set_fg(fg)?;
         }
         Ok(())
@@ -304,6 +379,16 @@ impl<'file, W: Write> Canvas<'file, W> {
         Ok(())
     }
 
+    fn unset_bold(&mut self) -> Result<()> {
+        self.out.write_all(b"\x1b[22m")?;
+        Ok(())
+    }
+
+    fn unset_underline(&mut self) -> Result<()> {
+        self.out.write_all(b"\x1b[24m")?;
+        Ok(())
+    }
+
     fn set_font_style(&mut self, style: FontStyle) -> Result<()> {
         if style.contains(FontStyle::BOLD) {
             self.set_bold()?;
@@ -316,10 +401,10 @@ impl<'file, W: Write> Canvas<'file, W> {
 
     fn unset_font_style(&mut self, style: FontStyle) -> Result<()> {
         if style.contains(FontStyle::BOLD) {
-            self.out.write_all(b"\x1b[22m")?;
+            self.unset_bold()?;
         }
         if style.contains(FontStyle::UNDERLINE) {
-            self.out.write_all(b"\x1b[24m")?;
+            self.unset_underline()?;
         }
         Ok(())
     }
@@ -332,7 +417,7 @@ impl<'file, W: Write> Canvas<'file, W> {
     }
 
     fn set_match_bg_color(&mut self) -> Result<()> {
-        if let Some(bg) = self.match_bg {
+        if let Some(bg) = self.palette.match_bg {
             self.set_bg(bg)?;
         }
         Ok(())
@@ -345,11 +430,35 @@ impl<'file, W: Write> Canvas<'file, W> {
     }
 
     fn set_region_color(&mut self) -> Result<()> {
-        if let Some(c) = self.region_fg {
+        if let Some(c) = self.palette.region_fg {
             self.set_fg(c)?;
         }
-        if let Some(c) = self.region_bg {
+        if let Some(c) = self.palette.region_bg {
             self.set_bg(c)?;
+        }
+        Ok(())
+    }
+
+    fn set_gutter_color(&mut self) -> Result<()> {
+        if let Some(c) = self.palette.gutter_fg {
+            self.set_fg(c)?;
+        }
+        if self.has_background {
+            if let Some(c) = self.palette.gutter_bg {
+                self.set_background(c)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn set_matched_lnum_color(&mut self) -> Result<()> {
+        if let Some(c) = self.palette.matched_lnum_fg {
+            self.set_fg(c)?;
+        }
+        if self.has_background {
+            if let Some(c) = self.palette.gutter_bg {
+                self.set_background(c)?;
+            }
         }
         Ok(())
     }
@@ -418,7 +527,10 @@ impl<'a> LineHighlighter<'a> {
     fn highlight<'line>(&mut self, line: &'line str) -> Vec<Token<'line>> {
         let ops = self.parse_state.parse_line(line, self.syntaxes);
         HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl)
-            .map(|(style, text)| Token { style, text })
+            .map(|(mut style, text)| {
+                style.foreground = blend_fg_color(style.foreground, style.background);
+                Token { style, text }
+            })
             .collect()
     }
 }
@@ -465,13 +577,11 @@ struct Drawer<'file, W: Write> {
     grid: bool,
     term_width: u16,
     lnum_width: u16,
-    background: bool,
     first_only: bool,
-    gutter_color: Color,
     wrap: bool,
     tab_width: u16,
     chars: LineChars<'file>,
-    canvas: Canvas<'file, W>,
+    canvas: Canvas<W>,
 }
 
 impl<'file, W: Write> Drawer<'file, W> {
@@ -482,33 +592,13 @@ impl<'file, W: Write> Drawer<'file, W> {
             lnum_width = cmp::max(lnum_width, 3); // Consider '...' in gutter
         }
 
-        let gutter_color = theme
-            .settings
-            .gutter_foreground
-            .or(theme.settings.minimap_border)
-            .unwrap_or(Color {
-                r: 128,
-                g: 128,
-                b: 128,
-                a: 255,
-            });
-
-        let (region_fg, region_bg) = if let Some(bg) = theme.settings.find_highlight {
-            (theme.settings.find_highlight_foreground, Some(bg))
-        } else {
-            (None, theme.settings.selection)
-        };
-
         let canvas = Canvas {
-            theme,
+            out,
             true_color: opts.color_support == TermColorSupport::True,
             has_background: opts.background_color,
-            region_fg,
-            region_bg,
+            palette: Palette::new(theme),
             current_fg: None,
             current_bg: None,
-            match_bg: theme.settings.line_highlight.or(theme.settings.background),
-            out,
         };
 
         let chars = if opts.ascii_lines {
@@ -521,8 +611,6 @@ impl<'file, W: Write> Drawer<'file, W> {
             grid: opts.grid,
             term_width: opts.term_width,
             lnum_width,
-            background: opts.background_color,
-            gutter_color,
             wrap: opts.text_wrap == TextWrapMode::Char,
             tab_width: opts.tab_width as u16,
             first_only: opts.first_only,
@@ -541,8 +629,7 @@ impl<'file, W: Write> Drawer<'file, W> {
     }
 
     fn draw_horizontal_line(&mut self, sep: &str) -> Result<()> {
-        self.canvas.set_fg(self.gutter_color)?;
-        self.canvas.set_default_bg()?;
+        self.canvas.set_gutter_color()?;
         let gutter_width = self.gutter_width();
         for _ in 0..gutter_width - 2 {
             self.canvas.write_all(self.chars.horizontal.as_bytes())?;
@@ -556,29 +643,27 @@ impl<'file, W: Write> Drawer<'file, W> {
 
     fn draw_line_number(&mut self, lnum: u64, matched: bool) -> Result<()> {
         if matched {
-            self.canvas.set_default_fg()?;
+            self.canvas.set_matched_lnum_color()?;
         } else {
-            self.canvas.set_fg(self.gutter_color)?;
+            self.canvas.set_gutter_color()?;
         }
-        self.canvas.set_default_bg()?;
         let width = num_digits(lnum);
         self.canvas
             .draw_spaces((self.lnum_width - width) as usize)?;
         write!(self.canvas, " {}", lnum)?;
         if self.grid {
             if matched {
-                self.canvas.set_fg(self.gutter_color)?;
+                self.canvas.set_gutter_color()?;
             }
             write!(self.canvas, " {}", self.chars.vertical)?;
         }
         self.canvas.set_default_bg()?;
-        write!(self.canvas, " ")?;
+        self.canvas.write_all(b" ")?;
         Ok(()) // Do not reset color because another color text will follow
     }
 
     fn draw_wrapping_gutter(&mut self) -> Result<()> {
-        self.canvas.set_fg(self.gutter_color)?;
-        self.canvas.set_default_bg()?;
+        self.canvas.set_gutter_color()?;
         self.canvas.draw_spaces(self.lnum_width as usize + 2)?;
         if self.grid {
             write!(self.canvas, "{} ", self.chars.vertical)?;
@@ -587,8 +672,7 @@ impl<'file, W: Write> Drawer<'file, W> {
     }
 
     fn draw_separator_line(&mut self) -> Result<()> {
-        self.canvas.set_fg(self.gutter_color)?;
-        self.canvas.set_default_bg()?;
+        self.canvas.set_gutter_color()?;
         // + 1 for left margin and - 3 for length of "..."
         let left_margin = self.lnum_width + 1 - 3;
         self.canvas.draw_spaces(left_margin as usize)?;
@@ -770,7 +854,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         self.canvas.set_default_fg()?;
         self.canvas.set_bold()?;
         write!(self.canvas, " {}", path)?;
-        if self.background {
+        if self.canvas.has_background {
             self.canvas
                 .fill_spaces(path.width_cjk() + 1, self.term_width as usize)?;
         }
