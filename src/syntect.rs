@@ -232,6 +232,7 @@ struct Palette {
     region_bg: Color,
     gutter_fg: Color,
     gutter_bg: Color,
+    is_16colors: bool,
 }
 
 impl Palette {
@@ -262,6 +263,7 @@ impl Palette {
         region_bg: Self::YELLOW_COLOR_16,
         gutter_fg: Self::NO_COLOR,
         gutter_bg: Self::NO_COLOR,
+        is_16colors: true,
     };
 
     fn new(theme: &Theme) -> Self {
@@ -305,6 +307,7 @@ impl Palette {
             region_bg,
             gutter_fg,
             gutter_bg,
+            is_16colors: false,
         }
     }
 }
@@ -351,7 +354,6 @@ impl<W: Write> Canvas<W> {
         match c.a {
             0 if c.r <= 7 => write!(self.out, "\x1b[{}m", c.r + code)?, // 16 colors; e.g. 3 => 33 (Yellow), 6 => 36 (Cyan) (code=30)
             0 => write!(self.out, "\x1b[{};5;{}m", code + 8, c.r)?, // 256 colors; code=38 for fg, code=48 for bg
-            1 if code == 40 => { /* Pass through */ }
             1 => write!(self.out, "\x1b[0m")?, // Pass though. Reset color to set default terminal font color
             _ if self.true_color => {
                 write!(self.out, "\x1b[{};2;{};{};{}m", code + 8, c.r, c.g, c.b)?;
@@ -450,8 +452,8 @@ impl<W: Write> Canvas<W> {
     }
 
     fn set_match_style(&mut self, style: Style) -> Result<()> {
-        self.set_fg(style.foreground)?;
         self.set_match_bg_color()?;
+        self.set_fg(style.foreground)?;
         self.set_font_style(style.font_style)
     }
 
@@ -614,10 +616,13 @@ impl<'file, W: Write> Drawer<'file, W> {
         } else {
             Palette::new(theme)
         };
+
+        let has_background = !palette.is_16colors && opts.background_color;
+
         let canvas = Canvas {
             out,
             true_color: opts.color_support == TermColorSupport::True,
-            has_background: opts.background_color,
+            has_background,
             palette,
             current_fg: None,
             current_bg: None,
