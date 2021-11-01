@@ -1,3 +1,23 @@
+<a name="v0.1.9"></a>
+# [v0.1.9](https://github.com/rhysd/batgrep/releases/tag/v0.1.9) - 01 Nov 2021
+
+- Support multiple regions highlighting. In v0.1.8, matched region highlighting was added but it only highlighted the first match in the line. Now all matched regions are highlighted. Note that region highlighting is available when using hgrep in combination of `syntect-printer` and `ripgrep` features
+  - v0.1.8:
+    <img width="234" alt="multi regions before screenshot" src="https://user-images.githubusercontent.com/823277/139637214-8ec7e6cf-33a5-4df2-b334-794c6641b13e.png">
+  - v0.1.9:
+    <img width="221" alt="multi regions after screenshot" src="https://user-images.githubusercontent.com/823277/139637302-03fd69b7-865c-4636-8b3f-b19eb697c3e9.png">
+- Add `--ascii-lines` flag for terminals which does not support rendering unicode characters well. With this flag, unicode characters like '│' or '─' are replaced with ASCII characters '|' or '-'. This feature is only supported by `syntect-printer` (use `-p syntect`).
+  <img width="682" alt="ascii lines screenshot" src="https://user-images.githubusercontent.com/823277/139636882-b23caa7e-d92d-4c49-a5af-9021dce6d92a.png">
+- Add `--first-only` (`-f`) flag to show only the first snippet per file. This is useful when you want to look around the results.
+- Fallback to a minimap border color when no gutter background color is found.
+- Reduce number of redundant color codes output to stdout by **about 21.5%** in test cases. This also improves performance by **about 6%**. See [the commit](https://github.com/rhysd/hgrep/commit/3f95d9a854bdb875194ed088887635ebc77a9269) for details.
+- Performance of built-in grep was improved **20~80%** when there are so many files to search. Previously the implementation collected all paths before searching a pattern in them, but with this improvement, the paths are now streamed. See [the commit](https://github.com/rhysd/hgrep/commit/693ea1810c637a4939c0f76ae2457f7bcd691179) for details.
+- Use [mimalloc](https://github.com/microsoft/mimalloc) as global allocator for better performance. This improves performance by **0~55%** in our benchmarks. See [the commit](https://github.com/rhysd/hgrep/commit/2587e82683d66722c18c237f3fcdfe33cabb9c8b) for details.
+- (Dev) Running unit tests is about 8.5x faster by caching assets for syntax highlighting.
+
+[Changes][v0.1.9]
+
+
 <a name="v0.1.8"></a>
 # [v0.1.8](https://github.com/rhysd/batgrep/releases/tag/v0.1.8) - 27 Oct 2021
 
@@ -9,7 +29,7 @@
 - In favor of `--wrap` option, `--no-wrap` flag is now deprecated and will be removed at v0.2.0. Use `--wrap never` instead
 - When building binaries for Windows, link C runtime statically. This avoid depending on vcruntime DLL at runtime
 - Critical section of `syntect-printer` was optimized. It slightly improved performance (around 4% faster in benchmarks)
-- Enable thin LTO for release build. It slightly improved performance (0~6% faster in benchmarks)
+- Enable thin LTO for release build. It slightly improved performance (0~6% faster in benchmarks). See [the commit](https://github.com/rhysd/hgrep/commit/226c4b565550f1da550024ca898819f2431e052f) for details
 
 [Changes][v0.1.8]
 
@@ -97,6 +117,7 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [Changes][v0.1.1]
 
 
+[v0.1.9]: https://github.com/rhysd/batgrep/compare/v0.1.8...v0.1.9
 [v0.1.8]: https://github.com/rhysd/batgrep/compare/v0.1.7...v0.1.8
 [v0.1.7]: https://github.com/rhysd/batgrep/compare/v0.1.6...v0.1.7
 [v0.1.6]: https://github.com/rhysd/batgrep/compare/v0.1.5...v0.1.6
