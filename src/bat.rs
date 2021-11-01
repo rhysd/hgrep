@@ -141,23 +141,25 @@ impl<'main> BatPrinter<'main> {
         let ranges = file
             .chunks
             .iter()
-            .map(|(s, e)| LineRange::new(*s as usize, *e as usize))
-            .collect();
-        config.visible_lines = VisibleLines::Ranges(LineRanges::from(ranges));
-
-        let input =
-            Input::from_reader(Box::new(file.contents.as_ref())).with_name(Some(&file.path));
-
-        let ranges = file.line_matches.iter().map(|m| {
-            let n = m.line_number as usize;
-            LineRange::new(n, n)
-        });
-
+            .map(|(s, e)| LineRange::new(*s as usize, *e as usize));
         let ranges = if self.opts.first_only {
             ranges.take(1).collect()
         } else {
             ranges.collect()
         };
+        config.visible_lines = VisibleLines::Ranges(LineRanges::from(ranges));
+
+        let input =
+            Input::from_reader(Box::new(file.contents.as_ref())).with_name(Some(&file.path));
+
+        let ranges = file
+            .line_matches
+            .iter()
+            .map(|m| {
+                let n = m.line_number as usize;
+                LineRange::new(n, n)
+            })
+            .collect();
 
         config.highlighted_lines = HighlightedLineRanges(LineRanges::from(ranges));
 
