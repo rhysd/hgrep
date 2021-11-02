@@ -7,12 +7,9 @@ if [ ! -d .git ]; then
     exit 1
 fi
 
-if [[ "$COLORTERM" != "truecolor" ]]; then
-    echo 'This script must be run in a terminal which supports true colors (24-bit colors)' >&2
-    exit 1
-fi
-
 set -x
+
+export COLORTERM=truecolor
 
 cargo run -- '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80 --theme ansi              ./testdata/syntect/ansi16_colors.rs                > ./testdata/syntect/ansi16_colors.out
 COLORTERM='' cargo run -- '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80              ./testdata/syntect/ansi256_colors.rs               > ./testdata/syntect/ansi256_colors.out
