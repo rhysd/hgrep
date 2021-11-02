@@ -8,7 +8,7 @@ pub fn package_lock_json_path() -> &'static Path {
     let path = Path::new("package-lock.json");
     assert!(
         path.is_file(),
-        "put \"package-lock.json\" file in hgrep-bench directory by `npm install`",
+        "put \"package-lock.json\" file in bench/ directory by `npm install`",
     );
     path
 }
@@ -22,7 +22,7 @@ pub fn node_modules_path() -> &'static Path {
     let path = Path::new("node_modules");
     assert!(
         path.is_dir(),
-        "put \"node_modules\" directory in hgrep-bench directory by `npm install`",
+        "put \"node_modules\" directory in bench/ directory by `npm install`",
     );
     path
 }

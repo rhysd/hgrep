@@ -43,7 +43,7 @@ path = "src/main.rs"
 
 [workspace]
 members = [
-    "hgrep-bench",
+    "bench",
 ]
 
 [features]

@@ -68,8 +68,8 @@ Let's say we're releasing v1.2.3.
 
 ## Benchmarking
 
-Benchmarks are put in [a separate crate](./hgrep-bench) to avoid adding criterion as test dependencies. To run benchmarks,
-see [the benchmark README file](./hgrep-bench/README.md).
+Benchmarks are put in [a separate crate](./bench) to avoid adding criterion as test dependencies. To run benchmarks,
+see [the benchmark README file](./bench/README.md).
 
 [new-issue]: https://github.com/rhysd/hgrep/issues/new
 [new-pr]: https://github.com/rhysd/hgrep/pulls
