@@ -1,0 +1,290 @@
+"1337"
+  Foreground:    [48;2;248;248;242m    [0m
+  Background:    [48;2;25;25;25m    [0m
+  MatchLineBG:   [48;2;61;61;61m    [0m
+  MatchLineNum:  [48;2;248;248;242m    [0m
+  MatchRegionFG: [48;2;25;25;25m    [0m
+  MatchRegionBG: [48;2;248;248;242m    [0m
+  GutterFG:      [48;2;136;136;133m    [0m
+  GutterBG:      [48;2;25;25;25m    [0m
+
+"Coldark-Cold"
+  Foreground:    [48;2;17;27;39m    [0m
+  Background:    [48;2;227;234;242m    [0m
+  MatchLineBG:   [48;2;208;218;231m    [0m
+  MatchLineNum:  [48;2;81;101;126m    [0m
+  MatchRegionFG: [48;2;17;27;39m    [0m
+  MatchRegionBG: [48;2;0;90;142m    [0m
+  GutterFG:      [48;2;144;159;178m    [0m
+  GutterBG:      [48;2;208;218;231m    [0m
+
+"Coldark-Dark"
+  Foreground:    [48;2;227;234;242m    [0m
+  Background:    [48;2;17;27;39m    [0m
+  MatchLineBG:   [48;2;33;48;67m    [0m
+  MatchLineNum:  [48;2;122;140;162m    [0m
+  MatchRegionFG: [48;2;227;234;242m    [0m
+  MatchRegionBG: [48;2;108;184;230m    [0m
+  GutterFG:      [48;2;66;79;94m    [0m
+  GutterBG:      [48;2;11;18;27m    [0m
+
+"DarkNeon"
+  Foreground:    [48;2;255;255;255m    [0m
+  Background:    [48;2;0;0;0m    [0m
+  MatchLineBG:   [48;2;255;255;255m    [0m
+  MatchLineNum:  [48;2;255;255;255m    [0m
+  MatchRegionFG: [48;2;0;0;0m    [0m
+  MatchRegionBG: [48;2;255;255;255m    [0m
+  GutterFG:      [48;2;127;127;127m    [0m
+  GutterBG:      [48;2;0;0;0m    [0m
+
+"Dracula"
+  Foreground:    [48;2;248;248;242m    [0m
+  Background:    [48;2;40;42;54m    [0m
+  MatchLineBG:   [48;2;68;71;90m    [0m
+  MatchLineNum:  [48;2;248;248;242m    [0m
+  MatchRegionFG: [48;2;0;0;0m    [0m
+  MatchRegionBG: [48;2;239;251;123m    [0m
+  GutterFG:      [48;2;143;144;147m    [0m
+  GutterBG:      [48;2;40;42;54m    [0m
+
+"GitHub"
+  Foreground:    [48;2;51;51;51m    [0m
+  Background:    [48;2;255;255;255m    [0m
+  MatchLineBG:   [48;2;248;238;199m    [0m
+  MatchLineNum:  [48;2;51;51;51m    [0m
+  MatchRegionFG: [48;2;51;51;51m    [0m
+  MatchRegionBG: [48;2;255;231;146m    [0m
+  GutterFG:      [48;2;153;153;153m    [0m
+  GutterBG:      [48;2;255;255;255m    [0m
+
+"Monokai Extended"
+  Foreground:    [48;2;248;248;242m    [0m
+  Background:    [48;2;34;34;34m    [0m
+  MatchLineBG:   [48;2;51;51;51m    [0m
+  MatchLineNum:  [48;2;248;248;242m    [0m
+  MatchRegionFG: [48;2;0;0;0m    [0m
+  MatchRegionBG: [48;2;255;231;146m    [0m
+  GutterFG:      [48;2;140;140;137m    [0m
+  GutterBG:      [48;2;34;34;34m    [0m
+
+"Monokai Extended Bright"
+  Foreground:    [48;2;248;248;242m    [0m
+  Background:    [48;2;39;40;34m    [0m
+  MatchLineBG:   [48;2;62;61;50m    [0m
+  MatchLineNum:  [48;2;248;248;242m    [0m
+  MatchRegionFG: [48;2;0;0;0m    [0m
+  MatchRegionBG: [48;2;255;231;146m    [0m
+  GutterFG:      [48;2;143;143;137m    [0m
+  GutterBG:      [48;2;39;40;34m    [0m
+
+"Monokai Extended Light"
+  Foreground:    [48;2;73;72;62m    [0m
+  Background:    [48;2;250;250;250m    [0m
+  MatchLineBG:   [48;2;230;227;196m    [0m
+  MatchLineNum:  [48;2;73;72;62m    [0m
+  MatchRegionFG: [48;2;0;0;0m    [0m
+  MatchRegionBG: [48;2;255;231;146m    [0m
+  GutterFG:      [48;2;161;161;156m    [0m
+  GutterBG:      [48;2;250;250;250m    [0m
+
+"Monokai Extended Origin"
+  Foreground:    [48;2;248;248;242m    [0m
+  Background:    [48;2;39;40;34m    [0m
+  MatchLineBG:   [48;2;62;61;50m    [0m
+  MatchLineNum:  [48;2;248;248;242m    [0m
+  MatchRegionFG: [48;2;0;0;0m    [0m
+  MatchRegionBG: [48;2;255;231;146m    [0m
+  GutterFG:      [48;2;143;143;137m    [0m
+  GutterBG:      [48;2;39;40;34m    [0m
+
+"Nord"
+  Foreground:    [48;2;216;222;233m    [0m
+  Background:    [48;2;46;52;64m    [0m
+  MatchLineBG:   [48;2;67;76;94m    [0m
+  MatchLineNum:  [48;2;114;120;131m    [0m
+  MatchRegionFG: [48;2;46;52;64m    [0m
+  MatchRegionBG: [48;2;136;192;208m    [0m
+  GutterFG:      [48;2;80;86;97m    [0m
+  GutterBG:      [48;2;46;52;64m    [0m
+
+"OneHalfDark"
+  Foreground:    [48;2;220;223;228m    [0m
+  Background:    [48;2;40;44;52m    [0m
+  MatchLineBG:   [48;2;49;54;64m    [0m
+  MatchLineNum:  [48;2;145;155;170m    [0m
+  MatchRegionFG: [48;2;40;44;52m    [0m
+  MatchRegionBG: [48;2;220;223;228m    [0m
+  GutterFG:      [48;2;92;99;110m    [0m
+  GutterBG:      [48;2;40;44;52m    [0m
+
+"OneHalfLight"
+  Foreground:    [48;2;56;58;66m    [0m
+  Background:    [48;2;250;250;250m    [0m
+  MatchLineBG:   [48;2;240;240;240m    [0m
+  MatchLineNum:  [48;2;212;212;212m    [0m
+  MatchRegionFG: [48;2;250;250;250m    [0m
+  MatchRegionBG: [48;2;56;58;66m    [0m
+  GutterFG:      [48;2;231;231;231m    [0m
+  GutterBG:      [48;2;250;250;250m    [0m
+
+"Solarized (dark)"
+  Foreground:    [48;2;131;148;150m    [0m
+  Background:    [48;2;0;43;54m    [0m
+  MatchLineBG:   [48;2;28;209;255m    [0m
+  MatchLineNum:  [48;2;131;148;150m    [0m
+  MatchRegionFG: [48;2;0;43;54m    [0m
+  MatchRegionBG: [48;2;131;148;150m    [0m
+  GutterFG:      [48;2;68;100;107m    [0m
+  GutterBG:      [48;2;7;54;66m    [0m
+
+"Solarized (light)"
+  Foreground:    [48;2;101;123;131m    [0m
+  Background:    [48;2;253;246;227m    [0m
+  MatchLineBG:   [48;2;63;61;56m    [0m
+  MatchLineNum:  [48;2;101;123;131m    [0m
+  MatchRegionFG: [48;2;253;246;227m    [0m
+  MatchRegionBG: [48;2;101;123;131m    [0m
+  GutterFG:      [48;2;169;177;172m    [0m
+  GutterBG:      [48;2;238;232;213m    [0m
+
+"Sublime Snazzy"
+  Foreground:    [48;2;248;248;242m    [0m
+  Background:    [48;2;40;42;54m    [0m
+  MatchLineBG:   [48;2;0;0;0m    [0m
+  MatchLineNum:  [48;2;248;248;242m    [0m
+  MatchRegionFG: [48;2;40;42;54m    [0m
+  MatchRegionBG: [48;2;248;248;242m    [0m
+  GutterFG:      [48;2;143;144;147m    [0m
+  GutterBG:      [48;2;40;42;54m    [0m
+
+"TwoDark"
+  Foreground:    [48;2;171;178;191m    [0m
+  Background:    [48;2;40;44;52m    [0m
+  MatchLineBG:   [48;2;43;49;58m    [0m
+  MatchLineNum:  [48;2;171;178;191m    [0m
+  MatchRegionFG: [48;2;40;44;52m    [0m
+  MatchRegionBG: [48;2;171;178;191m    [0m
+  GutterFG:      [48;2;105;110;121m    [0m
+  GutterBG:      [48;2;40;44;52m    [0m
+
+"Visual Studio Dark+"
+  Foreground:    [48;2;220;220;220m    [0m
+  Background:    [48;2;30;30;30m    [0m
+  MatchLineBG:   [48;2;15;15;15m    [0m
+  MatchLineNum:  [48;2;220;220;220m    [0m
+  MatchRegionFG: [48;2;30;30;30m    [0m
+  MatchRegionBG: [48;2;220;220;220m    [0m
+  GutterFG:      [48;2;124;124;124m    [0m
+  GutterBG:      [48;2;30;30;30m    [0m
+
+"ansi"
+  Foreground:    [0m    [0m
+  Background:    [0m    [0m
+  MatchLineBG:   [0m    [0m
+  MatchLineNum:  [43m    [0m
+  MatchRegionFG: [40m    [0m
+  MatchRegionBG: [43m    [0m
+  GutterFG:      [0m    [0m
+  GutterBG:      [0m    [0m
+
+"base16"
+  Foreground:    [47m    [0m
+  Background:    [40m    [0m
+  MatchLineBG:   [48;5;8m    [0m
+  MatchLineNum:  [48;5;8m    [0m
+  MatchRegionFG: [40m    [0m
+  MatchRegionBG: [47m    [0m
+  GutterFG:      [48;5;8m    [0m
+  GutterBG:      [48;5;10m    [0m
+
+"base16-256"
+  Foreground:    [47m    [0m
+  Background:    [40m    [0m
+  MatchLineBG:   [48;5;8m    [0m
+  MatchLineNum:  [48;5;8m    [0m
+  MatchRegionFG: [40m    [0m
+  MatchRegionBG: [47m    [0m
+  GutterFG:      [48;5;8m    [0m
+  GutterBG:      [48;5;18m    [0m
+
+"gruvbox-dark"
+  Foreground:    [48;2;137;129;109m    [0m
+  Background:    [48;2;40;40;40m    [0m
+  MatchLineBG:   [48;2;60;56;54m    [0m
+  MatchLineNum:  [48;2;146;131;116m    [0m
+  MatchRegionFG: [48;2;40;40;40m    [0m
+  MatchRegionBG: [48;2;215;153;33m    [0m
+  GutterFG:      [48;2;92;85;77m    [0m
+  GutterBG:      [48;2;40;40;40m    [0m
+
+"gruvbox-light"
+  Foreground:    [48;2;155;148;126m    [0m
+  Background:    [48;2;251;241;199m    [0m
+  MatchLineBG:   [48;2;235;219;178m    [0m
+  MatchLineNum:  [48;2;146;131;116m    [0m
+  MatchRegionFG: [48;2;251;241;199m    [0m
+  MatchRegionBG: [48;2;215;153;33m    [0m
+  GutterFG:      [48;2;198;186;157m    [0m
+  GutterBG:      [48;2;251;241;199m    [0m
+
+"zenburn"
+  Foreground:    [48;2;222;222;222m    [0m
+  Background:    [48;2;57;57;57m    [0m
+  MatchLineBG:   [48;2;48;48;48m    [0m
+  MatchLineNum:  [48;2;222;222;222m    [0m
+  MatchRegionFG: [48;2;57;57;57m    [0m
+  MatchRegionBG: [48;2;222;222;222m    [0m
+  GutterFG:      [48;2;139;139;139m    [0m
+  GutterBG:      [48;2;57;57;57m    [0m
+
+"InspiredGitHub"
+  Foreground:    [48;2;50;50;50m    [0m
+  Background:    [48;2;255;255;255m    [0m
+  MatchLineBG:   [48;2;245;245;245m    [0m
+  MatchLineNum:  [48;2;179;179;179m    [0m
+  MatchRegionFG: [48;2;50;50;50m    [0m
+  MatchRegionBG: [48;2;248;238;199m    [0m
+  GutterFG:      [48;2;217;217;217m    [0m
+  GutterBG:      [48;2;255;255;255m    [0m
+
+"base16-eighties.dark"
+  Foreground:    [48;2;211;208;200m    [0m
+  Background:    [48;2;45;45;45m    [0m
+  MatchLineBG:   [48;2;116;115;105m    [0m
+  MatchLineNum:  [48;2;211;208;200m    [0m
+  MatchRegionFG: [48;2;45;45;45m    [0m
+  MatchRegionBG: [48;2;211;208;200m    [0m
+  GutterFG:      [48;2;127;126;122m    [0m
+  GutterBG:      [48;2;45;45;45m    [0m
+
+"base16-mocha.dark"
+  Foreground:    [48;2;208;200;198m    [0m
+  Background:    [48;2;59;50;40m    [0m
+  MatchLineBG:   [48;2;126;112;90m    [0m
+  MatchLineNum:  [48;2;208;200;198m    [0m
+  MatchRegionFG: [48;2;59;50;40m    [0m
+  MatchRegionBG: [48;2;208;200;198m    [0m
+  GutterFG:      [48;2;133;124;118m    [0m
+  GutterBG:      [48;2;59;50;40m    [0m
+
+"base16-ocean.dark"
+  Foreground:    [48;2;192;197;206m    [0m
+  Background:    [48;2;43;48;59m    [0m
+  MatchLineBG:   [48;2;101;115;126m    [0m
+  MatchLineNum:  [48;2;192;197;206m    [0m
+  MatchRegionFG: [48;2;43;48;59m    [0m
+  MatchRegionBG: [48;2;192;197;206m    [0m
+  GutterFG:      [48;2;117;122;132m    [0m
+  GutterBG:      [48;2;43;48;59m    [0m
+
+"base16-ocean.light"
+  Foreground:    [48;2;79;91;102m    [0m
+  Background:    [48;2;239;241;245m    [0m
+  MatchLineBG:   [48;2;167;173;186m    [0m
+  MatchLineNum:  [48;2;79;91;102m    [0m
+  MatchRegionFG: [48;2;239;241;245m    [0m
+  MatchRegionBG: [48;2;79;91;102m    [0m
+  GutterFG:      [48;2;159;166;173m    [0m
+  GutterBG:      [48;2;239;241;245m    [0m
+

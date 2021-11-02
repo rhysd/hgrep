@@ -46,7 +46,7 @@ pub fn list_themes<W: Write>(mut out: W, opts: &PrinterOptions<'_>) -> Result<()
     for themes in &[bat_defaults, defaults] {
         for (name, theme) in themes.themes.iter() {
             if !seen.contains(name) {
-                writeln!(out, "{}", name)?;
+                writeln!(out, "{:?}", name)?;
                 Canvas::new(&mut out, opts, theme).draw_sample_colors()?;
                 writeln!(out)?;
                 seen.insert(name);
@@ -511,8 +511,8 @@ impl<W: Write> Canvas<W> {
     fn draw_sample_color(&mut self, name: &str, color: Color) -> Result<()> {
         write!(self.out, "  {} ", name)?;
         self.set_bg(color)?;
-        writeln!(self.out, "    \x1b[0m")?;
-        Ok(())
+        self.out.write_all(b"    ")?;
+        self.draw_newline()
     }
 
     fn draw_sample_colors(&mut self) -> Result<()> {
@@ -1072,6 +1072,7 @@ mod tests {
     use std::fs;
     use std::mem;
     use std::path::PathBuf;
+    use std::str;
 
     lazy_static! {
         static ref ASSETS: SyntectAssets = SyntectAssets::load(None).unwrap();
@@ -1433,15 +1434,21 @@ mod tests {
 
     #[test]
     fn test_list_themes() {
-        let mut buf = vec![];
-        list_themes(&mut buf).unwrap();
-        let out = String::from_utf8(buf).unwrap();
+        let expected = Path::new("testdata").join("syntect").join("themes.out");
+        let expected = fs::read(&expected).unwrap();
 
-        // From bat's assets
-        assert!(out.contains("Monokai Extended\n"), "output={:?}", out);
+        let mut opts = PrinterOptions::default();
+        opts.color_support = TermColorSupport::True;
+        let mut got = vec![];
+        list_themes(&mut got, &opts).unwrap();
 
-        // From default assets
-        assert!(out.contains("base16-ocean.dark\n"), "output={:?}", out);
+        assert_eq!(
+            expected,
+            got,
+            "expected:\n{}\ngot:\n{}",
+            str::from_utf8(&expected).unwrap(),
+            str::from_utf8(&got).unwrap()
+        );
     }
 
     #[test]
@@ -1500,7 +1507,7 @@ mod tests {
         assert!(
             found,
             "line={:?}",
-            std::str::from_utf8(this_is_test_line).unwrap()
+            str::from_utf8(this_is_test_line).unwrap()
         );
     }
 }
