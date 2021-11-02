@@ -234,7 +234,6 @@ struct Palette {
     region_bg: Color,
     gutter_fg: Color,
     gutter_bg: Color,
-    is_16colors: bool,
 }
 
 impl Palette {
@@ -265,7 +264,6 @@ impl Palette {
         region_bg: Self::YELLOW_COLOR_16,
         gutter_fg: Self::NO_COLOR,
         gutter_bg: Self::NO_COLOR,
-        is_16colors: true,
     };
 
     fn new(theme: &Theme) -> Self {
@@ -309,8 +307,11 @@ impl Palette {
             region_bg,
             gutter_fg,
             gutter_bg,
-            is_16colors: false,
         }
+    }
+
+    fn is_ansi16(&self) -> bool {
+        self.foreground.a == 1 && self.foreground.r <= 7
     }
 }
 
@@ -346,7 +347,7 @@ impl<W: Write> Canvas<W> {
         Self {
             out,
             true_color: opts.color_support == TermColorSupport::True,
-            has_background: !palette.is_16colors && opts.background_color,
+            has_background: !palette.is_ansi16() && opts.background_color,
             palette,
             current_fg: None,
             current_bg: None,

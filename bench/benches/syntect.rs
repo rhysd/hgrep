@@ -1,18 +1,18 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use hgrep::chunk::{File, LineMatch};
 use hgrep::printer::{Printer, PrinterOptions, TermColorSupport, TextWrapMode};
 use hgrep::ripgrep;
-use hgrep::syntect::{LockableWrite, SyntectPrinter};
+use hgrep::syntect::{LockableWrite, SyntectAssets, SyntectPrinter};
 use hgrep_bench::node_modules_path;
 use hgrep_bench::read_package_lock_json;
 use rayon::prelude::*;
-use std::cmp;
 use std::io;
 use std::io::Write;
 use std::iter;
 use std::mem;
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard};
+use std::{cmp, fs};
 
 struct SinkLock<'a>(MutexGuard<'a, Vec<u8>>);
 impl<'a> Write for SinkLock<'a> {
@@ -40,11 +40,10 @@ fn get_opts() -> PrinterOptions<'static> {
     opts
 }
 
-fn large_file(c: &mut Criterion) {
-    let (path, contents) = read_package_lock_json();
-    let lines = contents.lines().count() as u64;
+fn create_files_for_contents(contents: String, path: &Path, per_lines: usize) -> Vec<File> {
     let mut files = vec![];
-    for l in (1..=lines).step_by(500) {
+    let lines = contents.lines().count() as u64;
+    for l in (1..=lines).step_by(per_lines) {
         let s = l.saturating_sub(6);
         let e = cmp::min(l + 6, lines);
         files.push(File::new(
@@ -54,20 +53,52 @@ fn large_file(c: &mut Criterion) {
             contents.clone().into_bytes(),
         ))
     }
+    files
+}
 
-    c.bench_function("syntect::package-lock.json", |b| {
+fn load_assets(c: &mut Criterion) {
+    c.bench_function("syntect::load-assets", |b| {
         b.iter(|| {
-            let sink = Sink(Mutex::new(vec![]));
-            let opts = get_opts();
-            let mut printer = SyntectPrinter::new(sink, opts).unwrap();
-            files
-                .clone()
-                .into_par_iter()
-                .try_for_each(|f| printer.print(f))
-                .unwrap();
-            let buf = mem::take(printer.writer_mut()).0.into_inner().unwrap();
-            assert!(!buf.is_empty());
+            let assets = SyntectAssets::load(None).unwrap();
+            black_box(assets)
         })
+    });
+}
+
+fn print_files(c: &mut Criterion) {
+    #[inline]
+    fn run(files: Vec<File>, assets: SyntectAssets) {
+        let sink = Sink(Mutex::new(vec![]));
+        let opts = get_opts();
+        let mut printer = SyntectPrinter::with_assets(assets, sink, opts);
+        files
+            .into_par_iter()
+            .try_for_each(|f| printer.print(f))
+            .unwrap();
+        let buf = mem::take(printer.writer_mut()).0.into_inner().unwrap();
+        assert!(!buf.is_empty());
+    }
+
+    let assets = SyntectAssets::load(None).unwrap();
+
+    let (path, contents) = read_package_lock_json();
+    let files = create_files_for_contents(contents, path, 500);
+    c.bench_function("syntect::print-large", |b| {
+        b.iter(|| run(files.clone(), assets.clone()))
+    });
+
+    let readme = Path::new("..").join("README.md");
+    let contents = fs::read_to_string(&readme).unwrap();
+    let files = create_files_for_contents(contents, path, 10);
+    c.bench_function("syntect::print-small", |b| {
+        b.iter(|| run(files.clone(), assets.clone()))
+    });
+
+    let readme = Path::new("..").join("LICENSE.txt");
+    let contents = fs::read_to_string(&readme).unwrap();
+    let files = create_files_for_contents(contents, path, 1);
+    c.bench_function("syntect::print-tiny", |b| {
+        b.iter(|| run(files.clone(), assets.clone()))
     });
 }
 
@@ -113,5 +144,5 @@ fn with_ripgrep(c: &mut Criterion) {
     });
 }
 
-criterion_group!(syntect, large_file, with_ripgrep);
+criterion_group!(syntect, print_files, with_ripgrep, load_assets);
 criterion_main!(syntect);
