@@ -358,7 +358,7 @@ fn app() -> Result<bool> {
     if matches.is_present("list-themes") {
         #[cfg(feature = "syntect-printer")]
         if printer_kind == PrinterKind::Syntect {
-            hgrep::syntect::list_themes(io::stdout().lock())?;
+            hgrep::syntect::list_themes(io::stdout().lock(), &PrinterOptions::default())?;
             return Ok(true);
         }
 

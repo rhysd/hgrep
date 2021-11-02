@@ -39,14 +39,16 @@ impl<'a> LockableWrite<'a> for Stdout {
     }
 }
 
-pub fn list_themes<W: Write>(mut out: W) -> Result<()> {
+pub fn list_themes<W: Write>(mut out: W, opts: &PrinterOptions<'_>) -> Result<()> {
     let mut seen = HashSet::new();
     let bat_defaults = bincode::deserialize_from(ZlibDecoder::new(THEME_SET_BIN))?;
     let defaults = ThemeSet::load_defaults();
     for themes in &[bat_defaults, defaults] {
-        for name in themes.themes.keys() {
+        for (name, theme) in themes.themes.iter() {
             if !seen.contains(name) {
                 writeln!(out, "{}", name)?;
+                Canvas::new(&mut out, opts, theme).draw_sample_colors()?;
+                writeln!(out)?;
                 seen.insert(name);
             }
         }
@@ -334,6 +336,23 @@ impl<W: Write> DerefMut for Canvas<W> {
 }
 
 impl<W: Write> Canvas<W> {
+    fn new(out: W, opts: &PrinterOptions<'_>, theme: &Theme) -> Self {
+        let palette = if opts.color_support == TermColorSupport::Ansi16 {
+            Palette::ANSI16
+        } else {
+            Palette::new(theme)
+        };
+
+        Self {
+            out,
+            true_color: opts.color_support == TermColorSupport::True,
+            has_background: !palette.is_16colors && opts.background_color,
+            palette,
+            current_fg: None,
+            current_bg: None,
+        }
+    }
+
     fn draw_spaces(&mut self, num: usize) -> Result<()> {
         for _ in 0..num {
             self.out.write_all(b" ")?;
@@ -488,6 +507,24 @@ impl<W: Write> Canvas<W> {
         }
         Ok(())
     }
+
+    fn draw_sample_color(&mut self, name: &str, color: Color) -> Result<()> {
+        write!(self.out, "  {} ", name)?;
+        self.set_bg(color)?;
+        writeln!(self.out, "    \x1b[0m")?;
+        Ok(())
+    }
+
+    fn draw_sample_colors(&mut self) -> Result<()> {
+        self.draw_sample_color("Foreground:   ", self.palette.foreground)?;
+        self.draw_sample_color("Background:   ", self.palette.background)?;
+        self.draw_sample_color("MatchLineBG:  ", self.palette.match_bg)?;
+        self.draw_sample_color("MatchLineNum: ", self.palette.match_lnum_fg)?;
+        self.draw_sample_color("MatchRegionFG:", self.palette.region_fg)?;
+        self.draw_sample_color("MatchRegionBG:", self.palette.region_bg)?;
+        self.draw_sample_color("GutterFG:     ", self.palette.gutter_fg)?;
+        self.draw_sample_color("GutterBG:     ", self.palette.gutter_bg)
+    }
 }
 
 struct LineChars<'a> {
@@ -604,29 +641,12 @@ struct Drawer<'file, W: Write> {
 }
 
 impl<'file, W: Write> Drawer<'file, W> {
-    fn new(out: W, opts: &PrinterOptions, theme: &'file Theme, chunks: &[(u64, u64)]) -> Self {
+    fn new(out: W, opts: &PrinterOptions<'_>, theme: &'file Theme, chunks: &[(u64, u64)]) -> Self {
         let last_lnum = chunks.last().map(|(_, e)| *e).unwrap_or(0);
         let mut lnum_width = num_digits(last_lnum);
         if chunks.len() > 1 {
             lnum_width = cmp::max(lnum_width, 3); // Consider '...' in gutter
         }
-
-        let palette = if opts.color_support == TermColorSupport::Ansi16 {
-            Palette::ANSI16
-        } else {
-            Palette::new(theme)
-        };
-
-        let has_background = !palette.is_16colors && opts.background_color;
-
-        let canvas = Canvas {
-            out,
-            true_color: opts.color_support == TermColorSupport::True,
-            has_background,
-            palette,
-            current_fg: None,
-            current_bg: None,
-        };
 
         let chars = if opts.ascii_lines {
             ASCII_LINE_CHARS
@@ -642,7 +662,7 @@ impl<'file, W: Write> Drawer<'file, W> {
             tab_width: opts.tab_width as u16,
             first_only: opts.first_only,
             chars,
-            canvas,
+            canvas: Canvas::new(out, opts, theme),
         }
     }
 
