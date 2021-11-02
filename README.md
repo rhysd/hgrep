@@ -282,12 +282,12 @@ function hgrep() {
   - `--follow` (`-L`): When this flag is enabled, hgrep will follow symbolic links while traversing directories
   - `--multiline` (`-U`): Enable matching across multiple lines
   - `--multiline-dotall`: Enable "dot all" in your regex pattern, which causes '.' to match newlines when multiline searching is enabled
-  - `--crlf`: about(r"When enabled, hgrep will treat CRLF (`\r\n`) as a line terminator instead of just `\n`. This flag is useful on Windows
+  - `--crlf`: When enabled, hgrep will treat CRLF (`\r\n`) as a line terminator instead of just `\n`. This flag is useful on Windows
   - `--mmap`: Search using memory maps when possible. mmap is disabled by default unlike hgrep
   - `--max-count NUM` (`-m`): Limit the number of matching lines per file searched to NUM
   - `--max-depth NUM`: Limit the depth of directory traversal to NUM levels beyond the paths given
   - `--max-filesize NUM`: Ignore files larger than NUM in size
-  - `--line-regexp` (`-x`): Only show matches surrounded by line boundaries. This is equivalent to putting ^...$ around all of the search patterns
+  - `--line-regexp` (`-x`): Only show matches surrounded by line boundaries. This is equivalent to putting `^...$` around the search pattern
   - `--pcre2` (`-P`): When this flag is present, hgrep will use the PCRE2 regex engine instead of its default regex engine
   - `--type TYPE` (`-t`): Only search files matching TYPE. This option is repeatable
   - `--type-not TYPE` (`-T`): Do not search files matching TYPE. Inverse of --type. This option is repeatable
@@ -295,7 +295,7 @@ function hgrep() {
   - `--wrap MODE`: Text-wrapping mode. 'char' enables character-wise text-wrapping. 'never' disables text-wrapping. Default value is 'char'
 - Only for `syntect-printer` feature
   - `--background`: Paint background colors. This is useful when your favorite theme does not fit to your terminal's background color
-  - `--ascii-lines`: Use ascii characters for drawing border lines instead of Unicode characters
+  - `--ascii-lines`: Use ASCII characters for drawing border lines instead of Unicode characters
 - Only for `bat-printer` feature
   - `--custom-assets`: Load bat's custom assets from cache. Note that this flag may not work with some version of `bat` command
 

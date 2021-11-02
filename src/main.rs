@@ -142,7 +142,7 @@ fn cli<'a>() -> App<'a> {
         )
         .arg(
             Arg::new("ascii-lines").long("ascii-lines").about(
-                "Use ascii characters for drawing border lines instead of Unicode characters",
+                "Use ASCII characters for drawing border lines instead of Unicode characters",
             ),
         );
 
@@ -255,7 +255,7 @@ fn cli<'a>() -> App<'a> {
                 Arg::new("line-regexp")
                     .short('x')
                     .long("line-regexp")
-                    .about("Only show matches surrounded by line boundaries. This is equivalent to putting ^...$ around all of the search patterns"),
+                    .about("Only show matches surrounded by line boundaries. This is equivalent to putting ^...$ around the search pattern"),
             )
             .arg(
                 Arg::new("pcre2")
