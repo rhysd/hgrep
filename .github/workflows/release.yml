@@ -89,8 +89,8 @@ jobs:
       - name: Upload release artifact for dry-run
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ steps.info.outputs.zip }}
-          path: ${{ steps.info.outputs.zip }}
+          name: ${{ steps.info.outputs.asset_dir }}
+          path: ${{ steps.info.outputs.asset_dir }}
         if: ${{ github.event_name == 'workflow_dispatch' }}
   upload-musl:
     name: Upload release binary (linux-musl)
@@ -135,12 +135,12 @@ jobs:
       - name: Upload release artifact for dry-run
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ steps.info.outputs.zip }}
-          path: ${{ steps.info.outputs.zip }}
+          name: ${{ steps.info.outputs.asset_dir }}
+          path: ${{ steps.info.outputs.asset_dir }}
         if: ${{ github.event_name == 'workflow_dispatch' }}
   homebrew:
     name: Update Homebrew formula
-    needs: [upload, upload-musl]
+    needs: [upload]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -148,7 +148,9 @@ jobs:
           ref: main
           fetch-depth: 0
       - name: Run update.bash
-        run: ./HomebrewFormula/update.bash ${{ needs.upload.outputs.version }}
+        run: |
+          ./HomebrewFormula/update.bash ${{ needs.upload.outputs.version }}
+          git diff
       - name: Push to remote
         run: |
           git add ./HomebrewFormula
