@@ -46,8 +46,11 @@ pub fn list_themes<W: Write>(mut out: W, opts: &PrinterOptions<'_>) -> Result<()
     for themes in &[bat_defaults, defaults] {
         for (name, theme) in themes.themes.iter() {
             if !seen.contains(name) {
-                writeln!(out, "{:?}", name)?;
-                Canvas::new(&mut out, opts, theme).draw_sample_colors()?;
+                let mut canvas = Canvas::new(&mut out, opts, theme);
+                canvas.set_bold()?;
+                write!(canvas, "{:?}", name)?;
+                canvas.draw_newline()?;
+                canvas.draw_sample_colors()?;
                 writeln!(out)?;
                 seen.insert(name);
             }
@@ -509,22 +512,22 @@ impl<W: Write> Canvas<W> {
         Ok(())
     }
 
-    fn draw_sample_color(&mut self, name: &str, color: Color) -> Result<()> {
-        write!(self.out, "  {} ", name)?;
-        self.set_bg(color)?;
-        self.out.write_all(b"    ")?;
-        self.draw_newline()
+    fn draw_sample_colors_row(&mut self, colors: &[(&str, Color)]) -> Result<()> {
+        for (name, color) in colors {
+            write!(self.out, "    {} ", name)?;
+            self.set_bg(*color)?;
+            self.out.write_all(b"    \x1b[0m")?;
+        }
+        writeln!(self.out)?;
+        Ok(())
     }
 
+    #[rustfmt::skip]
     fn draw_sample_colors(&mut self) -> Result<()> {
-        self.draw_sample_color("Foreground:   ", self.palette.foreground)?;
-        self.draw_sample_color("Background:   ", self.palette.background)?;
-        self.draw_sample_color("MatchLineBG:  ", self.palette.match_bg)?;
-        self.draw_sample_color("MatchLineNum: ", self.palette.match_lnum_fg)?;
-        self.draw_sample_color("MatchRegionFG:", self.palette.region_fg)?;
-        self.draw_sample_color("MatchRegionBG:", self.palette.region_bg)?;
-        self.draw_sample_color("GutterFG:     ", self.palette.gutter_fg)?;
-        self.draw_sample_color("GutterBG:     ", self.palette.gutter_bg)
+        self.draw_sample_colors_row(&[("Foreground:   ", self.palette.foreground), ("Background:   ", self.palette.background)])?;
+        self.draw_sample_colors_row(&[("MatchLineBG:  ", self.palette.match_bg),   ("MatchLineNum: ", self.palette.match_lnum_fg)])?;
+        self.draw_sample_colors_row(&[("MatchRegionFG:", self.palette.region_fg),  ("MatchRegionBG:", self.palette.region_bg)])?;
+        self.draw_sample_colors_row(&[("GutterFG:     ", self.palette.gutter_fg),  ("GutterBG:     ", self.palette.gutter_bg)])
     }
 }
 
