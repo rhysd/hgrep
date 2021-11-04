@@ -4,16 +4,9 @@ version = "0.1.9"
 edition = "2018"
 authors = ["rhysd <lin90162@yahoo.co.jp>"]
 description = """
-hgrep is a grep tool with human-friendly search output. It eats results of
-`grep -nH` and prints the matched position with code snippets.
-
-This is similar to `-C` option of `grep` command, but its output is enhanced
-with syntax highlighting. It focuses on human readable outputs. hgrep is useful
-to survey the matches with contexts around them. When some matches are near
-enough, hgrep prints the lines within one code snippet. To show contexts
-efficiently, hgrep adopt some heuristics around empty lines.
-
-hgrep provides a builtin subset implementation of ripgrep as optional feature.
+hgrep is a grep tool with human-friendly search output. This is similar to `-C`
+option of `grep` command, but its output is enhanced with syntax highlighting
+focusing on human readable outputs.
 """
 license = "MIT"
 homepage = "https://github.com/rhysd/hgrep#readme"
