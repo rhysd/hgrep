@@ -204,7 +204,7 @@ line of a file is a much heavier task than printing a match of the first line of
 Since `syntect` printer is designed for calculating syntax highlights per file in parallel, its performance is much better. It's
 2x~4x faster than `bat` printer in some experiments. More match results get better performance.
 
-In contrast, bat is not designed for multi-threads. It's not possible to share `bat::PrettyPrinter` instance among threads. It
+In contrast, bat is not designed for multi-threads. It's not possible to share `bat::PrettyPrinter` instance accross threads. It
 means that printing match results including syntax highlighting must be done in a single thread.
 
 | `syntect` printer sequence | `bat` printer sequence |
@@ -239,6 +239,12 @@ And hgrep respects `BAT_STYLE` environment variable. When `plain` or `header` or
 export BAT_STYLE=numbers
 ```
 
+When `syntect` printer is used, painting background colors is supported with `--background` flag.
+
+```sh
+grep -nH ... | hgrep --background -p syntect
+```
+
 ### Set default command options
 
 Wrapping `hgrep` command with shell's `alias` command works fine for setting default command options.
@@ -250,7 +256,7 @@ For example, if you're using Bash, put the following line in your `.bash_profile
 alias hgrep='hgrep --printer syntect --hidden'
 ```
 
-If you prefer a pager, try the following wrapper function. `--term-width` propagates the correct width of the terminal window.
+If you like a pager, try the following wrapper function. `--term-width` propagates the correct width of the terminal window.
 
 ```sh
 # Use syntect-printer and less as pager. $COLUMNS corrects terminal window
@@ -267,7 +273,7 @@ function hgrep() {
   - `--no-grid` (`-G`): Remove borderlines for more compact output. `--grid` flag is an opposite of this flag
   - `--tab NUM`: Number of spaces for tab character. Set 0 to pass tabs through. Default value is 4
   - `--theme THEME`: Theme for syntax highlighting. Default value is the same as `bat` command
-  - `--list-themes`: List all theme names available for --theme option
+  - `--list-themes`: List all available theme names and their samples for --theme option
   - `--printer`: Printer to print the match results. 'bat' or 'syntect' is available. Default value is 'bat'
   - `--term-width`: Width (number of characters) of terminal window
   - `--first-only` (`-f`): Show only the first code snippet per file
@@ -314,6 +320,21 @@ This is an example of setup the completion script on Zsh.
 hgrep --generate-completion-script zsh > ~/.zsh/site-functions/_hgrep
 ```
 
+### Exit status
+
+`hgrep` command returns exit statuses as follows.
+
+| Status | Description                         |
+|--------|-------------------------------------|
+|   0    | One or more matches were found      |
+|   1    | No match was found                  |
+|   2    | Some error happened (e.g. IO error) |
+
+## Versioning
+
+At this point the major version is fixed to 0. The minor version is bumped when some breaking changes are added. The patch
+version is bumped when some new compatible changes are added and/or some bug fixes are added.
+
 ## Alternatives
 
 Some other alternatives instead of using hgrep.
@@ -337,7 +358,7 @@ done
 It works fine but hgrep is more optimized for this usage.
 
 - When the matches are near enough, the lines are printed in one snippet.
-- Performance is better than running `bat` process per matched line.
+- Performance is much better than running `bat` process per matched line.
 - hgrep computes efficient context lines based on some heuristics.
 - hgrep is available where ShellScript is unavailable (e.g. PowerShell).
 
