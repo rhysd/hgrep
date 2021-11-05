@@ -55,6 +55,24 @@ impl File {
             contents: contents.into_boxed_slice(),
         }
     }
+
+    pub fn sample_file() -> Self {
+        let lmats = vec![
+            LineMatch::new(3, vec![(4, 7)]),
+            LineMatch::new(4, vec![(7, 10)]),
+        ];
+        let chunks = vec![(1, 7)];
+        let contents = b"\
+// Parse input as float number and print sqrt of it
+fn print_sqrt<S: AsRef<str>>(input: S) {
+    let f: Result<f64, _> = input.as_ref();
+    if let Ok(f) = f {
+        println!(\"sqrt of {:.2} is {:.2}\", f, f.sqrt());
+    }
+}\
+        ";
+        Self::new(PathBuf::from("sample.rs"), lmats, chunks, contents.to_vec())
+    }
 }
 
 pub struct Files<I: Iterator> {

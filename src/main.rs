@@ -456,9 +456,7 @@ fn app() -> Result<bool> {
 
         #[cfg(feature = "bat-printer")]
         if printer_kind == PrinterKind::Bat {
-            for theme in BatPrinter::new(printer_opts).themes() {
-                println!("{}", theme);
-            }
+            BatPrinter::new(printer_opts).list_themes()?;
             return Ok(true);
         }
 

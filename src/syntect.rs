@@ -1,4 +1,4 @@
-use crate::chunk::{File, Line, LineMatch};
+use crate::chunk::{File, Line};
 use crate::printer::{Printer, PrinterOptions, TermColorSupport, TextWrapMode};
 use anyhow::Result;
 use flate2::read::ZlibDecoder;
@@ -11,7 +11,7 @@ use std::fmt;
 use std::io::Write;
 use std::io::{self, Stdout, StdoutLock};
 use std::ops::{Deref, DerefMut};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::str::Chars;
 use syntect::highlighting::{
     Color, FontStyle, HighlightIterator, HighlightState, Highlighter, Style, Theme, ThemeSet,
@@ -52,22 +52,7 @@ pub fn list_themes<W: Write>(mut out: W, opts: &PrinterOptions<'_>) -> Result<()
     let defaults = ThemeSet::load_defaults();
     let syntaxes = load_syntax_set()?;
     let syntax = syntaxes.find_syntax_by_name("Rust").unwrap();
-
-    let lmats = vec![
-        LineMatch::new(3, vec![(4, 7)]),
-        LineMatch::new(4, vec![(7, 10)]),
-    ];
-    let chunks = vec![(1, 7)];
-    let contents = b"\
-// Parse input as float number and print sqrt of it
-fn print_sqrt<S: AsRef<str>>(input: S) {
-    let f: Result<f64, _> = input.as_ref();
-    if let Ok(f) = f {
-        println!(\"sqrt of {:.2} is {:.2}\", f, f.sqrt());
-    }
-}\
-    ";
-    let sample_file = File::new(PathBuf::from("sample.rs"), lmats, chunks, contents.to_vec());
+    let sample_file = File::sample_file();
 
     for themes in &[bat_defaults, defaults] {
         for (name, theme) in themes.themes.iter() {
