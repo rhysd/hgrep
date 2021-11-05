@@ -46,11 +46,19 @@ impl<'a> LockableWrite<'a> for Stdout {
     }
 }
 
-pub fn list_themes<W: Write>(mut out: W, opts: &PrinterOptions<'_>) -> Result<()> {
+pub fn list_themes<W: Write>(out: W, opts: &PrinterOptions<'_>) -> Result<()> {
+    let syntaxes = load_syntax_set()?;
+    list_themes_with_syntaxes(out, opts, &syntaxes)
+}
+
+fn list_themes_with_syntaxes<W: Write>(
+    mut out: W,
+    opts: &PrinterOptions<'_>,
+    syntaxes: &SyntaxSet,
+) -> Result<()> {
     let mut seen = HashSet::new();
     let bat_defaults = load_bat_themes()?;
     let defaults = ThemeSet::load_defaults();
-    let syntaxes = load_syntax_set()?;
     let syntax = syntaxes.find_syntax_by_name("Rust").unwrap();
     let sample_file = File::sample_file();
 
@@ -64,7 +72,7 @@ pub fn list_themes<W: Write>(mut out: W, opts: &PrinterOptions<'_>) -> Result<()
                 drawer.canvas.draw_sample()?;
                 writeln!(drawer.canvas)?;
 
-                let hl = LineHighlighter::new(syntax, theme, &syntaxes);
+                let hl = LineHighlighter::new(syntax, theme, syntaxes);
                 drawer.draw_file(&sample_file, hl)?;
                 writeln!(drawer.canvas)?;
 
@@ -1252,7 +1260,7 @@ mod tests {
             run_uitest(file, outfile, f);
         }
 
-        macro_rules! uitest {
+        macro_rules! uitests {
             ($($input:ident($f:expr),)+) => {
                 $(
                     #[test]
@@ -1263,7 +1271,7 @@ mod tests {
             }
         }
 
-        uitest!(
+        uitests!(
             test_default(|_| {}),
             test_background(|o| {
                 o.background_color = true;
@@ -1397,6 +1405,60 @@ mod tests {
         );
     }
 
+    // Separate module from `ui` since pretty_assertions is too slow for showing diff between byte sequences.
+    mod list_themes {
+        use super::*;
+
+        fn run_parametrized_uitest_list_themes(
+            mut input: &str,
+            f: fn(&mut PrinterOptions<'_>) -> (),
+        ) {
+            if input.starts_with("test_") {
+                input = &input["test_".len()..];
+            }
+            let file = format!("list_themes_{}.out", input);
+            let expected = Path::new("testdata").join("syntect").join(file);
+            let expected = fs::read(&expected).unwrap();
+
+            let mut opts = PrinterOptions::default();
+            opts.term_width = 80;
+            opts.color_support = TermColorSupport::True;
+            f(&mut opts);
+
+            let mut got = vec![];
+            list_themes_with_syntaxes(&mut got, &opts, &ASSETS.syntax_set).unwrap();
+
+            assert_eq!(
+                expected,
+                got,
+                "expected:\n{}\ngot:\n{}",
+                str::from_utf8(&expected).unwrap(),
+                str::from_utf8(&got).unwrap()
+            );
+        }
+
+        macro_rules! list_theme_uitests {
+            ($($input:ident($f:expr),)+) => {
+                $(
+                    #[test]
+                    fn $input() {
+                        run_parametrized_uitest_list_themes(stringify!($input), $f);
+                    }
+                )+
+            }
+        }
+
+        list_theme_uitests! {
+            test_default(|_| {}),
+            test_no_grid(|o| {
+                o.grid = false;
+            }),
+            test_background(|o| {
+                o.background_color = true;
+            }),
+        }
+    }
+
     #[derive(Debug)]
     struct DummyError;
     impl std::error::Error for DummyError {}
@@ -1452,25 +1514,6 @@ mod tests {
         };
         let msg = format!("{}", err);
         assert!(msg.contains("Unknown theme"), "message={:?}", msg);
-    }
-
-    #[test]
-    fn test_list_themes() {
-        let expected = Path::new("testdata").join("syntect").join("themes.out");
-        let expected = fs::read(&expected).unwrap();
-
-        let mut opts = PrinterOptions::default();
-        opts.color_support = TermColorSupport::True;
-        let mut got = vec![];
-        list_themes(&mut got, &opts).unwrap();
-
-        assert_eq!(
-            expected,
-            got,
-            "expected:\n{}\ngot:\n{}",
-            str::from_utf8(&expected).unwrap(),
-            str::from_utf8(&got).unwrap()
-        );
     }
 
     #[test]

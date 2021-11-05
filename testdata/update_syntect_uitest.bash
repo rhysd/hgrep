@@ -78,7 +78,9 @@ cargo run -- '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80       
 cargo run -- '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80                           ./testdata/syntect/wrap_regions_japanese.rs        > ./testdata/syntect/wrap_regions_japanese.out
 
 # Test for --list-themes
-cargo run -- --list-themes -p syntect > ./testdata/syntect/themes.out
+cargo run -- --list-themes -p syntect --term-width 80              > ./testdata/syntect/list_themes_default.out
+cargo run -- --list-themes -p syntect --term-width 80 --no-grid    > ./testdata/syntect/list_themes_no_grid.out
+cargo run -- --list-themes -p syntect --term-width 80 --background > ./testdata/syntect/list_themes_background.out
 
 # Previews
 cat ./testdata/syntect/ansi16_colors.out
@@ -146,4 +148,6 @@ cat ./testdata/syntect/wrap_between_regions.out
 cat ./testdata/syntect/wrap_accross_regions.out
 cat ./testdata/syntect/wrap_regions_japanese.out
 
-cat ./testdata/syntect/themes.out
+cat ./testdata/syntect/list_themes_default.out
+cat ./testdata/syntect/list_themes_no_grid.out
+cat ./testdata/syntect/list_themes_background.out
