@@ -17,6 +17,13 @@ pub struct LineMatch {
 }
 
 impl LineMatch {
+    pub fn new(line_number: u64, ranges: Vec<(usize, usize)>) -> Self {
+        Self {
+            line_number,
+            ranges,
+        }
+    }
+
     pub fn lnum(line_number: u64) -> Self {
         Self {
             line_number,
@@ -236,10 +243,7 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
                         // Next match
                         let m = self.iter.next().unwrap().unwrap();
                         line_number = m.line_number;
-                        lmats.push(LineMatch {
-                            line_number,
-                            ranges: m.ranges,
-                        });
+                        lmats.push(LineMatch::new(line_number, m.ranges));
                     }
                 }
 
@@ -255,10 +259,7 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
             let m = self.iter.next().unwrap().unwrap();
             line_number = m.line_number;
             // First match line of next chunk
-            lmats.push(LineMatch {
-                line_number,
-                ranges: m.ranges,
-            });
+            lmats.push(LineMatch::new(line_number, m.ranges));
         }
 
         if chunks.is_empty() {

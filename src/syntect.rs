@@ -1,5 +1,4 @@
-use crate::chunk::File;
-use crate::chunk::Line;
+use crate::chunk::{File, Line, LineMatch};
 use crate::printer::{Printer, PrinterOptions, TermColorSupport, TextWrapMode};
 use anyhow::Result;
 use flate2::read::ZlibDecoder;
@@ -12,7 +11,7 @@ use std::fmt;
 use std::io::Write;
 use std::io::{self, Stdout, StdoutLock};
 use std::ops::{Deref, DerefMut};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::str::Chars;
 use syntect::highlighting::{
     Color, FontStyle, HighlightIterator, HighlightState, Highlighter, Style, Theme, ThemeSet,
@@ -26,6 +25,14 @@ use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 const SYNTAX_SET_BIN: &[u8] = include_bytes!("../assets/syntaxes.bin");
 const THEME_SET_BIN: &[u8] = include_bytes!("../assets/themes.bin");
+
+fn load_bat_themes() -> Result<ThemeSet> {
+    Ok(bincode::deserialize_from(ZlibDecoder::new(THEME_SET_BIN))?)
+}
+
+fn load_syntax_set() -> Result<SyntaxSet> {
+    Ok(bincode::deserialize_from(ZlibDecoder::new(SYNTAX_SET_BIN))?)
+}
 
 pub trait LockableWrite<'a> {
     type Locked: Write;
@@ -41,17 +48,41 @@ impl<'a> LockableWrite<'a> for Stdout {
 
 pub fn list_themes<W: Write>(mut out: W, opts: &PrinterOptions<'_>) -> Result<()> {
     let mut seen = HashSet::new();
-    let bat_defaults = bincode::deserialize_from(ZlibDecoder::new(THEME_SET_BIN))?;
+    let bat_defaults = load_bat_themes()?;
     let defaults = ThemeSet::load_defaults();
+    let syntaxes = load_syntax_set()?;
+    let syntax = syntaxes.find_syntax_by_name("Rust").unwrap();
+
+    let lmats = vec![
+        LineMatch::new(3, vec![(4, 7)]),
+        LineMatch::new(4, vec![(7, 10)]),
+    ];
+    let chunks = vec![(1, 7)];
+    let contents = b"\
+// Parse input as float number and print sqrt of it
+fn print_sqrt<S: AsRef<str>>(input: S) {
+    let f: Result<f64, _> = input.as_ref();
+    if let Ok(f) = f {
+        println!(\"sqrt of {:.2} is {:.2}\", f, f.sqrt());
+    }
+}\
+    ";
+    let sample_file = File::new(PathBuf::from("sample.rs"), lmats, chunks, contents.to_vec());
+
     for themes in &[bat_defaults, defaults] {
         for (name, theme) in themes.themes.iter() {
             if !seen.contains(name) {
-                let mut canvas = Canvas::new(&mut out, opts, theme);
-                canvas.set_bold()?;
-                write!(canvas, "{:?}", name)?;
-                canvas.draw_newline()?;
-                canvas.draw_sample_colors()?;
-                writeln!(out)?;
+                let mut drawer = Drawer::new(&mut out, opts, theme, &sample_file.chunks);
+                drawer.canvas.set_bold()?;
+                write!(drawer.canvas, "{:?}", name)?;
+                drawer.canvas.draw_newline()?;
+                drawer.canvas.draw_sample()?;
+                writeln!(drawer.canvas)?;
+
+                let hl = LineHighlighter::new(syntax, theme, &syntaxes);
+                drawer.draw_file(&sample_file, hl)?;
+                writeln!(drawer.canvas)?;
+
                 seen.insert(name);
             }
         }
@@ -512,22 +543,24 @@ impl<W: Write> Canvas<W> {
         Ok(())
     }
 
-    fn draw_sample_colors_row(&mut self, colors: &[(&str, Color)]) -> Result<()> {
+    fn draw_sample_row(&mut self, colors: &[(&str, Color)]) -> Result<()> {
         for (name, color) in colors {
             write!(self.out, "    {} ", name)?;
             self.set_bg(*color)?;
             self.out.write_all(b"    \x1b[0m")?;
         }
         writeln!(self.out)?;
+        self.current_fg = None;
+        self.current_bg = None;
         Ok(())
     }
 
     #[rustfmt::skip]
-    fn draw_sample_colors(&mut self) -> Result<()> {
-        self.draw_sample_colors_row(&[("Foreground:   ", self.palette.foreground), ("Background:   ", self.palette.background)])?;
-        self.draw_sample_colors_row(&[("MatchLineBG:  ", self.palette.match_bg),   ("MatchLineNum: ", self.palette.match_lnum_fg)])?;
-        self.draw_sample_colors_row(&[("MatchRegionFG:", self.palette.region_fg),  ("MatchRegionBG:", self.palette.region_bg)])?;
-        self.draw_sample_colors_row(&[("GutterFG:     ", self.palette.gutter_fg),  ("GutterBG:     ", self.palette.gutter_bg)])
+    fn draw_sample(&mut self) -> Result<()> {
+        self.draw_sample_row(&[("Foreground:   ", self.palette.foreground), ("Background:   ", self.palette.background)])?;
+        self.draw_sample_row(&[("MatchLineBG:  ", self.palette.match_bg),   ("MatchLineNum: ", self.palette.match_lnum_fg)])?;
+        self.draw_sample_row(&[("MatchRegionFG:", self.palette.region_fg),  ("MatchRegionBG:", self.palette.region_bg)])?;
+        self.draw_sample_row(&[("GutterFG:     ", self.palette.gutter_fg),  ("GutterBG:     ", self.palette.gutter_bg)])
     }
 }
 
@@ -922,10 +955,16 @@ impl<'file, W: Write> Drawer<'file, W> {
         }
         Ok(())
     }
+
+    fn draw_file(&mut self, file: &File, hl: LineHighlighter) -> Result<()> {
+        self.draw_header(&file.path)?;
+        self.draw_body(file, hl)?;
+        self.draw_footer()
+    }
 }
 
 fn load_themes(name: Option<&str>) -> Result<ThemeSet> {
-    let bat_defaults: ThemeSet = bincode::deserialize_from(ZlibDecoder::new(THEME_SET_BIN))?;
+    let bat_defaults: ThemeSet = load_bat_themes()?;
     match name {
         None => Ok(bat_defaults),
         Some(name) if bat_defaults.themes.contains_key(name) => Ok(bat_defaults),
@@ -948,7 +987,7 @@ pub struct SyntectAssets {
 
 impl SyntectAssets {
     pub fn load(theme: Option<&str>) -> Result<Self> {
-        let syntax_set = bincode::deserialize_from(ZlibDecoder::new(SYNTAX_SET_BIN))?;
+        let syntax_set = load_syntax_set()?;
         let theme_set = load_themes(theme)?;
         Ok(Self {
             syntax_set,
@@ -992,7 +1031,7 @@ where
     pub fn new(writer: W, opts: PrinterOptions<'main>) -> Result<Self> {
         Ok(Self {
             writer,
-            syntaxes: bincode::deserialize_from(ZlibDecoder::new(SYNTAX_SET_BIN))?,
+            syntaxes: load_syntax_set()?,
             themes: load_themes(opts.theme)?,
             opts,
         })
@@ -1053,11 +1092,8 @@ where
         let theme = self.theme();
         let syntax = self.find_syntax(&file.path)?;
 
-        let mut drawer = Drawer::new(&mut buf, &self.opts, theme, &file.chunks);
-        drawer.draw_header(&file.path)?;
         let hl = LineHighlighter::new(syntax, theme, &self.syntaxes);
-        drawer.draw_body(&file, hl)?;
-        drawer.draw_footer()?;
+        Drawer::new(&mut buf, &self.opts, theme, &file.chunks).draw_file(&file, hl)?;
 
         // Take lock here to print files in serial from multiple threads
         let mut output = self.writer.lock();
@@ -1128,10 +1164,7 @@ mod tests {
                         base += end;
                     }
                     if ranges.len() > 0 {
-                        lmats.push(LineMatch {
-                            line_number: lnum,
-                            ranges,
-                        });
+                        lmats.push(LineMatch::new(lnum, ranges));
                     }
                 } else {
                     break;
