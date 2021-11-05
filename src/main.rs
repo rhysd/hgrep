@@ -355,24 +355,6 @@ fn app() -> Result<bool> {
         ),
     };
 
-    if matches.is_present("list-themes") {
-        #[cfg(feature = "syntect-printer")]
-        if printer_kind == PrinterKind::Syntect {
-            hgrep::syntect::list_themes(io::stdout().lock(), &PrinterOptions::default())?;
-            return Ok(true);
-        }
-
-        #[cfg(feature = "bat-printer")]
-        if printer_kind == PrinterKind::Bat {
-            for theme in BatPrinter::new(PrinterOptions::default()).themes() {
-                println!("{}", theme);
-            }
-            return Ok(true);
-        }
-
-        unreachable!();
-    }
-
     let min_context = matches
         .value_of("min-context")
         .unwrap()
@@ -463,6 +445,22 @@ fn app() -> Result<bool> {
         if printer_kind == PrinterKind::Syntect {
             anyhow::bail!("--custom-assets flag is only available for bat printer");
         }
+    }
+
+    if matches.is_present("list-themes") {
+        #[cfg(feature = "syntect-printer")]
+        if printer_kind == PrinterKind::Syntect {
+            hgrep::syntect::list_themes(io::stdout().lock(), &printer_opts)?;
+            return Ok(true);
+        }
+
+        #[cfg(feature = "bat-printer")]
+        if printer_kind == PrinterKind::Bat {
+            BatPrinter::new(printer_opts).list_themes()?;
+            return Ok(true);
+        }
+
+        unreachable!();
     }
 
     #[cfg(feature = "ripgrep")]

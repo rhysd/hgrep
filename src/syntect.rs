@@ -1,5 +1,4 @@
-use crate::chunk::File;
-use crate::chunk::Line;
+use crate::chunk::{File, Line};
 use crate::printer::{Printer, PrinterOptions, TermColorSupport, TextWrapMode};
 use anyhow::Result;
 use flate2::read::ZlibDecoder;
@@ -27,6 +26,14 @@ use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 const SYNTAX_SET_BIN: &[u8] = include_bytes!("../assets/syntaxes.bin");
 const THEME_SET_BIN: &[u8] = include_bytes!("../assets/themes.bin");
 
+fn load_bat_themes() -> Result<ThemeSet> {
+    Ok(bincode::deserialize_from(ZlibDecoder::new(THEME_SET_BIN))?)
+}
+
+fn load_syntax_set() -> Result<SyntaxSet> {
+    Ok(bincode::deserialize_from(ZlibDecoder::new(SYNTAX_SET_BIN))?)
+}
+
 pub trait LockableWrite<'a> {
     type Locked: Write;
     fn lock(&'a self) -> Self::Locked;
@@ -39,16 +46,36 @@ impl<'a> LockableWrite<'a> for Stdout {
     }
 }
 
-pub fn list_themes<W: Write>(mut out: W, opts: &PrinterOptions<'_>) -> Result<()> {
+pub fn list_themes<W: Write>(out: W, opts: &PrinterOptions<'_>) -> Result<()> {
+    let syntaxes = load_syntax_set()?;
+    list_themes_with_syntaxes(out, opts, &syntaxes)
+}
+
+fn list_themes_with_syntaxes<W: Write>(
+    mut out: W,
+    opts: &PrinterOptions<'_>,
+    syntaxes: &SyntaxSet,
+) -> Result<()> {
     let mut seen = HashSet::new();
-    let bat_defaults = bincode::deserialize_from(ZlibDecoder::new(THEME_SET_BIN))?;
+    let bat_defaults = load_bat_themes()?;
     let defaults = ThemeSet::load_defaults();
+    let syntax = syntaxes.find_syntax_by_name("Rust").unwrap();
+    let sample_file = File::sample_file();
+
     for themes in &[bat_defaults, defaults] {
         for (name, theme) in themes.themes.iter() {
             if !seen.contains(name) {
-                writeln!(out, "{:?}", name)?;
-                Canvas::new(&mut out, opts, theme).draw_sample_colors()?;
-                writeln!(out)?;
+                let mut drawer = Drawer::new(&mut out, opts, theme, &sample_file.chunks);
+                drawer.canvas.set_bold()?;
+                write!(drawer.canvas, "{:?}", name)?;
+                drawer.canvas.draw_newline()?;
+                drawer.canvas.draw_sample()?;
+                writeln!(drawer.canvas)?;
+
+                let hl = LineHighlighter::new(syntax, theme, syntaxes);
+                drawer.draw_file(&sample_file, hl)?;
+                writeln!(drawer.canvas)?;
+
                 seen.insert(name);
             }
         }
@@ -509,22 +536,24 @@ impl<W: Write> Canvas<W> {
         Ok(())
     }
 
-    fn draw_sample_color(&mut self, name: &str, color: Color) -> Result<()> {
-        write!(self.out, "  {} ", name)?;
-        self.set_bg(color)?;
-        self.out.write_all(b"    ")?;
-        self.draw_newline()
+    fn draw_sample_row(&mut self, colors: &[(&str, Color)]) -> Result<()> {
+        for (name, color) in colors {
+            write!(self.out, "    {} ", name)?;
+            self.set_bg(*color)?;
+            self.out.write_all(b"    \x1b[0m")?;
+        }
+        writeln!(self.out)?;
+        self.current_fg = None;
+        self.current_bg = None;
+        Ok(())
     }
 
-    fn draw_sample_colors(&mut self) -> Result<()> {
-        self.draw_sample_color("Foreground:   ", self.palette.foreground)?;
-        self.draw_sample_color("Background:   ", self.palette.background)?;
-        self.draw_sample_color("MatchLineBG:  ", self.palette.match_bg)?;
-        self.draw_sample_color("MatchLineNum: ", self.palette.match_lnum_fg)?;
-        self.draw_sample_color("MatchRegionFG:", self.palette.region_fg)?;
-        self.draw_sample_color("MatchRegionBG:", self.palette.region_bg)?;
-        self.draw_sample_color("GutterFG:     ", self.palette.gutter_fg)?;
-        self.draw_sample_color("GutterBG:     ", self.palette.gutter_bg)
+    #[rustfmt::skip]
+    fn draw_sample(&mut self) -> Result<()> {
+        self.draw_sample_row(&[("Foreground:   ", self.palette.foreground), ("Background:   ", self.palette.background)])?;
+        self.draw_sample_row(&[("MatchLineBG:  ", self.palette.match_bg),   ("MatchLineNum: ", self.palette.match_lnum_fg)])?;
+        self.draw_sample_row(&[("MatchRegionFG:", self.palette.region_fg),  ("MatchRegionBG:", self.palette.region_bg)])?;
+        self.draw_sample_row(&[("GutterFG:     ", self.palette.gutter_fg),  ("GutterBG:     ", self.palette.gutter_bg)])
     }
 }
 
@@ -919,10 +948,16 @@ impl<'file, W: Write> Drawer<'file, W> {
         }
         Ok(())
     }
+
+    fn draw_file(&mut self, file: &File, hl: LineHighlighter) -> Result<()> {
+        self.draw_header(&file.path)?;
+        self.draw_body(file, hl)?;
+        self.draw_footer()
+    }
 }
 
 fn load_themes(name: Option<&str>) -> Result<ThemeSet> {
-    let bat_defaults: ThemeSet = bincode::deserialize_from(ZlibDecoder::new(THEME_SET_BIN))?;
+    let bat_defaults: ThemeSet = load_bat_themes()?;
     match name {
         None => Ok(bat_defaults),
         Some(name) if bat_defaults.themes.contains_key(name) => Ok(bat_defaults),
@@ -945,7 +980,7 @@ pub struct SyntectAssets {
 
 impl SyntectAssets {
     pub fn load(theme: Option<&str>) -> Result<Self> {
-        let syntax_set = bincode::deserialize_from(ZlibDecoder::new(SYNTAX_SET_BIN))?;
+        let syntax_set = load_syntax_set()?;
         let theme_set = load_themes(theme)?;
         Ok(Self {
             syntax_set,
@@ -989,7 +1024,7 @@ where
     pub fn new(writer: W, opts: PrinterOptions<'main>) -> Result<Self> {
         Ok(Self {
             writer,
-            syntaxes: bincode::deserialize_from(ZlibDecoder::new(SYNTAX_SET_BIN))?,
+            syntaxes: load_syntax_set()?,
             themes: load_themes(opts.theme)?,
             opts,
         })
@@ -1050,11 +1085,8 @@ where
         let theme = self.theme();
         let syntax = self.find_syntax(&file.path)?;
 
-        let mut drawer = Drawer::new(&mut buf, &self.opts, theme, &file.chunks);
-        drawer.draw_header(&file.path)?;
         let hl = LineHighlighter::new(syntax, theme, &self.syntaxes);
-        drawer.draw_body(&file, hl)?;
-        drawer.draw_footer()?;
+        Drawer::new(&mut buf, &self.opts, theme, &file.chunks).draw_file(&file, hl)?;
 
         // Take lock here to print files in serial from multiple threads
         let mut output = self.writer.lock();
@@ -1125,10 +1157,7 @@ mod tests {
                         base += end;
                     }
                     if ranges.len() > 0 {
-                        lmats.push(LineMatch {
-                            line_number: lnum,
-                            ranges,
-                        });
+                        lmats.push(LineMatch::new(lnum, ranges));
                     }
                 } else {
                     break;
@@ -1231,7 +1260,7 @@ mod tests {
             run_uitest(file, outfile, f);
         }
 
-        macro_rules! uitest {
+        macro_rules! uitests {
             ($($input:ident($f:expr),)+) => {
                 $(
                     #[test]
@@ -1242,7 +1271,7 @@ mod tests {
             }
         }
 
-        uitest!(
+        uitests!(
             test_default(|_| {}),
             test_background(|o| {
                 o.background_color = true;
@@ -1376,6 +1405,60 @@ mod tests {
         );
     }
 
+    // Separate module from `ui` since pretty_assertions is too slow for showing diff between byte sequences.
+    mod list_themes {
+        use super::*;
+
+        fn run_parametrized_uitest_list_themes(
+            mut input: &str,
+            f: fn(&mut PrinterOptions<'_>) -> (),
+        ) {
+            if input.starts_with("test_") {
+                input = &input["test_".len()..];
+            }
+            let file = format!("list_themes_{}.out", input);
+            let expected = Path::new("testdata").join("syntect").join(file);
+            let expected = fs::read(&expected).unwrap();
+
+            let mut opts = PrinterOptions::default();
+            opts.term_width = 80;
+            opts.color_support = TermColorSupport::True;
+            f(&mut opts);
+
+            let mut got = vec![];
+            list_themes_with_syntaxes(&mut got, &opts, &ASSETS.syntax_set).unwrap();
+
+            assert_eq!(
+                expected,
+                got,
+                "expected:\n{}\ngot:\n{}",
+                str::from_utf8(&expected).unwrap(),
+                str::from_utf8(&got).unwrap()
+            );
+        }
+
+        macro_rules! list_theme_uitests {
+            ($($input:ident($f:expr),)+) => {
+                $(
+                    #[test]
+                    fn $input() {
+                        run_parametrized_uitest_list_themes(stringify!($input), $f);
+                    }
+                )+
+            }
+        }
+
+        list_theme_uitests! {
+            test_default(|_| {}),
+            test_no_grid(|o| {
+                o.grid = false;
+            }),
+            test_background(|o| {
+                o.background_color = true;
+            }),
+        }
+    }
+
     #[derive(Debug)]
     struct DummyError;
     impl std::error::Error for DummyError {}
@@ -1431,25 +1514,6 @@ mod tests {
         };
         let msg = format!("{}", err);
         assert!(msg.contains("Unknown theme"), "message={:?}", msg);
-    }
-
-    #[test]
-    fn test_list_themes() {
-        let expected = Path::new("testdata").join("syntect").join("themes.out");
-        let expected = fs::read(&expected).unwrap();
-
-        let mut opts = PrinterOptions::default();
-        opts.color_support = TermColorSupport::True;
-        let mut got = vec![];
-        list_themes(&mut got, &opts).unwrap();
-
-        assert_eq!(
-            expected,
-            got,
-            "expected:\n{}\ngot:\n{}",
-            str::from_utf8(&expected).unwrap(),
-            str::from_utf8(&got).unwrap()
-        );
     }
 
     #[test]

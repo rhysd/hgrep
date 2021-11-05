@@ -17,6 +17,13 @@ pub struct LineMatch {
 }
 
 impl LineMatch {
+    pub fn new(line_number: u64, ranges: Vec<(usize, usize)>) -> Self {
+        Self {
+            line_number,
+            ranges,
+        }
+    }
+
     pub fn lnum(line_number: u64) -> Self {
         Self {
             line_number,
@@ -47,6 +54,24 @@ impl File {
             chunks: chunks.into_boxed_slice(),
             contents: contents.into_boxed_slice(),
         }
+    }
+
+    pub fn sample_file() -> Self {
+        let lmats = vec![
+            LineMatch::new(3, vec![(4, 7)]),
+            LineMatch::new(4, vec![(7, 10)]),
+        ];
+        let chunks = vec![(1, 7)];
+        let contents = b"\
+// Parse input as float number and print sqrt of it
+fn print_sqrt<S: AsRef<str>>(input: S) {
+    let f: Result<f64, _> = input.as_ref();
+    if let Ok(f) = f {
+        println!(\"sqrt of {:.2} is {:.2}\", f, f.sqrt());
+    }
+}\
+        ";
+        Self::new(PathBuf::from("sample.rs"), lmats, chunks, contents.to_vec())
     }
 }
 
@@ -236,10 +261,7 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
                         // Next match
                         let m = self.iter.next().unwrap().unwrap();
                         line_number = m.line_number;
-                        lmats.push(LineMatch {
-                            line_number,
-                            ranges: m.ranges,
-                        });
+                        lmats.push(LineMatch::new(line_number, m.ranges));
                     }
                 }
 
@@ -255,10 +277,7 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
             let m = self.iter.next().unwrap().unwrap();
             line_number = m.line_number;
             // First match line of next chunk
-            lmats.push(LineMatch {
-                line_number,
-                ranges: m.ranges,
-            });
+            lmats.push(LineMatch::new(line_number, m.ranges));
         }
 
         if chunks.is_empty() {

@@ -114,6 +114,17 @@ impl<'main> BatPrinter<'main> {
         self.assets.themes()
     }
 
+    pub fn list_themes(&mut self) -> Result<()> {
+        let sample = File::sample_file();
+        for theme in self.assets.themes() {
+            println!("\x1b[1m{:?}\x1b[0m", theme);
+            self.config.theme = theme.to_string();
+            self.print(sample.clone())?;
+            println!();
+        }
+        Ok(())
+    }
+
     pub fn print(&self, file: File) -> Result<()> {
         if file.chunks.is_empty() || file.line_matches.is_empty() {
             return Ok(()); // Ensure to print some match
