@@ -248,8 +248,24 @@ fn blend_fg_color(fg: Color, bg: Color) -> Color {
 }
 
 #[inline]
-fn half_blend_fg_color(mut fg: Color, bg: Color) -> Color {
-    fg.a /= 2;
+fn color_average(c: Color) -> u8 {
+    ((c.r as u32 + c.g as u32 + c.b as u32) / 3) as u8
+}
+
+#[inline]
+fn weak_blend_fg_color(mut fg: Color, bg: Color) -> Color {
+    let fg_avg = color_average(fg);
+    let bg_avg = color_average(bg);
+    let heuristic_ratio = if fg_avg > bg_avg {
+        if fg_avg - bg_avg >= 200 {
+            4 // Vivid dark theme uses further weaker gutter foreground
+        } else {
+            3 // Dark theme uses weaker gutter foreground than light theme
+        }
+    } else {
+        2
+    };
+    fg.a /= heuristic_ratio;
     blend_fg_color(fg, bg)
 }
 
@@ -262,7 +278,6 @@ struct Palette {
     region_fg: Color,
     region_bg: Color,
     gutter_fg: Color,
-    gutter_bg: Color,
 }
 
 impl Palette {
@@ -292,7 +307,6 @@ impl Palette {
         region_fg: Self::BLACK_COLOR_16,
         region_bg: Self::YELLOW_COLOR_16,
         gutter_fg: Self::NO_COLOR,
-        gutter_bg: Self::NO_COLOR,
     };
 
     fn new(theme: &Theme) -> Self {
@@ -304,17 +318,14 @@ impl Palette {
             return Self::ANSI16;
         }
 
-        let gutter_bg = theme.settings.gutter.unwrap_or(background);
-        let match_lnum_fg = theme.settings.gutter_foreground.unwrap_or(foreground);
+        // gutter and gutter_foreground are not fit to show line numbers and borders in some color themes
+        let gutter_fg = weak_blend_fg_color(foreground, background);
+        let match_lnum_fg = blend_fg_color(foreground, background);
 
-        let gutter_fg = half_blend_fg_color(match_lnum_fg, gutter_bg);
-
-        let match_lnum_fg = blend_fg_color(match_lnum_fg, gutter_bg);
-        let match_bg = if let Some(bg) = theme.settings.line_highlight {
-            bg
-        } else {
-            half_blend_fg_color(foreground, background)
-        };
+        let match_bg = theme
+            .settings
+            .line_highlight
+            .unwrap_or_else(|| weak_blend_fg_color(foreground, background));
 
         let (region_fg, region_bg) = if let Some(bg) = theme.settings.find_highlight {
             let fg = theme
@@ -335,7 +346,6 @@ impl Palette {
             region_fg,
             region_bg,
             gutter_fg,
-            gutter_bg,
         }
     }
 
@@ -511,24 +521,14 @@ impl<W: Write> Canvas<W> {
         self.set_bg(self.palette.region_bg)
     }
 
-    fn set_gutter_bg_color(&mut self) -> Result<()> {
-        if self.has_background {
-            self.set_background(self.palette.gutter_bg)?;
-        }
-        Ok(())
-    }
-
     fn set_gutter_color(&mut self) -> Result<()> {
         self.set_fg(self.palette.gutter_fg)?;
-        self.set_gutter_bg_color()
+        self.set_default_bg()
     }
 
     fn set_match_lnum_color(&mut self) -> Result<()> {
         self.set_fg(self.palette.match_lnum_fg)?;
-        if self.has_background {
-            self.set_background(self.palette.gutter_bg)?;
-        }
-        Ok(())
+        self.set_default_bg()
     }
 
     fn fill_spaces(&mut self, written_width: usize, max_width: usize) -> Result<()> {
@@ -555,7 +555,7 @@ impl<W: Write> Canvas<W> {
         self.draw_sample_row(&[("Foreground:   ", self.palette.foreground), ("Background:   ", self.palette.background)])?;
         self.draw_sample_row(&[("MatchLineBG:  ", self.palette.match_bg),   ("MatchLineNum: ", self.palette.match_lnum_fg)])?;
         self.draw_sample_row(&[("MatchRegionFG:", self.palette.region_fg),  ("MatchRegionBG:", self.palette.region_bg)])?;
-        self.draw_sample_row(&[("GutterFG:     ", self.palette.gutter_fg),  ("GutterBG:     ", self.palette.gutter_bg)])
+        self.draw_sample_row(&[("GutterFG:     ", self.palette.gutter_fg)])
     }
 }
 
@@ -928,7 +928,7 @@ impl<'file, W: Write> Drawer<'file, W> {
 
     fn draw_header(&mut self, path: &Path) -> Result<()> {
         self.draw_horizontal_line(self.chars.horizontal)?;
-        self.canvas.set_gutter_bg_color()?;
+        self.canvas.set_default_bg()?;
         let path = path.as_os_str().to_string_lossy();
         self.canvas.set_default_fg()?;
         self.canvas.set_bold()?;

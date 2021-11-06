@@ -1,0 +1,36 @@
+name: Assets
+on:
+  push:
+    paths:
+      - 'assets/**'
+    branches:
+      - '*'
+    tags-ignore:
+      - '*'
+  workflow_dispatch:
+
+jobs:
+  check-assets:
+    name: Check theme set can be generated
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: -D warnings
+      RUST_BACKTRACE: 1
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: Swatinem/rust-cache@v1
+      - run: cd ./assets && cargo run --color always
+      - name: Check themes.bin was not changed
+        run: |
+          if ! git diff --quiet; then
+            echo "ERROR: Working tree is dirty! Run 'cargo run' at ./assets to generate changes and commit them" >&2
+            git diff
+            exit 1
+          fi

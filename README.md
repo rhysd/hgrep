@@ -36,8 +36,10 @@ hgrep pattern ./dir
 hgrep provides two printers to print match results for your use case. Please see ['`bat` printer v.s. `syntect` printer'][bat-vs-syntect]
 section for the comparison.
 
-- `syntect` printer: Our own implementation of printer using [syntect][] library. Performance and its output layout are more optimized
-- `bat` printer: Printer built on top of [bat][]'s pretty printer implementation, which is battle-tested and provides some unique features
+- `syntect` printer (default): Our own implementation of printer using [syntect][] library. Performance, output layout, and color
+  themes are more optimized
+- `bat` printer: Printer built on top of [bat][]'s pretty printer implementation, which is battle-tested and provides some unique
+  features
 
 Please see [the usage section](#usage) for more details.
 
@@ -180,17 +182,20 @@ At first, there was `bat` printer only. And then `syntect` printer was implement
 #### Pros of each printer
 
 - `syntect` printer
-  - Performance is much better. 2x to 4x faster (more match results get better performance)
+  - Performance is much better. 2x to 4x faster (more match results get better performance).
   - Output layout is optimized for our use cases. Matched regions are highlighted in a searched text color. A line number at a
     match is highlighted in a different color.
   - Painting background color (`--background`) is supported. This is useful when your favorite theme does not fit to your
-    terminal's background color
+    terminal's background color.
+  - Themes are optimized for showing matched results. And some new themes like [ayu][] or [predawn][] are available. See the
+    output of `--list-themes` to know the list of all themes.
   - Compatibility for old terminals is better. It automatically changes the default theme to 'ansi' for 16-colors terminals. And
     it provides `--ascii-lines` flag to draw border lines with ascii characters instead of Unicode characters like '├', '┬', and
-    so on
+    so on.
 - `bat` printer
-  - Implementation is battle-tested. It is already used by many users on many platforms and terminals
-  - The behavior is compatible with `bat` command. Its output layout is the same as `bat` command. It can load bat's assets cache
+  - Implementation is battle-tested. It is already used by many users on many platforms and terminals.
+  - The behavior is compatible with `bat` command. Its output layout is the same as `bat` command respecting `BAT_THEME` and
+    `BAT_STYLE` environment variables. It can load bat's custom assets cache.
 
 `syntect` is the default printer.
 
@@ -219,23 +224,21 @@ option. To know names of themes, try `--list-themes` flag.
 grep -nH ... | hgrep --theme Nord
 ```
 
-And hgrep respects `BAT_THEME` environment variable.
-
-```sh
-export BAT_THEME=OneHalfDark
-```
-
-The default layout is 'grid' respecting `bat` command's default. To print the matches without borderlines, `--no-grid` option
-is available.
+The default layout is 'grid'. To reduce borderlines to use space more efficiantly, `--no-grid` option is available.
 
 ```sh
 grep -nH ... | hgrep --no-grid
 ```
 
-And hgrep respects `BAT_STYLE` environment variable. When `plain` or `header` or `numbers` is set, hgrep removes borderlines.
+When you use `bat` printer is used, hgrep respects `BAT_THEME` and `BAT_STYLE` environment variable. Theme set to `BAT_THEME`
+is used by default. And the grid layout is used when `plain` or `header` or `numbers` is set to `BAT_STYLE`. `syntect` printer
+does not look at these variables. To set default theme, please use a command alias in your shell (See
+['Set default command options'](#set-default-command-options) for details).
 
 ```sh
+export BAT_THEME=OneHalfDark
 export BAT_STYLE=numbers
+grep -nH ... | hgrep -p bat
 ```
 
 When `syntect` printer is used, painting background colors is supported with `--background` flag.
@@ -248,11 +251,11 @@ grep -nH ... | hgrep --background -p syntect
 
 Wrapping `hgrep` command with shell's `alias` command works fine for setting default command options.
 
-For example, if you're using Bash, put the following line in your `.bash_profile`.
+For example, if you're using Bash, you can put the following line in your `.bash_profile`.
 
 ```sh
-# Use syntect-printer and search hidden files by default
-alias hgrep='hgrep --printer syntect --hidden'
+# Use ayu-dark theme by default with background and search hidden files by default
+alias hgrep='hgrep --hidden --theme ayu-dark --background'
 ```
 
 If you like a pager, try the following wrapper function. `--term-width` propagates the correct width of the terminal window.
@@ -404,3 +407,5 @@ hgrep is distributed under [the MIT license](./LICENSE.txt).
 [new-issue]: https://github.com/rhysd/hgrep/issues/new
 [syntect]: https://github.com/trishume/syntect
 [bat-vs-syntect]: #bat-printer-vs-syntect-printer
+[ayu]: https://github.com/dempfi/ayu
+[predawn]: https://github.com/jamiewilson/predawn
