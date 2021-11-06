@@ -192,14 +192,13 @@ At first, there was `bat` printer only. And then `syntect` printer was implement
   - Implementation is battle-tested. It is already used by many users on many platforms and terminals
   - The behavior is compatible with `bat` command. Its output layout is the same as `bat` command. It can load bat's assets cache
 
-Currently, `bat` is the default painter (unless `bat-printer` feature is disabled) because the implementation is not mature yet.
-But in 0.2 release, changing the default painter to `syntect` is planned.
+`syntect` is the default printer.
 
 #### Why performance of `syntect` printer is better?
 
 Syntax highlighting is very CPU-heavy task. Many regular expression matchings happen at each line. For accurate syntax
-highlighting, a highlighter needs to parse the syntax at the beginning of the file. It means that printing a match at the last
-line of a file is a much heavier task than printing a match of the first line of the file.
+highlighting, a highlighter needs to parse the syntax from the beginning of file. It means that printing a match at the last
+line of a file is a much heavier task than printing a match at the first line of the file.
 
 Since `syntect` printer is designed for calculating syntax highlights per file in parallel, its performance is much better. It's
 2x~4x faster than `bat` printer in some experiments. More match results get better performance.

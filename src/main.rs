@@ -20,11 +20,11 @@ use hgrep::bat::BatPrinter;
 use hgrep::syntect::SyntectPrinter;
 
 fn cli<'a>() -> App<'a> {
-    #[cfg(feature = "bat-printer")]
-    const DEFAULT_PRINTER: &str = "bat";
-
-    #[cfg(all(not(feature = "bat-printer"), feature = "syntect-printer"))]
+    #[cfg(feature = "syntect-printer")]
     const DEFAULT_PRINTER: &str = "syntect";
+
+    #[cfg(all(not(feature = "syntect-printer"), feature = "bat-printer"))]
+    const DEFAULT_PRINTER: &str = "bat";
 
     let app = App::new("hgrep")
         .version(env!("CARGO_PKG_VERSION"))
