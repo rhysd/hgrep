@@ -37,6 +37,7 @@ path = "src/main.rs"
 [workspace]
 members = [
     "bench",
+    "assets",
 ]
 
 [features]

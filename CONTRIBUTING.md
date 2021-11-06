@@ -71,6 +71,10 @@ Let's say we're releasing v1.2.3.
 Benchmarks are put in [a separate crate](./bench) to avoid adding criterion as test dependencies. To run benchmarks,
 see [the benchmark README file](./bench/README.md).
 
+## Manage assets
+
+Syntax set and theme set are managed in [./assets](./assets) directory. See [the README.md](./assets/README.md) for details.
+
 [new-issue]: https://github.com/rhysd/hgrep/issues/new
 [new-pr]: https://github.com/rhysd/hgrep/pulls
 [clippy]: https://github.com/rust-lang/rust-clippy

@@ -1,0 +1,48 @@
+[submodule "assets/submodules/cyanide-theme"]
+	path = assets/submodules/cyanide-theme
+	url = https://github.com/lefoy/cyanide-theme.git
+[submodule "assets/submodules/ayu"]
+	path = assets/submodules/ayu
+	url = https://github.com/dempfi/ayu.git
+[submodule "assets/submodules/zenburn"]
+	path = assets/submodules/zenburn
+	url = https://github.com/colinta/zenburn.git
+[submodule "assets/submodules/visual-studio-dark-plus"]
+	path = assets/submodules/visual-studio-dark-plus
+	url = https://github.com/vidann1/visual-studio-dark-plus.git
+[submodule "assets/submodules/sublime-snazzy"]
+	path = assets/submodules/sublime-snazzy
+	url = https://github.com/greggb/sublime-snazzy.git
+[submodule "assets/submodules/sublime-monokai-extended"]
+	path = assets/submodules/sublime-monokai-extended
+	url = https://github.com/jonschlinkert/sublime-monokai-extended.git
+[submodule "assets/submodules/onehalf"]
+	path = assets/submodules/onehalf
+	url = https://github.com/sonph/onehalf.git
+[submodule "assets/submodules/gruvbox-tmTheme"]
+	path = assets/submodules/gruvbox-tmTheme
+	url = https://github.com/subnut/gruvbox-tmTheme.git
+[submodule "assets/submodules/github-sublime-theme"]
+	path = assets/submodules/github-sublime-theme
+	url = https://github.com/AlexanderEkdahl/github-sublime-theme.git
+[submodule "assets/submodules/sublime"]
+	path = assets/submodules/sublime
+	url = https://github.com/dracula/sublime.git
+[submodule "assets/submodules/TwoDark"]
+	path = assets/submodules/TwoDark
+	url = https://github.com/erremauro/TwoDark.git
+[submodule "assets/submodules/Solarized"]
+	path = assets/submodules/Solarized
+	url = https://github.com/braver/Solarized.git
+[submodule "assets/submodules/Nord-plist"]
+	path = assets/submodules/Nord-plist
+	url = https://github.com/crabique/Nord-plist.git
+[submodule "assets/submodules/coldark-bat"]
+	path = assets/submodules/coldark-bat
+	url = https://github.com/ArmandPhilippot/coldark-bat.git
+[submodule "assets/submodules/1337-Scheme"]
+	path = assets/submodules/1337-Scheme
+	url = https://github.com/MarkMichos/1337-Scheme.git
+[submodule "assets/submodules/predawn"]
+	path = assets/submodules/predawn
+	url = https://github.com/jamiewilson/predawn.git
