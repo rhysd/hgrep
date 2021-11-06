@@ -65,8 +65,8 @@ impl File {
         let contents = b"\
 // Parse input as float number and print sqrt of it
 fn print_sqrt<S: AsRef<str>>(input: S) {
-    let f: Result<f64, _> = input.as_ref();
-    if let Ok(f) = f {
+    let result = input.as_ref().parse::<f64>();
+    if let Ok(f) = result {
         println!(\"sqrt of {:.2} is {:.2}\", f, f.sqrt());
     }
 }\

@@ -81,7 +81,7 @@ fn cli<'a>() -> App<'a> {
         .arg(
             Arg::new("list-themes")
                 .long("list-themes")
-                .about("List all available theme names and their samples for --theme option"),
+                .about("List all available theme names and their samples. Samples show the output where 'let' is searched. The names can be used at --theme option"),
         )
         .arg(
             Arg::new("printer")

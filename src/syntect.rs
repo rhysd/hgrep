@@ -5,7 +5,6 @@ use flate2::read::ZlibDecoder;
 use memchr::{memchr_iter, Memchr};
 use rgb2ansi256::rgb_to_ansi256;
 use std::cmp;
-use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::fmt;
 use std::io::Write;
@@ -56,29 +55,32 @@ fn list_themes_with_syntaxes<W: Write>(
     opts: &PrinterOptions<'_>,
     syntaxes: &SyntaxSet,
 ) -> Result<()> {
-    let mut seen = HashSet::new();
-    let bat_defaults = load_bat_themes()?;
-    let defaults = ThemeSet::load_defaults();
+    let mut themes = vec![];
+    themes.extend(load_bat_themes()?.themes.into_iter());
+    themes.extend(ThemeSet::load_defaults().themes.into_iter());
+    themes.sort_by(|l, r| l.0.cmp(&r.0));
+
     let syntax = syntaxes.find_syntax_by_name("Rust").unwrap();
     let sample_file = File::sample_file();
 
-    for themes in &[bat_defaults, defaults] {
-        for (name, theme) in themes.themes.iter() {
-            if !seen.contains(name) {
-                let mut drawer = Drawer::new(&mut out, opts, theme, &sample_file.chunks);
-                drawer.canvas.set_bold()?;
-                write!(drawer.canvas, "{:?}", name)?;
-                drawer.canvas.draw_newline()?;
-                drawer.canvas.draw_sample()?;
-                writeln!(drawer.canvas)?;
-
-                let hl = LineHighlighter::new(syntax, theme, syntaxes);
-                drawer.draw_file(&sample_file, hl)?;
-                writeln!(drawer.canvas)?;
-
-                seen.insert(name);
-            }
+    let mut last = None;
+    for (name, theme) in themes.iter() {
+        if Some(name) == last {
+            continue; // Remove duplicates
         }
+
+        let mut drawer = Drawer::new(&mut out, opts, theme, &sample_file.chunks);
+        drawer.canvas.set_bold()?;
+        write!(drawer.canvas, "{:?}", name)?;
+        drawer.canvas.draw_newline()?;
+        drawer.canvas.draw_sample()?;
+        writeln!(drawer.canvas)?;
+
+        let hl = LineHighlighter::new(syntax, theme, syntaxes);
+        drawer.draw_file(&sample_file, hl)?;
+        writeln!(drawer.canvas)?;
+
+        last = Some(name);
     }
     Ok(())
 }

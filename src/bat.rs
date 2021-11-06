@@ -116,7 +116,9 @@ impl<'main> BatPrinter<'main> {
 
     pub fn list_themes(&mut self) -> Result<()> {
         let sample = File::sample_file();
-        for theme in self.assets.themes() {
+        let mut themes: Vec<_> = self.assets.themes().collect();
+        themes.sort_unstable();
+        for theme in themes.into_iter() {
             println!("\x1b[1m{:?}\x1b[0m", theme);
             self.config.theme = theme.to_string();
             self.print(sample.clone())?;
