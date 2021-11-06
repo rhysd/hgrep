@@ -40,7 +40,7 @@ fn cli<'a>() -> App<'a> {
                 .long("min-context")
                 .takes_value(true)
                 .value_name("NUM")
-                .default_value("5")
+                .default_value("3")
                 .about("Minimum lines of leading and trailing context surrounding each match"),
         )
         .arg(
@@ -49,7 +49,7 @@ fn cli<'a>() -> App<'a> {
                 .long("max-context")
                 .takes_value(true)
                 .value_name("NUM")
-                .default_value("10")
+                .default_value("6")
                 .about("Maximum lines of leading and trailing context surrounding each match"),
         )
         .arg(

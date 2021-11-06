@@ -267,8 +267,8 @@ function hgrep() {
 ### Command options
 
 - Common options
-  - `--min-context NUM` (`-c`): Minimum lines of leading and trailing context surrounding each match. Default value is 5
-  - `--max-context NUM` (`-C`): Maximum lines of leading and trailing context surrounding each match. Default value is 10
+  - `--min-context NUM` (`-c`): Minimum lines of leading and trailing context surrounding each match. Default value is 3
+  - `--max-context NUM` (`-C`): Maximum lines of leading and trailing context surrounding each match. Default value is 6
   - `--no-grid` (`-G`): Remove borderlines for more compact output. `--grid` flag is an opposite of this flag
   - `--tab NUM`: Number of spaces for tab character. Set 0 to pass tabs through. Default value is 4
   - `--theme THEME`: Theme for syntax highlighting. Default value is the same as `bat` command
