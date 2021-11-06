@@ -11,7 +11,7 @@ This is similar to `-C` option of `grep` command. hgrep is useful to survey the 
 matches are near enough, hgrep prints the lines within one code snippet. Unlike `grep -C`, hgrep adopts some heuristics around
 blank lines to determine an efficient number of context lines.
 
-<img src="https://github.com/rhysd/ss/raw/master/hgrep/main.png" alt="screenshot" width="766" height="739" />
+<img src="https://github.com/rhysd/ss/raw/master/hgrep/main.png" alt="screenshot" width="682" />
 
 Example:
 

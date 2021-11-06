@@ -1,3 +1,41 @@
+<a name="v0.2.0"></a>
+# [v0.2.0](https://github.com/rhysd/batgrep/releases/tag/v0.2.0) - 06 Nov 2021
+
+- **BREAKING** The default printer is now `syntect`. It has the following benefits. I tested it for several weeks and it seems stable. See [the section in README](https://github.com/rhysd/hgrep#bat-printer-vs-syntect-printer) to know the difference between `bat` printer and `syntect` printer.
+  - Performance is 2x to 4x faster
+  - Output layout and highlighting are optimized; line number highlight and matched regions at matched line
+  - Support background color with `--background`
+  - Color themes are optimized
+- **BREAKING** The default value of `--min-context` was changed from 5 to 3. And the default value of `--max-context` was changed from 10 to 6. This is because it turned out that the previous default values were too large for surveying the search results.
+- **BREAKING** Since themes for `syntect` printer are now managed by ourselves (see below), `syntect` printer no longer looks at `BAT_THEME` and `BAT_STYLE` environment variables. To set the default theme and layout, use shell's command alias. See [the document](https://github.com/rhysd/hgrep#change-color-theme-and-layout) for more details.
+- `syntect` printer now renders more accurate colors by considering alpha values of colors by blending them with background colors. In v0.1.9, alpha values were simply ignored. For example, gutter with `Nord` theme was wrongly in very light color in v0.1.9.
+  - Before (v0.1.9):
+    <img width="584" alt="v0.1.9 Nord" src="https://user-images.githubusercontent.com/823277/140617940-a16aad7e-8b8b-46f2-aba8-158d62559676.png">
+  - After (v0.2.0):
+    <img width="584" alt="v0.2.0 Nord" src="https://user-images.githubusercontent.com/823277/140617970-fa1bef89-42bc-464a-9c5c-52e3944d2d15.png">
+- Manage our own theme set to optimize themes for our use cases. Comparing with bat's theme assets, some themes whose line highlight color and/or searched text color are obscure or hard to see. And some new famous themes are added. The theme asses are managed in [`assets` directory](https://github.com/rhysd/hgrep/tree/main/assets).
+  - [ayu](https://github.com/dempfi/ayu): Famous vivid color theme
+    | `ayu-dark` | `ayu-mirage` | `ayu-light` |
+    |------------|--------------|-------------|
+    | <img width="577" alt="ayu-dark" src="https://user-images.githubusercontent.com/823277/140617846-ad16d72a-3467-484d-9700-9df8055a2288.png"> | <img width="577" alt="ayu-mirage" src="https://user-images.githubusercontent.com/823277/140617854-3a76487a-5912-491d-85e3-0091596002c0.png"> | <img width="577" alt="ayu-light" src="https://user-images.githubusercontent.com/823277/140617864-cc3a62c3-081a-453a-b8d2-2fb6061a3061.png"> |
+  - [predawn](https://github.com/jamiewilson/predawn): Famous low-contrast color theme
+    <img width="577" alt="predawn" src="https://user-images.githubusercontent.com/823277/140617876-f18dc76c-9694-4d00-84d0-7af671554517.png">
+  - [cyanide](https://github.com/lefoy/cyanide-theme): Famous minimal color theme
+    <img width="584" alt="cyanide" src="https://user-images.githubusercontent.com/823277/140618295-496ba46f-8500-44e5-85b2-d4094a049b68.png">
+- Output of `--list-themes` is much improved. It shows sample outputs per theme so that users can know what it looks like. Options related to outputs like `--background` and `--no-grid` are reflected to the sample outputs. In v0.1.9, only theme names are printed so users needed to try the themes by themselves.
+  <img width="584" alt="list themes output example" src="https://user-images.githubusercontent.com/823277/140618330-37d418be-c7ea-4b98-b57e-a7fabefe5199.png">
+- Linux x86_64 musl target was added to pre-built releases. Find `hgrep-*-x86_64-unknown-linux-musl.zip` in released assets. Note that this binary is not tested. (#5)
+- Depend on `ansi_term` crate only when targeting Windows. It reduces number of dependencies when `bat-printer` is not enabled.
+- Improve a compile error when both feature `syntect-printer` and `bat-printer` are disabled.
+- Describe the exit status of `hgrep` command and versioning of this project in [the readme document](https://github.com/rhysd/hgrep#readme).
+- Fix rendering `ansi` theme was broken. The theme is for old terminals which only supports 16 colors.
+- Fix `--first-only` did not work with `bat` printer.
+- Fix the background color in file header when `--background` is specified
+
+
+[Changes][v0.2.0]
+
+
 <a name="v0.1.9"></a>
 # [v0.1.9](https://github.com/rhysd/batgrep/releases/tag/v0.1.9) - 01 Nov 2021
 
@@ -117,6 +155,7 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [Changes][v0.1.1]
 
 
+[v0.2.0]: https://github.com/rhysd/batgrep/compare/v0.1.9...v0.2.0
 [v0.1.9]: https://github.com/rhysd/batgrep/compare/v0.1.8...v0.1.9
 [v0.1.8]: https://github.com/rhysd/batgrep/compare/v0.1.7...v0.1.8
 [v0.1.7]: https://github.com/rhysd/batgrep/compare/v0.1.6...v0.1.7
