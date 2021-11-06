@@ -374,18 +374,27 @@ fn app() -> Result<bool> {
             .context("could not parse \"tab\" option value as unsigned integer")?;
     }
 
+    #[cfg(feature = "bat-printer")]
     let theme_env = env::var("BAT_THEME").ok();
-    if let Some(var) = &theme_env {
-        printer_opts.theme = Some(var);
+    #[cfg(feature = "bat-printer")]
+    if printer_kind == PrinterKind::Bat {
+        if let Some(var) = &theme_env {
+            printer_opts.theme = Some(var);
+        }
     }
     if let Some(theme) = matches.value_of("theme") {
         printer_opts.theme = Some(theme);
     }
 
     let is_grid = matches.is_present("grid");
-    if let Ok("plain" | "header" | "numbers") = env::var("BAT_STYLE").as_ref().map(String::as_str) {
-        if !is_grid {
-            printer_opts.grid = false;
+    #[cfg(feature = "bat-printer")]
+    if printer_kind == PrinterKind::Bat {
+        if let Ok("plain" | "header" | "numbers") =
+            env::var("BAT_STYLE").as_ref().map(String::as_str)
+        {
+            if !is_grid {
+                printer_opts.grid = false;
+            }
         }
     }
     if matches.is_present("no-grid") && !is_grid {
