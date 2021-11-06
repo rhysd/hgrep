@@ -20,3 +20,5 @@ cargo run
 1. Add the color theme repository to [`./submodules`](./submodules) as Git submodule.
 2. Edit [`./src/main.rs`](./src/main.rs). Add the path to `.tmTheme` file to `THEME_PATHS` constant.
 3. Run `cargo run` to re-generate `themes.bin`.
+
+**Note:** [The CI workflow](.github/workflows/assets.yaml) checks if the `themes.bin` file is up-to-date.
