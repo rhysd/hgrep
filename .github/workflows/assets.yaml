@@ -3,7 +3,6 @@ on:
   push:
     paths:
       - 'assets/**'
-      - 'assets-builder/**'
     branches:
       - '*'
     tags-ignore:
@@ -27,7 +26,7 @@ jobs:
           toolchain: stable
           override: true
       - uses: Swatinem/rust-cache@v1
-      - run: cd ./assets-builder && cargo run --color always
+      - run: cd ./assets/builder && cargo run --color always
       - name: Check themes.bin was not changed
         run: |
           if ! git diff --quiet; then
