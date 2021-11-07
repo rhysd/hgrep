@@ -1,7 +1,7 @@
 use crate::chunk::Files;
 use crate::grep::GrepMatch;
 use crate::printer::Printer;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use grep_matcher::{LineTerminator, Matcher};
 use grep_pcre2::{RegexMatcher as Pcre2Matcher, RegexMatcherBuilder as Pcre2MatcherBuilder};
 use grep_regex::{RegexMatcher, RegexMatcherBuilder};
@@ -158,11 +158,6 @@ impl<'main> Config<'main> {
         self
     }
 
-    pub fn max_filesize(&mut self, num: u64) -> &mut Self {
-        self.max_filesize = Some(num);
-        self
-    }
-
     pub fn pcre2(&mut self, yes: bool) -> &mut Self {
         self.pcre2 = yes;
         self
@@ -176,6 +171,28 @@ impl<'main> Config<'main> {
     pub fn types_not(&mut self, types: impl Iterator<Item = &'main str>) -> &mut Self {
         self.types_not = types.collect();
         self
+    }
+
+    pub fn max_filesize(&mut self, input: &str) -> Result<&mut Self> {
+        if input.is_empty() {
+            anyhow::bail!("Size string must not be empty");
+        }
+
+        let i = input.len() - 1;
+        let (input, mag) = match input.as_bytes()[i] {
+            b'k' | b'K' => (&input[..i], 1 << 10),
+            b'm' | b'M' => (&input[..i], 1 << 20),
+            b'g' | b'G' => (&input[..i], 1 << 30),
+            _ => (input, 1),
+        };
+
+        let u: u64 = input
+            .parse()
+            .context("could not parse file size value as unsigned integer")?;
+
+        self.max_filesize = Some(u * mag);
+
+        Ok(self)
     }
 
     fn build_walker(&self, mut paths: impl Iterator<Item = &'main OsStr>) -> Result<Walk> {
@@ -896,5 +913,58 @@ mod tests {
             [5, 5],
             [[(1, 2), (3, 4)], [(1, 2), (3, 4)]],
         );
+    }
+
+    #[test]
+    fn test_parse_max_filesize() {
+        let tests = &[
+            ("123", Ok(123)),
+            ("123k", Ok(123 * 1024)),
+            ("123m", Ok(123 * 1024 * 1024)),
+            ("123g", Ok(123 * 1024 * 1024 * 1024)),
+            ("123K", Ok(123 * 1024)),
+            ("123M", Ok(123 * 1024 * 1024)),
+            ("123G", Ok(123 * 1024 * 1024 * 1024)),
+            ("", Err("Size string must not be empty")),
+            (
+                "abc",
+                Err("could not parse file size value as unsigned integer"),
+            ),
+            (
+                "123kk",
+                Err("could not parse file size value as unsigned integer"),
+            ),
+            (
+                "-123k",
+                Err("could not parse file size value as unsigned integer"),
+            ),
+        ];
+
+        for (input, want) in tests.iter().copied() {
+            let mut c = Config::default();
+            let err = c.max_filesize(input).err();
+            match want {
+                Ok(want) => assert_eq!(
+                    c.max_filesize,
+                    Some(want),
+                    "wanted {} for {:?}",
+                    want,
+                    input
+                ),
+                Err(want) => {
+                    let err = err.unwrap_or_else(|| {
+                        panic!("wanted error {:?} but no error for {:?}", want, input)
+                    });
+                    let msg = format!("{}", err);
+                    assert!(
+                        msg.contains(want),
+                        "wanted error {:?} but got {:?} for {:?}",
+                        want,
+                        msg,
+                        input
+                    );
+                }
+            }
+        }
     }
 }

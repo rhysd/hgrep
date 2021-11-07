@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{App, Arg};
 use hgrep::grep::BufReadExt;
 use hgrep::printer::{PrinterOptions, TextWrapMode};
@@ -241,13 +241,6 @@ fn cli<'a>() -> App<'a> {
                     .about("Limit the depth of directory traversal to NUM levels beyond the paths given"),
             )
             .arg(
-                Arg::new("max-filesize")
-                    .long("max-filesize")
-                    .takes_value(true)
-                    .value_name("NUM")
-                    .about("Ignore files larger than NUM in size"),
-            )
-            .arg(
                 Arg::new("line-regexp")
                     .short('x')
                     .long("line-regexp")
@@ -281,6 +274,13 @@ fn cli<'a>() -> App<'a> {
                 Arg::new("type-list")
                     .long("type-list")
                     .about("Show all supported file types and their corresponding globs"),
+            )
+            .arg(
+                Arg::new("max-filesize")
+                    .long("max-filesize")
+                    .takes_value(true)
+                    .value_name("NUM+SUFFIX?")
+                    .about("Ignore files larger than NUM in size. This does not apply to directories.The input format accepts suffixes of K, M or G which correspond to kilobytes, megabytes and gigabytes, respectively. If no suffix is provided the input is treated as bytes."),
             )
             .arg(
                 Arg::new("PATTERN")
@@ -327,8 +327,6 @@ enum PrinterKind {
 }
 
 fn app() -> Result<bool> {
-    use anyhow::Context;
-
     let matches = cli().get_matches();
     if let Some(shell) = matches.value_of("generate-completion-script") {
         generate_completion_script(shell);
@@ -500,22 +498,21 @@ fn app() -> Result<bool> {
         if let Some(num) = matches.value_of("max-count") {
             let num = num
                 .parse()
-                .context("could not parse \"max-count\" option value as unsigned integer")?;
+                .context("could not parse --max-count option value as unsigned integer")?;
             config.max_count(num);
         }
 
         if let Some(num) = matches.value_of("max-depth") {
             let num = num
                 .parse()
-                .context("could not parse \"max-depth\" option value as unsigned integer")?;
+                .context("could not parse --max-depth option value as unsigned integer")?;
             config.max_depth(num);
         }
 
-        if let Some(num) = matches.value_of("max-filesize") {
-            let num = num
-                .parse()
-                .context("could not parse \"max-filesize\" option value as unsigned integer")?;
-            config.max_filesize(num);
+        if let Some(size) = matches.value_of("max-filesize") {
+            config
+                .max_filesize(size)
+                .context("coult not parse --max-filesize option value as file size string")?;
         }
 
         let types = matches.values_of("type");
