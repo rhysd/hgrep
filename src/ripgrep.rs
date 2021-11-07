@@ -336,18 +336,24 @@ impl<'main> Config<'main> {
         Ok(builder.build()?)
     }
 
-    pub fn print_types<W: io::Write>(&self, mut out: W) -> Result<()> {
-        let types = self.build_types()?;
-        for def in types.definitions() {
-            write!(out, "\x1b[1m{}\x1b[0m: ", def.name())?;
-            let mut globs = def.globs().iter();
-            out.write_all(globs.next().unwrap().as_bytes())?;
-            for glob in globs {
-                out.write_all(b", ")?;
-                out.write_all(glob.as_bytes())?;
+    pub fn print_types<W: io::Write>(&self, out: W) -> Result<()> {
+        fn print<W: io::Write>(mut out: W, types: &Types) -> io::Result<()> {
+            for def in types.definitions() {
+                write!(out, "\x1b[1m{}\x1b[0m: ", def.name())?;
+                let mut globs = def.globs().iter();
+                out.write_all(globs.next().unwrap().as_bytes())?;
+                for glob in globs {
+                    out.write_all(b", ")?;
+                    out.write_all(glob.as_bytes())?;
+                }
+                out.write_all(b"\n")?;
             }
-            out.write_all(b"\n")?;
+            Ok(())
         }
+
+        use crate::io::IgnoreBrokenPipe;
+        let types = self.build_types()?;
+        print(out, &types).ignore_broken_pipe()?;
         Ok(())
     }
 }

@@ -7,6 +7,7 @@ compile_error!("Either feature \"bat-printer\" or \"syntect-printer\" must be en
 pub mod bat;
 pub mod chunk;
 pub mod grep;
+mod io;
 pub mod printer;
 #[cfg(feature = "ripgrep")]
 pub mod ripgrep;

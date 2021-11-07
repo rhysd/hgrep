@@ -7,8 +7,7 @@ use rgb2ansi256::rgb_to_ansi256;
 use std::cmp;
 use std::ffi::OsStr;
 use std::fmt;
-use std::io::Write;
-use std::io::{self, Stdout, StdoutLock};
+use std::io::{self, Stdout, StdoutLock, Write};
 use std::ops::{Deref, DerefMut};
 use std::path::Path;
 use std::str::Chars;
@@ -63,25 +62,31 @@ fn list_themes_with_syntaxes<W: Write>(
     let syntax = syntaxes.find_syntax_by_name("Rust").unwrap();
     let sample_file = File::sample_file();
 
-    let mut last = None;
-    for (name, theme) in themes.iter() {
-        if Some(name) == last {
-            continue; // Remove duplicates
+    let mut draw = || {
+        let mut last = None;
+        for (name, theme) in themes.iter() {
+            if Some(name) == last {
+                continue; // Remove duplicates
+            }
+
+            let mut drawer = Drawer::new(&mut out, opts, theme, &sample_file.chunks);
+            drawer.canvas.set_bold()?;
+            write!(drawer.canvas, "{:?}", name)?;
+            drawer.canvas.draw_newline()?;
+            drawer.canvas.draw_sample()?;
+            writeln!(drawer.canvas)?;
+
+            let hl = LineHighlighter::new(syntax, theme, syntaxes);
+            drawer.draw_file(&sample_file, hl)?;
+            writeln!(drawer.canvas)?;
+
+            last = Some(name);
         }
+        Ok(())
+    };
 
-        let mut drawer = Drawer::new(&mut out, opts, theme, &sample_file.chunks);
-        drawer.canvas.set_bold()?;
-        write!(drawer.canvas, "{:?}", name)?;
-        drawer.canvas.draw_newline()?;
-        drawer.canvas.draw_sample()?;
-        writeln!(drawer.canvas)?;
-
-        let hl = LineHighlighter::new(syntax, theme, syntaxes);
-        drawer.draw_file(&sample_file, hl)?;
-        writeln!(drawer.canvas)?;
-
-        last = Some(name);
-    }
+    use crate::io::IgnoreBrokenPipe;
+    draw().ignore_broken_pipe()?;
     Ok(())
 }
 
@@ -409,21 +414,21 @@ impl<W: Write> Canvas<W> {
         }
     }
 
-    fn draw_spaces(&mut self, num: usize) -> Result<()> {
+    fn draw_spaces(&mut self, num: usize) -> io::Result<()> {
         for _ in 0..num {
             self.out.write_all(b" ")?;
         }
         Ok(())
     }
 
-    fn draw_newline(&mut self) -> Result<()> {
+    fn draw_newline(&mut self) -> io::Result<()> {
         writeln!(self.out, "\x1b[0m")?; // Reset on newline to ensure to reset color
         self.current_fg = None;
         self.current_bg = None;
         Ok(())
     }
 
-    fn set_color(&mut self, code: u8, c: Color) -> Result<()> {
+    fn set_color(&mut self, code: u8, c: Color) -> io::Result<()> {
         // In case of c.a == 0 and c.a == 1 are handling for special colorscheme by bat for non true
         // color terminals. Color value is encoded in R. See `to_ansi_color()` in bat/src/terminal.rs
         match c.a {
@@ -441,7 +446,7 @@ impl<W: Write> Canvas<W> {
         Ok(())
     }
 
-    fn set_bg(&mut self, c: Color) -> Result<()> {
+    fn set_bg(&mut self, c: Color) -> io::Result<()> {
         if self.current_bg != Some(c) {
             self.set_color(40, c)?;
             self.current_bg = Some(c);
@@ -449,7 +454,7 @@ impl<W: Write> Canvas<W> {
         Ok(())
     }
 
-    fn set_fg(&mut self, c: Color) -> Result<()> {
+    fn set_fg(&mut self, c: Color) -> io::Result<()> {
         if self.current_fg != Some(c) {
             self.set_color(30, c)?;
             self.current_fg = Some(c);
@@ -457,45 +462,45 @@ impl<W: Write> Canvas<W> {
         Ok(())
     }
 
-    fn set_default_bg(&mut self) -> Result<()> {
+    fn set_default_bg(&mut self) -> io::Result<()> {
         if self.has_background {
             self.set_bg(self.palette.background)?;
         }
         Ok(())
     }
 
-    fn set_default_fg(&mut self) -> Result<()> {
+    fn set_default_fg(&mut self) -> io::Result<()> {
         self.set_fg(self.palette.foreground)
     }
 
-    fn set_background(&mut self, c: Color) -> Result<()> {
+    fn set_background(&mut self, c: Color) -> io::Result<()> {
         if self.has_background {
             self.set_bg(c)?;
         }
         Ok(())
     }
 
-    fn set_bold(&mut self) -> Result<()> {
+    fn set_bold(&mut self) -> io::Result<()> {
         self.out.write_all(b"\x1b[1m")?;
         Ok(())
     }
 
-    fn set_underline(&mut self) -> Result<()> {
+    fn set_underline(&mut self) -> io::Result<()> {
         self.out.write_all(b"\x1b[4m")?;
         Ok(())
     }
 
-    fn unset_bold(&mut self) -> Result<()> {
+    fn unset_bold(&mut self) -> io::Result<()> {
         self.out.write_all(b"\x1b[22m")?;
         Ok(())
     }
 
-    fn unset_underline(&mut self) -> Result<()> {
+    fn unset_underline(&mut self) -> io::Result<()> {
         self.out.write_all(b"\x1b[24m")?;
         Ok(())
     }
 
-    fn set_font_style(&mut self, style: FontStyle) -> Result<()> {
+    fn set_font_style(&mut self, style: FontStyle) -> io::Result<()> {
         if style.contains(FontStyle::BOLD) {
             self.set_bold()?;
         }
@@ -505,7 +510,7 @@ impl<W: Write> Canvas<W> {
         Ok(())
     }
 
-    fn unset_font_style(&mut self, style: FontStyle) -> Result<()> {
+    fn unset_font_style(&mut self, style: FontStyle) -> io::Result<()> {
         if style.contains(FontStyle::BOLD) {
             self.unset_bold()?;
         }
@@ -515,46 +520,46 @@ impl<W: Write> Canvas<W> {
         Ok(())
     }
 
-    fn set_style(&mut self, style: Style) -> Result<()> {
+    fn set_style(&mut self, style: Style) -> io::Result<()> {
         self.set_background(style.background)?;
         self.set_fg(style.foreground)?;
         self.set_font_style(style.font_style)?;
         Ok(())
     }
 
-    fn set_match_bg_color(&mut self) -> Result<()> {
+    fn set_match_bg_color(&mut self) -> io::Result<()> {
         self.set_bg(self.palette.match_bg)
     }
 
-    fn set_match_style(&mut self, style: Style) -> Result<()> {
+    fn set_match_style(&mut self, style: Style) -> io::Result<()> {
         self.set_match_bg_color()?;
         self.set_fg(style.foreground)?;
         self.set_font_style(style.font_style)
     }
 
-    fn set_region_color(&mut self) -> Result<()> {
+    fn set_region_color(&mut self) -> io::Result<()> {
         self.set_fg(self.palette.region_fg)?;
         self.set_bg(self.palette.region_bg)
     }
 
-    fn set_gutter_color(&mut self) -> Result<()> {
+    fn set_gutter_color(&mut self) -> io::Result<()> {
         self.set_fg(self.palette.gutter_fg)?;
         self.set_default_bg()
     }
 
-    fn set_match_lnum_color(&mut self) -> Result<()> {
+    fn set_match_lnum_color(&mut self) -> io::Result<()> {
         self.set_fg(self.palette.match_lnum_fg)?;
         self.set_default_bg()
     }
 
-    fn fill_spaces(&mut self, written_width: usize, max_width: usize) -> Result<()> {
+    fn fill_spaces(&mut self, written_width: usize, max_width: usize) -> io::Result<()> {
         if written_width < max_width {
             self.draw_spaces(max_width - written_width)?;
         }
         Ok(())
     }
 
-    fn draw_sample_row(&mut self, colors: &[(&str, Color)]) -> Result<()> {
+    fn draw_sample_row(&mut self, colors: &[(&str, Color)]) -> io::Result<()> {
         for (name, color) in colors {
             write!(self.out, "    {} ", name)?;
             self.set_bg(*color)?;
@@ -567,7 +572,7 @@ impl<W: Write> Canvas<W> {
     }
 
     #[rustfmt::skip]
-    fn draw_sample(&mut self) -> Result<()> {
+    fn draw_sample(&mut self) -> io::Result<()> {
         self.draw_sample_row(&[("Foreground:   ", self.palette.foreground), ("Background:   ", self.palette.background)])?;
         self.draw_sample_row(&[("MatchLineBG:  ", self.palette.match_bg),   ("MatchLineNum: ", self.palette.match_lnum_fg)])?;
         self.draw_sample_row(&[("MatchRegionFG:", self.palette.region_fg),  ("MatchRegionBG:", self.palette.region_bg)])?;
@@ -723,7 +728,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         }
     }
 
-    fn draw_horizontal_line(&mut self, sep: &str) -> Result<()> {
+    fn draw_horizontal_line(&mut self, sep: &str) -> io::Result<()> {
         self.canvas.set_gutter_color()?;
         let gutter_width = self.gutter_width();
         for _ in 0..gutter_width - 2 {
@@ -736,7 +741,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         self.canvas.draw_newline()
     }
 
-    fn draw_line_number(&mut self, lnum: u64, matched: bool) -> Result<()> {
+    fn draw_line_number(&mut self, lnum: u64, matched: bool) -> io::Result<()> {
         if matched {
             self.canvas.set_match_lnum_color()?;
         } else {
@@ -757,7 +762,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         Ok(()) // Do not reset color because another color text will follow
     }
 
-    fn draw_wrapping_gutter(&mut self) -> Result<()> {
+    fn draw_wrapping_gutter(&mut self) -> io::Result<()> {
         self.canvas.set_gutter_color()?;
         self.canvas.draw_spaces(self.lnum_width as usize + 2)?;
         if self.grid {
@@ -766,7 +771,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         Ok(())
     }
 
-    fn draw_separator_line(&mut self) -> Result<()> {
+    fn draw_separator_line(&mut self) -> io::Result<()> {
         self.canvas.set_gutter_color()?;
         // + 1 for left margin and - 3 for length of "..."
         let left_margin = self.lnum_width + 1 - 3;
@@ -787,7 +792,12 @@ impl<'file, W: Write> Drawer<'file, W> {
         self.canvas.draw_newline()
     }
 
-    fn draw_text_wrappping(&mut self, matched: bool, style: Style, in_region: bool) -> Result<()> {
+    fn draw_text_wrappping(
+        &mut self,
+        matched: bool,
+        style: Style,
+        in_region: bool,
+    ) -> io::Result<()> {
         self.canvas.draw_newline()?;
         self.draw_wrapping_gutter()?;
         if in_region {
@@ -804,7 +814,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         mut tokens: Vec<Token<'_>>,
         lnum: u64,
         regions: Option<Vec<(usize, usize)>>,
-    ) -> Result<()> {
+    ) -> io::Result<()> {
         // The highlighter requires newline at the end. But we don't want it since
         // - we sometimes need to fill the rest of line with spaces
         // - we clear colors before writing newline
@@ -897,7 +907,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         self.canvas.draw_newline()
     }
 
-    fn draw_body(&mut self, file: &File, mut hl: LineHighlighter<'_>) -> Result<()> {
+    fn draw_body(&mut self, file: &File, mut hl: LineHighlighter<'_>) -> io::Result<()> {
         assert!(!file.chunks.is_empty());
 
         let mut matched = file.line_matches.as_ref();
@@ -942,7 +952,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         Ok(())
     }
 
-    fn draw_header(&mut self, path: &Path) -> Result<()> {
+    fn draw_header(&mut self, path: &Path) -> io::Result<()> {
         self.draw_horizontal_line(self.chars.horizontal)?;
         self.canvas.set_default_bg()?;
         let path = path.as_os_str().to_string_lossy();
@@ -960,14 +970,14 @@ impl<'file, W: Write> Drawer<'file, W> {
         Ok(())
     }
 
-    fn draw_footer(&mut self) -> Result<()> {
+    fn draw_footer(&mut self) -> io::Result<()> {
         if self.grid {
             self.draw_horizontal_line(self.chars.up_and_horizontal)?;
         }
         Ok(())
     }
 
-    fn draw_file(&mut self, file: &File, hl: LineHighlighter) -> Result<()> {
+    fn draw_file(&mut self, file: &File, hl: LineHighlighter) -> io::Result<()> {
         self.draw_header(&file.path)?;
         self.draw_body(file, hl)?;
         self.draw_footer()
@@ -998,11 +1008,9 @@ pub struct SyntectAssets {
 
 impl SyntectAssets {
     pub fn load(theme: Option<&str>) -> Result<Self> {
-        let syntax_set = load_syntax_set()?;
-        let theme_set = load_themes(theme)?;
         Ok(Self {
-            syntax_set,
-            theme_set,
+            syntax_set: load_syntax_set()?,
+            theme_set: load_themes(theme)?,
         })
     }
 }
@@ -1095,6 +1103,8 @@ where
     for<'a> W: LockableWrite<'a>,
 {
     fn print(&self, file: File) -> Result<()> {
+        use crate::io::IgnoreBrokenPipe;
+
         if file.chunks.is_empty() || file.line_matches.is_empty() {
             return Ok(());
         }
@@ -1108,7 +1118,7 @@ where
 
         // Take lock here to print files in serial from multiple threads
         let mut output = self.writer.lock();
-        output.write_all(&buf)?;
+        output.write_all(&buf).ignore_broken_pipe()?;
         Ok(output.flush()?)
     }
 }
