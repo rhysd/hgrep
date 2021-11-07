@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use clap::{App, Arg, ArgMatches};
+use clap::{App, Arg};
 use hgrep::grep::BufReadExt;
 use hgrep::printer::{PrinterOptions, TextWrapMode};
 use std::cmp;
@@ -335,11 +335,11 @@ fn generate_completion_script(shell: &str) {
 }
 
 #[cfg(feature = "ripgrep")]
-fn build_ripgrep_config<'main>(
+fn build_ripgrep_config(
     min_context: u64,
     max_context: u64,
-    matches: &'main ArgMatches,
-) -> Result<ripgrep::Config<'main>> {
+    matches: &clap::ArgMatches,
+) -> Result<ripgrep::Config<'_>> {
     let mut config = ripgrep::Config::default();
     config
         .min_context(min_context)

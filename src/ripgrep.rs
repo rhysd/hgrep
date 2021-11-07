@@ -339,8 +339,7 @@ impl<'main> Config<'main> {
     pub fn print_types<W: io::Write>(&self, mut out: W) -> Result<()> {
         let types = self.build_types()?;
         for def in types.definitions() {
-            out.write_all(def.name().as_bytes())?;
-            out.write_all(b": ")?;
+            write!(out, "\x1b[1m{}\x1b[0m: ", def.name())?;
             let mut globs = def.globs().iter();
             out.write_all(globs.next().unwrap().as_bytes())?;
             for glob in globs {
@@ -733,7 +732,7 @@ mod tests {
         config.print_types(&mut buf).unwrap();
         let output = String::from_utf8(buf).unwrap();
 
-        let re = Regex::new(r"^\w+: .+(, .+)*$").unwrap();
+        let re = Regex::new(r"^\x1b\[1m\w+\x1b\[0m: .+(, .+)*$").unwrap();
         for line in output.lines() {
             assert!(re.is_match(line), "{:?} did not match to {:?}", line, re);
         }
