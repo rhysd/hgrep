@@ -111,8 +111,8 @@ All features are optional and enabled by default. At least `bat-printer` or `syn
 | Feature           | Description                                                                                                                   |
 |-------------------|-------------------------------------------------------------------------------------------------------------------------------|
 | `ripgrep`         | Built-in grep implementation built on top of [ripgrep][] as a library. Performance is better than piping `rg` in some cases.  |
-| `bat-printer`     | Printer implementation built on top of [bat][]'s pretty printer, which is battle-tested and provides some unique features.    |
 | `syntect-printer` | Our own printer implementation built with [syntect][] library. Performance and output layout are optimized for our use cases. |
+| `bat-printer`     | Printer implementation built on top of [bat][]'s pretty printer, which is battle-tested and provides some unique features.    |
 
 For the differences of `bat-printer` and `syntect-printer`, see ['`bat` printer v.s. `syntect` printer'][bat-vs-syntect] section.
 
@@ -200,6 +200,16 @@ At first, there was `bat` printer only. And then `syntect` printer was implement
 
 `syntect` is the default printer.
 
+#### Themes only available with `syntect` printer
+
+| ayu-dark | ayu-mirage | ayu-light |
+|----------|------------|-----------|
+| ![ayu-dark](https://github.com/rhysd/ss/blob/master/hgrep/ayu-dark.png?raw=true) | ![ayu-mirage](https://github.com/rhysd/ss/blob/master/hgrep/ayu-mirage.png?raw=true) | ![ayu-light](https://github.com/rhysd/ss/blob/master/hgrep/ayu-light.png?raw=true) |
+
+| Cyanide | predawn | Material |
+|---------|---------|----------|
+| ![cyanide](https://github.com/rhysd/ss/blob/master/hgrep/cyanide.png?raw=true) | ![predawn](https://github.com/rhysd/ss/blob/master/hgrep/predawn.png?raw=true) | ![cyanide](https://github.com/rhysd/ss/blob/master/hgrep/material.png?raw=true) |
+
 #### Why performance of `syntect` printer is better?
 
 Syntax highlighting is very CPU-heavy task. Many regular expression matchings happen at each line. For accurate syntax
@@ -245,7 +255,7 @@ grep -nH ... | hgrep -p bat
 When `syntect` printer is used, painting background colors is supported with `--background` flag.
 
 ```sh
-grep -nH ... | hgrep --background -p syntect
+grep -nH ... | hgrep --background
 ```
 
 ### Set default command options
@@ -262,11 +272,13 @@ alias hgrep='hgrep --hidden --theme ayu-dark --background'
 If you like a pager, try the following wrapper function. `--term-width` propagates the correct width of the terminal window.
 
 ```sh
-# Use syntect-printer and less as pager. $COLUMNS corrects terminal window
+# Remove grid borderlines and use less as pager. $COLUMNS corrects terminal window
 function hgrep() {
-    command hgrep -p syntect --term-width "$COLUMNS" "$@" | less -R
+    command hgrep --no-grid --term-width "$COLUMNS" "$@" | less -R
 }
 ```
+
+Author's Zsh configuration for `hgrep` is [here][rhysd-config].
 
 ### Command options
 
@@ -412,3 +424,4 @@ hgrep is distributed under [the MIT license](./LICENSE.txt).
 [bat-vs-syntect]: #bat-printer-vs-syntect-printer
 [ayu]: https://github.com/dempfi/ayu
 [predawn]: https://github.com/jamiewilson/predawn
+[rhysd-config]: https://github.com/rhysd/dogfiles/blob/4aeccbc98ced7fbd9cf590003adb7217810f8b24/zshrc#L124-L127
