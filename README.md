@@ -57,8 +57,8 @@ to make an issue to request it.
 
 ### Via [Homebrew][homebrew]
 
-By adding hgrep repository as Homebrew tap, `hgrep` command can be installed and managed via Homebrew. Currently, only for x86_64
-macOS and Linux.
+By adding hgrep repository as Homebrew tap, `hgrep` command can be installed and managed via Homebrew. [The formula][formula]
+supports x86_64/aarch64 macOS and x86_64 Linux.
 
 ```sh
 brew tap "rhysd/hgrep" "https://github.com/rhysd/hgrep"
@@ -425,3 +425,4 @@ hgrep is distributed under [the MIT license](./LICENSE.txt).
 [ayu]: https://github.com/dempfi/ayu
 [predawn]: https://github.com/jamiewilson/predawn
 [rhysd-config]: https://github.com/rhysd/dogfiles/blob/4aeccbc98ced7fbd9cf590003adb7217810f8b24/zshrc#L124-L127
+[formula]: ./HomebrewFormula/hgrep.rb

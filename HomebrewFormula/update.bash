@@ -38,41 +38,26 @@ fi
 
 echo "Update formula to version ${VERSION}"
 
+function _update() {
+    local triple mark zip url sha
 
-# macOS x86_64
-MAC_ZIP_X86_64="hgrep-${VERSION}-x86_64-apple-darwin.zip"
-MAC_URL_X86_64="https://github.com/rhysd/hgrep/releases/download/${VERSION}/${MAC_ZIP_X86_64}"
+    triple="$1"
+    mark="$2"
 
-echo "Downloading ${MAC_ZIP_X86_64}..."
-curl -LO "$MAC_URL_X86_64"
-MAC_SHA_X86_64="$(shasum -a 256 "$MAC_ZIP_X86_64" | cut -f 1 -d ' ')"
-echo "Mac x86_64 sha256: ${MAC_SHA_X86_64}"
-_sed -E "s/    sha256 '[0-9a-f]*' # mac_x86_64/    sha256 '${MAC_SHA_X86_64}' # mac_x86_64/" hgrep.rb
+    # macOS x86_64
+    zip="hgrep-${VERSION}-${triple}.zip"
+    url="https://github.com/rhysd/hgrep/releases/download/${VERSION}/${zip}"
 
+    echo "Downloading ${zip}..."
+    curl -f -LO "$url"
+    sha="$(shasum -a 256 "$zip" | cut -f 1 -d ' ')"
+    echo "${zip} sha256: ${sha}"
+    _sed -E "s/    sha256 '[0-9a-f]*' # ${mark}/    sha256 '${sha}' # ${mark}/" hgrep.rb
+}
 
-# macOS aarch64
-MAC_ZIP_AARCH64="hgrep-${VERSION}-aarch64-darwin.zip"
-MAC_URL_AARCH64="https://github.com/rhysd/hgrep/releases/download/${VERSION}/${MAC_ZIP_AARCH64}"
-
-echo "Downloading ${MAC_ZIP_AARCH64}..."
-curl -LO "$MAC_URL_AARCH64"
-MAC_SHA_AARCH64="$(shasum -a 256 "$MAC_ZIP_AARCH64" | cut -f 1 -d ' ')"
-echo "Mac aarch64 sha256: ${MAC_SHA_AARCH64}"
-_sed -E "s/    sha256 '[0-9a-f]*' # mac_aarch64/    sha256 '${MAC_SHA_AARCH64}' # mac_aarch64/" hgrep.rb
-
-
-# Linux x86_64
-LINUX_ZIP="hgrep-${VERSION}-x86_64-unknown-linux-gnu.zip"
-LINUX_URL="https://github.com/rhysd/hgrep/releases/download/${VERSION}/${LINUX_ZIP}"
-
-echo "Downloading ${LINUX_ZIP}..."
-curl -LO "$LINUX_URL"
-LINUX_SHA="$(shasum -a 256 "$LINUX_ZIP" | cut -f 1 -d ' ')"
-echo "Linux sha256: ${LINUX_SHA}"
-_sed -E "s/    sha256 '[0-9a-f]*' # linux/    sha256 '${LINUX_SHA}' # linux/" hgrep.rb
-
-echo "Version: ${VERSION}"
-_sed -E "s/  version '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*'/  version '${VERSION#v}'/" hgrep.rb
+_update 'x86_64-apple-darwin' 'mac_x86_64'
+_update 'aarch64-apple-darwin' 'mac_aarch64'
+_update 'x86_64-unknown-linux-gnu' 'linux'
 
 echo "Clean up zip files"
 rm -rf ./*.zip
