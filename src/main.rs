@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use clap::{App, Arg};
+use clap::{App, Arg, ArgMatches};
 use hgrep::grep::BufReadExt;
 use hgrep::printer::{PrinterOptions, TextWrapMode};
 use std::cmp;
@@ -334,6 +334,71 @@ fn generate_completion_script(shell: &str) {
     }
 }
 
+#[cfg(feature = "ripgrep")]
+fn build_ripgrep_config<'main>(
+    min_context: u64,
+    max_context: u64,
+    matches: &'main ArgMatches,
+) -> Result<ripgrep::Config<'main>> {
+    let mut config = ripgrep::Config::default();
+    config
+        .min_context(min_context)
+        .max_context(max_context)
+        .no_ignore(matches.is_present("no-ignore"))
+        .hidden(matches.is_present("hidden"))
+        .case_insensitive(matches.is_present("ignore-case"))
+        .smart_case(matches.is_present("smart-case"))
+        .glob_case_insensitive(matches.is_present("glob-case-insensitive"))
+        .pcre2(matches.is_present("pcre2")) // must be before fixed_string
+        .fixed_strings(matches.is_present("fixed-strings"))
+        .word_regexp(matches.is_present("word-regexp"))
+        .follow_symlink(matches.is_present("follow-symlink"))
+        .multiline(matches.is_present("multiline"))
+        .crlf(matches.is_present("crlf"))
+        .multiline_dotall(matches.is_present("multiline-dotall"))
+        .mmap(matches.is_present("mmap"))
+        .line_regexp(matches.is_present("line-regexp"))
+        .invert_match(matches.is_present("invert-match"))
+        .one_file_system(matches.is_present("one-file-system"));
+
+    let globs = matches.values_of("glob");
+    if let Some(globs) = globs {
+        config.globs(globs);
+    }
+
+    if let Some(num) = matches.value_of("max-count") {
+        let num = num
+            .parse()
+            .context("could not parse --max-count option value as unsigned integer")?;
+        config.max_count(num);
+    }
+
+    if let Some(num) = matches.value_of("max-depth") {
+        let num = num
+            .parse()
+            .context("could not parse --max-depth option value as unsigned integer")?;
+        config.max_depth(num);
+    }
+
+    if let Some(size) = matches.value_of("max-filesize") {
+        config
+            .max_filesize(size)
+            .context("coult not parse --max-filesize option value as file size string")?;
+    }
+
+    let types = matches.values_of("type");
+    if let Some(types) = types {
+        config.types(types);
+    }
+
+    let types_not = matches.values_of("type-not");
+    if let Some(types_not) = types_not {
+        config.types_not(types_not);
+    }
+
+    Ok(config)
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum PrinterKind {
     #[cfg(feature = "bat-printer")]
@@ -480,68 +545,16 @@ fn app() -> Result<bool> {
     }
 
     #[cfg(feature = "ripgrep")]
+    if matches.is_present("type-list") {
+        let config = build_ripgrep_config(min_context, max_context, &matches)?;
+        config.print_types(io::stdout().lock())?;
+        return Ok(true);
+    }
+
+    #[cfg(feature = "ripgrep")]
     if let Some(pattern) = matches.value_of("PATTERN") {
         let paths = matches.values_of_os("PATH");
-        let mut config = ripgrep::Config::default();
-        config
-            .min_context(min_context)
-            .max_context(max_context)
-            .no_ignore(matches.is_present("no-ignore"))
-            .hidden(matches.is_present("hidden"))
-            .case_insensitive(matches.is_present("ignore-case"))
-            .smart_case(matches.is_present("smart-case"))
-            .glob_case_insensitive(matches.is_present("glob-case-insensitive"))
-            .pcre2(matches.is_present("pcre2")) // must be before fixed_string
-            .fixed_strings(matches.is_present("fixed-strings"))
-            .word_regexp(matches.is_present("word-regexp"))
-            .follow_symlink(matches.is_present("follow-symlink"))
-            .multiline(matches.is_present("multiline"))
-            .crlf(matches.is_present("crlf"))
-            .multiline_dotall(matches.is_present("multiline-dotall"))
-            .mmap(matches.is_present("mmap"))
-            .line_regexp(matches.is_present("line-regexp"))
-            .invert_match(matches.is_present("invert-match"))
-            .one_file_system(matches.is_present("one-file-system"));
-
-        if matches.is_present("type-list") {
-            config.print_types(io::stdout().lock())?;
-            return Ok(true);
-        }
-
-        let globs = matches.values_of("glob");
-        if let Some(globs) = globs {
-            config.globs(globs);
-        }
-
-        if let Some(num) = matches.value_of("max-count") {
-            let num = num
-                .parse()
-                .context("could not parse --max-count option value as unsigned integer")?;
-            config.max_count(num);
-        }
-
-        if let Some(num) = matches.value_of("max-depth") {
-            let num = num
-                .parse()
-                .context("could not parse --max-depth option value as unsigned integer")?;
-            config.max_depth(num);
-        }
-
-        if let Some(size) = matches.value_of("max-filesize") {
-            config
-                .max_filesize(size)
-                .context("coult not parse --max-filesize option value as file size string")?;
-        }
-
-        let types = matches.values_of("type");
-        if let Some(types) = types {
-            config.types(types);
-        }
-
-        let types_not = matches.values_of("type-not");
-        if let Some(types_not) = types_not {
-            config.types_not(types_not);
-        }
+        let config = build_ripgrep_config(min_context, max_context, &matches)?;
 
         #[cfg(feature = "syntect-printer")]
         if printer_kind == PrinterKind::Syntect {
