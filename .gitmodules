@@ -46,3 +46,6 @@
 [submodule "assets/submodules/predawn"]
 	path = assets/submodules/predawn
 	url = https://github.com/jamiewilson/predawn.git
+[submodule "assets/submodules/material-theme"]
+	path = assets/submodules/material-theme
+	url = https://github.com/equinusocio/material-theme.git

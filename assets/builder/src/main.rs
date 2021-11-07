@@ -30,6 +30,7 @@ const THEME_PATHS: &[&str] = &[
     "../submodules/sublime/Dracula.tmTheme",
     "../submodules/visual-studio-dark-plus/Visual Studio Dark+.tmTheme",
     "../submodules/zenburn/zenburn.tmTheme",
+    "../submodules/material-theme/schemes/Material-Theme.tmTheme",
 ];
 
 const THEME_BIN_PATH: &str = "../themes.bin";
