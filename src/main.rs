@@ -170,7 +170,12 @@ fn cli<'a>() -> App<'a> {
                     .long("smart-case")
                     .about("Search case insensitively if the pattern is all lowercase. Search case sensitively otherwise"),
             )
-            .arg(Arg::new("hidden").long("hidden").about("Search hidden files and directories. By default, hidden files and directories are skipped"))
+            .arg(
+                Arg::new("hidden")
+                    .short('.')
+                    .long("hidden")
+                    .about("Search hidden files and directories. By default, hidden files and directories are skipped"),
+            )
             .arg(
                 Arg::new("glob")
                     .short('g')
