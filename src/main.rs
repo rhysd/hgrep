@@ -98,10 +98,6 @@ fn cli<'a>() -> App<'a> {
                 .value_name("NUM")
                 .about("Width (number of characters) of terminal window"),
         ).arg(
-            Arg::new("no-wrap")
-                .long("no-wrap")
-                .about("DEPRECATED: The same as `--wrap never`. This flag will be removed at v0.2.0")
-        ).arg(
             Arg::new("wrap")
                 .long("wrap")
                 .takes_value(true)
@@ -419,9 +415,6 @@ fn app() -> Result<bool> {
         } else {
             unreachable!(); // Option value was validated by clap
         }
-    }
-    if matches.is_present("no-wrap") {
-        printer_opts.text_wrap = TextWrapMode::Never;
     }
 
     if matches.is_present("first-only") {
