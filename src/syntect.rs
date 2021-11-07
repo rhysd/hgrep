@@ -269,6 +269,15 @@ fn weak_blend_fg_color(mut fg: Color, bg: Color) -> Color {
     blend_fg_color(fg, bg)
 }
 
+#[inline]
+fn diff_u8(x: u8, y: u8) -> u8 {
+    if x > y {
+        x - y
+    } else {
+        y - x
+    }
+}
+
 #[derive(Debug)]
 struct Palette {
     foreground: Color,
@@ -328,10 +337,17 @@ impl Palette {
             .unwrap_or_else(|| weak_blend_fg_color(foreground, background));
 
         let (region_fg, region_bg) = if let Some(bg) = theme.settings.find_highlight {
-            let fg = theme
-                .settings
-                .find_highlight_foreground
-                .unwrap_or(foreground);
+            let fg = theme.settings.find_highlight_foreground.unwrap_or_else(|| {
+                let avg = color_average(bg);
+                let avg_fg = color_average(foreground);
+                let avg_bg = color_average(background);
+                // Choose foreground or background looking at distance
+                if diff_u8(avg_fg, avg) > diff_u8(avg_bg, avg) {
+                    foreground
+                } else {
+                    background
+                }
+            });
             let fg = blend_fg_color(fg, bg);
             (fg, bg)
         } else {
