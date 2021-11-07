@@ -39,12 +39,11 @@ fi
 echo "Update formula to version ${VERSION}"
 
 function _update() {
-    local triple mark zip url sha
+    local triple zip url sha
 
     triple="$1"
-    mark="$2"
 
-    # macOS x86_64
+    # e.g. hgrep-v0.2.0-x86_64-apple-darwin.zip
     zip="hgrep-${VERSION}-${triple}.zip"
     url="https://github.com/rhysd/hgrep/releases/download/${VERSION}/${zip}"
 
@@ -52,12 +51,12 @@ function _update() {
     curl -f -LO "$url"
     sha="$(shasum -a 256 "$zip" | cut -f 1 -d ' ')"
     echo "${zip} sha256: ${sha}"
-    _sed -E "s/    sha256 '[0-9a-f]*' # ${mark}/    sha256 '${sha}' # ${mark}/" hgrep.rb
+    _sed -E "s/    sha256 '[0-9a-f]*' # ${triple}/    sha256 '${sha}' # ${triple}/" hgrep.rb
 }
 
-_update 'x86_64-apple-darwin' 'mac_x86_64'
-_update 'aarch64-apple-darwin' 'mac_aarch64'
-_update 'x86_64-unknown-linux-gnu' 'linux'
+_update 'x86_64-apple-darwin'
+_update 'aarch64-apple-darwin'
+_update 'x86_64-unknown-linux-gnu'
 
 echo "Clean up zip files"
 rm -rf ./*.zip
