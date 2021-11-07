@@ -294,6 +294,11 @@ fn cli<'a>() -> App<'a> {
                     .about("Invert matching. Show lines that do not match the given patterns"),
             )
             .arg(
+                Arg::new("one-file-system")
+                    .long("one-file-system")
+                    .about("When enabled, the search will not cross file system boundaries relative to where it started from"),
+            )
+            .arg(
                 Arg::new("PATTERN")
                     .about("Pattern to search. Regular expression is available"),
             )
@@ -495,7 +500,8 @@ fn app() -> Result<bool> {
             .multiline_dotall(matches.is_present("multiline-dotall"))
             .mmap(matches.is_present("mmap"))
             .line_regexp(matches.is_present("line-regexp"))
-            .invert_match(matches.is_present("invert-match"));
+            .invert_match(matches.is_present("invert-match"))
+            .one_file_system(matches.is_present("one-file-system"));
 
         if matches.is_present("type-list") {
             config.print_types(io::stdout().lock())?;

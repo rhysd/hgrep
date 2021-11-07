@@ -167,6 +167,7 @@ Though almost all useful options are implemented, the built-in grep implementati
 functionalities, use `rg` command and eat its output by hgrep via stdin. Currently there are the following restrictions.
 
 - Preprocessor is not supported (e.g. search zip files)
+- Pattern file (`-f` or `--file` of `rg`) is not supported
 - Memory map is not used until `--mmap` flag is specified
 - Adding and removing file types are not supported. Only default file types are supported (see `--type-list`)
 - `.ripgreprc` config file is not supported
@@ -302,6 +303,7 @@ function hgrep() {
   - `--type TYPE` (`-t`): Only search files matching TYPE. This option is repeatable
   - `--type-not TYPE` (`-T`): Do not search files matching TYPE. Inverse of --type. This option is repeatable
   - `--type-list`: Show all supported file types and their corresponding globs
+  - `--one-file-system`: When enabled, the search will not cross file system boundaries relative to where it started from
 - Only for `syntect-printer` feature
   - `--background`: Paint background colors. This is useful when your favorite theme does not fit to your terminal's background color
   - `--ascii-lines`: Use ASCII characters for drawing border lines instead of Unicode characters

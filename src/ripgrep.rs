@@ -45,6 +45,7 @@ pub struct Config<'main> {
     types: Vec<&'main str>,
     types_not: Vec<&'main str>,
     invert_match: bool,
+    one_file_system: bool,
 }
 
 impl<'main> Config<'main> {
@@ -201,6 +202,11 @@ impl<'main> Config<'main> {
         self
     }
 
+    pub fn one_file_system(&mut self, yes: bool) -> &mut Self {
+        self.one_file_system = yes;
+        self
+    }
+
     fn build_walker(&self, mut paths: impl Iterator<Item = &'main OsStr>) -> Result<Walk> {
         let target = paths.next().unwrap();
 
@@ -229,7 +235,8 @@ impl<'main> Config<'main> {
             .max_depth(self.max_depth)
             .max_filesize(self.max_filesize)
             .overrides(overrides)
-            .types(self.build_types()?);
+            .types(self.build_types()?)
+            .same_file_system(self.one_file_system);
 
         if !self.no_ignore {
             builder.add_custom_ignore_filename(".rgignore");
