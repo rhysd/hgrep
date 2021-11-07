@@ -278,6 +278,7 @@ function hgrep() {
   - `--list-themes`: List all available theme names and their samples for --theme option
   - `--printer`: Printer to print the match results. 'bat' or 'syntect' is available. Default value is 'bat'
   - `--term-width`: Width (number of characters) of terminal window
+  - `--wrap MODE`: Text-wrapping mode. 'char' enables character-wise text-wrapping. 'never' disables text-wrapping. Default value is 'char'
   - `--first-only` (`-f`): Show only the first code snippet per file
 - Only for `ripgrep` feature
   - `--no-ignore`: Don't respect ignore files (.gitignore, .ignore, etc.)
@@ -294,13 +295,13 @@ function hgrep() {
   - `--mmap`: Search using memory maps when possible. mmap is disabled by default unlike hgrep
   - `--max-count NUM` (`-m`): Limit the number of matching lines per file searched to NUM
   - `--max-depth NUM`: Limit the depth of directory traversal to NUM levels beyond the paths given
-  - `--max-filesize NUM`: Ignore files larger than NUM in size
+  - `--max-filesize NUM+SUFFIX?`: Ignore files larger than NUM in size. This does not apply to directories.The input format accepts suffixes of K, M or G
   - `--line-regexp` (`-x`): Only show matches surrounded by line boundaries. This is equivalent to putting `^...$` around the search pattern
+  - `--invert-match` (`-v`): Invert matching. Show lines that do not match the given patterns
   - `--pcre2` (`-P`): When this flag is present, hgrep will use the PCRE2 regex engine instead of its default regex engine
   - `--type TYPE` (`-t`): Only search files matching TYPE. This option is repeatable
   - `--type-not TYPE` (`-T`): Do not search files matching TYPE. Inverse of --type. This option is repeatable
   - `--type-list`: Show all supported file types and their corresponding globs
-  - `--wrap MODE`: Text-wrapping mode. 'char' enables character-wise text-wrapping. 'never' disables text-wrapping. Default value is 'char'
 - Only for `syntect-printer` feature
   - `--background`: Paint background colors. This is useful when your favorite theme does not fit to your terminal's background color
   - `--ascii-lines`: Use ASCII characters for drawing border lines instead of Unicode characters

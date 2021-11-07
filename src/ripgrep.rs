@@ -44,6 +44,7 @@ pub struct Config<'main> {
     pcre2: bool,
     types: Vec<&'main str>,
     types_not: Vec<&'main str>,
+    invert_match: bool,
 }
 
 impl<'main> Config<'main> {
@@ -195,6 +196,11 @@ impl<'main> Config<'main> {
         Ok(self)
     }
 
+    pub fn invert_match(&mut self, yes: bool) -> &mut Self {
+        self.invert_match = yes;
+        self
+    }
+
     fn build_walker(&self, mut paths: impl Iterator<Item = &'main OsStr>) -> Result<Walk> {
         let target = paths.next().unwrap();
 
@@ -303,7 +309,8 @@ impl<'main> Config<'main> {
             .binary_detection(BinaryDetection::quit(0))
             .line_number(true)
             .multi_line(self.multiline)
-            .memory_map(mmap);
+            .memory_map(mmap)
+            .invert_match(self.invert_match);
         if self.crlf {
             builder.line_terminator(LineTerminator::crlf());
         }

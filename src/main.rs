@@ -280,7 +280,13 @@ fn cli<'a>() -> App<'a> {
                     .long("max-filesize")
                     .takes_value(true)
                     .value_name("NUM+SUFFIX?")
-                    .about("Ignore files larger than NUM in size. This does not apply to directories.The input format accepts suffixes of K, M or G which correspond to kilobytes, megabytes and gigabytes, respectively. If no suffix is provided the input is treated as bytes."),
+                    .about("Ignore files larger than NUM in size. This does not apply to directories.The input format accepts suffixes of K, M or G which correspond to kilobytes, megabytes and gigabytes, respectively. If no suffix is provided the input is treated as bytes"),
+            )
+            .arg(
+                Arg::new("invert-match")
+                    .short('v')
+                    .long("invert-match")
+                    .about("Invert matching. Show lines that do not match the given patterns"),
             )
             .arg(
                 Arg::new("PATTERN")
@@ -483,7 +489,8 @@ fn app() -> Result<bool> {
             .crlf(matches.is_present("crlf"))
             .multiline_dotall(matches.is_present("multiline-dotall"))
             .mmap(matches.is_present("mmap"))
-            .line_regexp(matches.is_present("line-regexp"));
+            .line_regexp(matches.is_present("line-regexp"))
+            .invert_match(matches.is_present("invert-match"));
 
         if matches.is_present("type-list") {
             config.print_types(io::stdout().lock())?;
