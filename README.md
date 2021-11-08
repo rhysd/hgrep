@@ -168,6 +168,7 @@ functionalities, use `rg` command and eat its output by hgrep via stdin. Current
 
 - Preprocessor is not supported (e.g. search zip files)
 - Pattern file (`-f` or `--file` of `rg`) is not supported
+- Sorting results (`--sort` and `--sortr`) is not supported because it significantly slows down printing the search output
 - Memory map is not used until `--mmap` flag is specified
 - Adding and removing file types are not supported. Only default file types are supported (see `--type-list`)
 - `.ripgreprc` config file is not supported
@@ -316,6 +317,7 @@ Author's Zsh configuration for `hgrep` is [here][rhysd-config].
   - `--type-not TYPE` (`-T`): Do not search files matching TYPE. Inverse of --type. This option is repeatable
   - `--type-list`: Show all supported file types and their corresponding globs
   - `--one-file-system`: When enabled, the search will not cross file system boundaries relative to where it started from
+  - `--no-unicode`: Disable unicode-aware regular expression matching
 - Only for `syntect-printer` feature
   - `--background`: Paint background colors. This is useful when your favorite theme does not fit to your terminal's background color
   - `--ascii-lines`: Use ASCII characters for drawing border lines instead of Unicode characters

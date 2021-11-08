@@ -299,6 +299,11 @@ fn cli<'a>() -> App<'a> {
                     .about("When enabled, the search will not cross file system boundaries relative to where it started from"),
             )
             .arg(
+                Arg::new("no-unicode")
+                    .long("no-unicode")
+                    .about("Disable unicode-aware regular expression matching"),
+            )
+            .arg(
                 Arg::new("PATTERN")
                     .about("Pattern to search. Regular expression is available"),
             )
@@ -359,7 +364,8 @@ fn build_ripgrep_config(
         .mmap(matches.is_present("mmap"))
         .line_regexp(matches.is_present("line-regexp"))
         .invert_match(matches.is_present("invert-match"))
-        .one_file_system(matches.is_present("one-file-system"));
+        .one_file_system(matches.is_present("one-file-system"))
+        .no_unicode(matches.is_present("no-unicode"));
 
     let globs = matches.values_of("glob");
     if let Some(globs) = globs {

@@ -46,6 +46,7 @@ pub struct Config<'main> {
     types_not: Vec<&'main str>,
     invert_match: bool,
     one_file_system: bool,
+    no_unicode: bool,
 }
 
 impl<'main> Config<'main> {
@@ -207,6 +208,11 @@ impl<'main> Config<'main> {
         self
     }
 
+    pub fn no_unicode(&mut self, yes: bool) -> &mut Self {
+        self.no_unicode = yes;
+        self
+    }
+
     fn build_walker(&self, mut paths: impl Iterator<Item = &'main OsStr>) -> Result<Walk> {
         let target = paths.next().unwrap();
 
@@ -251,7 +257,8 @@ impl<'main> Config<'main> {
             .case_insensitive(self.case_insensitive)
             .case_smart(self.smart_case)
             .word(self.word_regexp)
-            .multi_line(true);
+            .multi_line(true)
+            .unicode(!self.no_unicode);
 
         if self.multiline {
             builder.dot_matches_new_line(self.multiline_dotall);
@@ -292,6 +299,10 @@ impl<'main> Config<'main> {
             builder
                 .jit_if_available(true)
                 .max_jit_stack_size(Some(10 * (1 << 20)));
+        }
+
+        if !self.no_unicode {
+            builder.utf(true).ucp(true);
         }
 
         if self.multiline {
