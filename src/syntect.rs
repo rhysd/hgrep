@@ -54,21 +54,21 @@ fn list_themes_with_syntaxes<W: Write>(
     opts: &PrinterOptions<'_>,
     syntaxes: &SyntaxSet,
 ) -> Result<()> {
-    let mut themes = vec![];
-    themes.extend(load_bat_themes()?.themes.into_iter());
-    themes.extend(ThemeSet::load_defaults().themes.into_iter());
-    themes.sort_by(|l, r| l.0.cmp(&r.0));
+    use crate::io::IgnoreBrokenPipe;
+
+    let themes = {
+        let mut m = load_bat_themes()?.themes;
+        m.extend(ThemeSet::load_defaults().themes.into_iter());
+        let mut v: Vec<_> = m.into_iter().collect();
+        v.sort_by(|l, r| l.0.cmp(&r.0));
+        v
+    };
 
     let syntax = syntaxes.find_syntax_by_name("Rust").unwrap();
     let sample_file = File::sample_file();
 
-    let mut draw = || {
-        let mut last = None;
+    let mut draw = move || {
         for (name, theme) in themes.iter() {
-            if Some(name) == last {
-                continue; // Remove duplicates
-            }
-
             let mut drawer = Drawer::new(&mut out, opts, theme, &sample_file.chunks);
             drawer.canvas.set_bold()?;
             write!(drawer.canvas, "{:?}", name)?;
@@ -79,13 +79,10 @@ fn list_themes_with_syntaxes<W: Write>(
             let hl = LineHighlighter::new(syntax, theme, syntaxes);
             drawer.draw_file(&sample_file, hl)?;
             writeln!(drawer.canvas)?;
-
-            last = Some(name);
         }
         Ok(())
     };
 
-    use crate::io::IgnoreBrokenPipe;
     draw().ignore_broken_pipe()?;
     Ok(())
 }
