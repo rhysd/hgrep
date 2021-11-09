@@ -211,6 +211,8 @@ At first, there was `bat` printer only. And then `syntect` printer was implement
 |---------|---------|----------|
 | ![cyanide](https://github.com/rhysd/ss/blob/master/hgrep/cyanide.png?raw=true) | ![predawn](https://github.com/rhysd/ss/blob/master/hgrep/predawn.png?raw=true) | ![cyanide](https://github.com/rhysd/ss/blob/master/hgrep/material.png?raw=true) |
 
+(and more...)
+
 #### Why performance of `syntect` printer is better?
 
 Syntax highlighting is very CPU-heavy task. Many regular expression matchings happen at each line. For accurate syntax

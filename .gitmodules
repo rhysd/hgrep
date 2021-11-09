@@ -49,3 +49,6 @@
 [submodule "assets/submodules/material-theme"]
 	path = assets/submodules/material-theme
 	url = https://github.com/equinusocio/material-theme.git
+[submodule "assets/submodules/sublime-settings"]
+	path = assets/submodules/sublime-settings
+	url = https://github.com/dyross/sublime-settings.git

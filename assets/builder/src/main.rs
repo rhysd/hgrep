@@ -31,6 +31,7 @@ const THEME_PATHS: &[&str] = &[
     "../submodules/visual-studio-dark-plus/Visual Studio Dark+.tmTheme",
     "../submodules/zenburn/zenburn.tmTheme",
     "../submodules/material-theme/schemes/Material-Theme.tmTheme",
+    "../submodules/sublime-settings/Packages/Dayle Rees Color Schemes/Carbonight.tmTheme",
 ];
 
 const THEME_BIN_PATH: &str = "../themes.bin";
