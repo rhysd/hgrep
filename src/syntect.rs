@@ -67,8 +67,9 @@ fn list_themes_with_syntaxes<W: Write>(
     let syntax = syntaxes.find_syntax_by_name("Rust").unwrap();
     let sample_file = File::sample_file();
 
-    let mut draw = move || {
-        for (name, theme) in themes.iter() {
+    themes
+        .iter()
+        .try_for_each(|(name, theme)| {
             let mut drawer = Drawer::new(&mut out, opts, theme, &sample_file.chunks);
             drawer.canvas.set_bold()?;
             write!(drawer.canvas, "{:?}", name)?;
@@ -78,12 +79,10 @@ fn list_themes_with_syntaxes<W: Write>(
 
             let hl = LineHighlighter::new(syntax, theme, syntaxes);
             drawer.draw_file(&sample_file, hl)?;
-            writeln!(drawer.canvas)?;
-        }
-        Ok(())
-    };
+            writeln!(drawer.canvas)
+        })
+        .ignore_broken_pipe()?;
 
-    draw().ignore_broken_pipe()?;
     Ok(())
 }
 
@@ -1493,22 +1492,21 @@ mod tests {
         }
     }
 
-    struct ErrorStdoutLock;
+    struct ErrorStdoutLock(io::ErrorKind);
     impl Write for ErrorStdoutLock {
         fn write(&mut self, _: &[u8]) -> io::Result<usize> {
-            Err(io::Error::new(io::ErrorKind::Other, DummyError))
+            Err(io::Error::new(self.0, DummyError))
         }
         fn flush(&mut self) -> io::Result<()> {
             Ok(())
         }
     }
 
-    #[derive(Default)]
-    struct ErrorStdout;
+    struct ErrorStdout(io::ErrorKind);
     impl<'a> LockableWrite<'a> for ErrorStdout {
         type Locked = ErrorStdoutLock;
         fn lock(&'a self) -> Self::Locked {
-            ErrorStdoutLock
+            ErrorStdoutLock(self.0)
         }
     }
 
@@ -1521,12 +1519,25 @@ mod tests {
     }
 
     #[test]
-    fn test_error_write() {
+    fn test_write_error() {
         let file = sample_chunk("README.md");
         let opts = PrinterOptions::default();
-        let printer = SyntectPrinter::with_assets(ASSETS.clone(), ErrorStdout, opts);
+        let printer =
+            SyntectPrinter::with_assets(ASSETS.clone(), ErrorStdout(io::ErrorKind::Other), opts);
         let err = printer.print(file).unwrap_err();
         assert_eq!(&format!("{}", err), "dummy error!", "message={}", err);
+    }
+
+    #[test]
+    fn test_no_error_at_broken_pipe() {
+        let file = sample_chunk("README.md");
+        let opts = PrinterOptions::default();
+        let printer = SyntectPrinter::with_assets(
+            ASSETS.clone(),
+            ErrorStdout(io::ErrorKind::BrokenPipe),
+            opts,
+        );
+        printer.print(file).unwrap();
     }
 
     #[test]
@@ -1599,5 +1610,28 @@ mod tests {
             "line={:?}",
             str::from_utf8(this_is_test_line).unwrap()
         );
+    }
+
+    #[test]
+    fn test_wrote_error_on_list_themes() {
+        let opts = PrinterOptions::default();
+        let err = list_themes_with_syntaxes(
+            ErrorStdoutLock(io::ErrorKind::Other),
+            &opts,
+            &ASSETS.syntax_set,
+        )
+        .unwrap_err();
+        assert_eq!(&format!("{}", err), "dummy error!", "message={}", err);
+    }
+
+    #[test]
+    fn test_no_error_at_broken_pip_on_list_themes() {
+        let opts = PrinterOptions::default();
+        list_themes_with_syntaxes(
+            ErrorStdoutLock(io::ErrorKind::BrokenPipe),
+            &opts,
+            &ASSETS.syntax_set,
+        )
+        .unwrap();
     }
 }
