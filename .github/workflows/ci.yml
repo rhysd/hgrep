@@ -41,6 +41,7 @@ jobs:
           toolchain: stable
           components: rustfmt, clippy
           override: true
+      - uses: Swatinem/rust-cache@v1
       - name: rustfmt
         run: cargo fmt -- --check --color always
       - name: clippy
