@@ -430,10 +430,7 @@ fn app() -> Result<bool> {
         "syntect" => PrinterKind::Syntect,
         #[cfg(not(feature = "syntect-printer"))]
         "syntect" => anyhow::bail!("--printer syntect is not available because 'syntect-printer' feature was disabled at compilation"),
-        p => anyhow::bail!(
-            "Unknown printer '{}', at --printer option. It must be one of 'bat' or 'syntect'",
-            p
-        ),
+        p => anyhow::bail!("Unknown printer '{}', at --printer option. It must be one of 'bat' or 'syntect'", p),
     };
 
     let min_context = matches
