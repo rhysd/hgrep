@@ -16,21 +16,12 @@ blank lines to determine an efficient number of context lines.
 Example:
 
 ```sh
-# With standard grep
-grep -nH pattern -R ./dir | hgrep
-
-# With grep alternative tools
-rg -nH pattern ./dir | hgrep
-```
-
-As an optional feature, hgrep has built-in grep implementation thanks to [ripgrep][] as a library. It's a subset of `rg` command.
-And it's faster when there are so many matches since everything is done in the same process.
-
-Example:
-
-```sh
-# Use built-in subset of ripgrep
+# Use built-in subset of ripgrep (optional)
 hgrep pattern ./dir
+
+# Read results of grep command via stdin
+grep -nH pattern -R ./dir | hgrep
+rg -nH pattern ./dir | hgrep
 ```
 
 hgrep provides two printers to print match results for your use case. Please see ['`bat` printer v.s. `syntect` printer'][bat-vs-syntect]
@@ -118,10 +109,52 @@ For the differences of `bat-printer` and `syntect-printer`, see ['`bat` printer 
 
 ## Usage
 
+### Built-in ripgrep
+
+Optionally hgrep provides built-in grep implementation thanks to [ripgrep][] as a library. It is a subset of `rg` command.
+
+When a pattern is given, `hgrep` command search files in given paths with it. When a directory is included in paths, hgrep
+searches it recursively. When no path is given, hgrep searches the current directory.
+
+```sh
+hgrep [options...] pattern [paths...]
+```
+
+By default, hgrep shows at least 3 lines and at most 6 lines as context of a match. How many context lines is determined by some
+heuristics around blank lines for space efficiency. Minimum context lines can be specified by `-c` and maximum context lines can
+be specified by `-C`. If you don't want the heuristics, give the same value to the options like `-c 6 -C 6`.
+
+```sh
+# At least 10 context lines and at most 20 context lines
+hgrep pattern  -c 10 -C 20 paths...
+```
+
+When you want a pager, please pipe the output to external commands like `less`. `$COLUMNS` needs to be passed because terminal
+width is fixed to 80 characters when stdout is not connected to TTY. If you frequently use a pager,
+['Set default command options'](#set-default-command-options) section would describe a better way.
+
+```sh
+hgrep --term-width "$COLUMNS" [options...] pattern paths... | less -R
+```
+
+It's faster when there are so many matches because everything is done in the same process. In combination with `syntect-printer`
+feature, matched regions can be highilghted in a searched text color. The built-in grep feature is enabled by default and can be
+omitted by feature flags.
+
+Though almost all useful options are implemented, the built-in grep implementation is a subset of ripgrep. If you need full
+functionalities, use `rg` command and eat its output by hgrep via stdin. Currently there are the following restrictions.
+
+- Preprocessor is not supported (e.g. search zip files)
+- Pattern file (`-f` or `--file` of `rg`) is not supported
+- Sorting results (`--sort` and `--sortr`) is not supported because it significantly slows down printing the search output
+- Memory map is not used until `--mmap` flag is specified
+- Adding and removing file types are not supported. Only default file types are supported (see `--type-list`)
+- `.ripgreprc` config file is not supported
+
 ### Eat `grep -nH` output
 
-hgrep takes grep results via stdin. Since hgrep expects file paths and line numbers in each line of the output, `-nH` is
-necessary at `grep` command.
+When no pattern and paths are given in command line arguments, hgrep can take grep results via stdin. Since hgrep expects file
+paths and line numbers in each line of the output, `-nH` is necessary at `grep` command.
 
 ```sh
 grep -nH pattern -R paths... | hgrep [options...]
@@ -133,45 +166,6 @@ grep -nH pattern -R paths... | hgrep [options...]
 ```sh
 rg -nH pattern paths... | hgrep [options...]
 ```
-
-When you want a pager, please use external commands like `less`. `$COLUMNS` needs to be passed because terminal width is fixed to
-80 characters when the process is piped. If you frequently use a pager, ['Set default command options'](#set-default-command-options)
-section would describe a better way.
-
-```sh
-grep -nH pattern -R paths... | hgrep --term-width "$COLUMNS" [options...] | less -R
-```
-
-By default, hgrep shows at least 5 lines and at most 5 lines as context of a match. How many context lines is determined by some
-heuristics around blank lines for efficiency. Minimum context lines can be specified by `-c` and Maximum context lines can be
-specified by `-C`. If you don't want the heuristics, specify the same value to the options like `-c 10 -C 10`.
-
-```sh
-# At least 10 context lines and at most 20 context lines
-grep -nH pattern -R paths... | hgrep -c 10 -C 20
-```
-
-### Built-in ripgrep
-
-Optionally hgrep provides built-in grep implementation. It is a subset of ripgrep since it's built using ripgrep as a library.
-It's faster when there are so many matches because everything is done in the same process. In combination with `syntect-printer`
-feature, matched regions can be highilghted in a searched text color.
-
-The built-in grep feature is enabled by default and can be omitted by feature flags.
-
-```sh
-hgrep [options...] pattern paths...
-```
-
-Though almost all useful options are implemented, the built-in grep implementation is a subset of ripgrep. If you need full
-functionalities, use `rg` command and eat its output by hgrep via stdin. Currently there are the following restrictions.
-
-- Preprocessor is not supported (e.g. search zip files)
-- Pattern file (`-f` or `--file` of `rg`) is not supported
-- Sorting results (`--sort` and `--sortr`) is not supported because it significantly slows down printing the search output
-- Memory map is not used until `--mmap` flag is specified
-- Adding and removing file types are not supported. Only default file types are supported (see `--type-list`)
-- `.ripgreprc` config file is not supported
 
 ### `bat` printer v.s. `syntect` printer
 
@@ -235,13 +229,13 @@ The default color theme is `Monokai Extended` respecting `bat` command's default
 option. To know names of themes, try `--list-themes` flag.
 
 ```sh
-grep -nH ... | hgrep --theme Nord
+hgrep --theme Nord ...
 ```
 
 The default layout is 'grid'. To reduce borderlines to use space more efficiantly, `--no-grid` option is available.
 
 ```sh
-grep -nH ... | hgrep --no-grid
+hgrep --no-grid ...
 ```
 
 When you use `bat` printer is used, hgrep respects `BAT_THEME` and `BAT_STYLE` environment variable. Theme set to `BAT_THEME`
@@ -252,13 +246,13 @@ does not look at these variables. To set default theme, please use a command ali
 ```sh
 export BAT_THEME=OneHalfDark
 export BAT_STYLE=numbers
-grep -nH ... | hgrep -p bat
+hgrep -p bat ...
 ```
 
 When `syntect` printer is used, painting background colors is supported with `--background` flag.
 
 ```sh
-grep -nH ... | hgrep --background
+hgrep --background ...
 ```
 
 ### Set default command options
