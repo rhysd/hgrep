@@ -647,6 +647,9 @@ fn main() {
         Ok(false) => 1,
         Err(err) => {
             eprintln!("\x1b[1;91merror:\x1b[0m {}", err);
+            for err in err.chain().skip(1) {
+                eprintln!("  Caused by: {}", err);
+            }
             2
         }
     };
