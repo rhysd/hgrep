@@ -311,6 +311,13 @@ fn cli<'a>() -> App<'a> {
                     .about("The upper size limit of the compiled regex. The default limit is 10M. For the size suffixes, see --max-filesize"),
             )
             .arg(
+                Arg::new("dfa-size-limit")
+                    .long("dfa-size-limit")
+                    .takes_value(true)
+                    .value_name("NUM+SUFFIX?")
+                    .about("The upper size limit of the regex DFA. The default limit is 10M. For the size suffixes, see --max-filesize"),
+            )
+            .arg(
                 Arg::new("PATTERN")
                     .about("Pattern to search. Regular expression is available"),
             )
@@ -403,6 +410,12 @@ fn build_ripgrep_config(
         config
             .regex_size_limit(limit)
             .context("coult not parse --regex-size-limit option value as size string")?;
+    }
+
+    if let Some(limit) = matches.value_of("dfa-size-limit") {
+        config
+            .dfa_size_limit(limit)
+            .context("coult not parse --dfa-size-limit option value as size string")?;
     }
 
     let types = matches.values_of("type");

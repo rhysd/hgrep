@@ -68,6 +68,7 @@ pub struct Config<'main> {
     one_file_system: bool,
     no_unicode: bool,
     regex_size_limit: Option<usize>,
+    dfa_size_limit: Option<usize>,
 }
 
 impl<'main> Config<'main> {
@@ -222,6 +223,11 @@ impl<'main> Config<'main> {
         Ok(self)
     }
 
+    pub fn dfa_size_limit(&mut self, input: &str) -> Result<&mut Self> {
+        self.dfa_size_limit = Some(parse_size(input)? as usize);
+        Ok(self)
+    }
+
     fn build_walker(&self, mut paths: impl Iterator<Item = &'main OsStr>) -> Result<Walk> {
         let target = paths.next().unwrap();
 
@@ -283,6 +289,9 @@ impl<'main> Config<'main> {
 
         if let Some(limit) = self.regex_size_limit {
             builder.size_limit(limit);
+        }
+        if let Some(limit) = self.dfa_size_limit {
+            builder.dfa_size_limit(limit);
         }
 
         Ok(if self.fixed_strings {
