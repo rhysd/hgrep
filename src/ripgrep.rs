@@ -968,7 +968,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_max_filesize() {
+    fn test_parse_size() {
         let tests = &[
             ("123", Ok(123)),
             ("123k", Ok(123 * 1024)),
@@ -978,43 +978,44 @@ mod tests {
             ("123M", Ok(123 * 1024 * 1024)),
             ("123G", Ok(123 * 1024 * 1024 * 1024)),
             ("", Err("Size string must not be empty")),
-            (
-                "abc",
-                Err("could not parse file size value as unsigned integer"),
-            ),
-            (
-                "123kk",
-                Err("could not parse file size value as unsigned integer"),
-            ),
-            (
-                "-123k",
-                Err("could not parse file size value as unsigned integer"),
-            ),
+            ("abc", Err("could not parse \"abc\" as unsigned integer")),
+            ("123kk", Err("could not parse \"123k\" as unsigned integer")),
+            ("-123k", Err("could not parse \"-123\" as unsigned integer")),
         ];
 
         for (input, want) in tests.iter().copied() {
             let mut c = Config::default();
-            let err = c.max_filesize(input).err();
-            match want {
-                Ok(want) => assert_eq!(
-                    c.max_filesize,
-                    Some(want),
-                    "wanted {} for {:?}",
-                    want,
-                    input
-                ),
-                Err(want) => {
-                    let err = err.unwrap_or_else(|| {
-                        panic!("wanted error {:?} but no error for {:?}", want, input)
-                    });
-                    let msg = format!("{}", err);
-                    assert!(
-                        msg.contains(want),
-                        "wanted error {:?} but got {:?} for {:?}",
+            let mut errs = vec![];
+            errs.push(("max-filesize", c.max_filesize(input).err()));
+            errs.push(("regex-size-limit", c.regex_size_limit(input).err()));
+            errs.push(("dfa-size-limit", c.dfa_size_limit(input).err()));
+            for (opt, err) in errs.into_iter() {
+                match want {
+                    Ok(want) => assert_eq!(
+                        c.max_filesize,
+                        Some(want),
+                        "wanted {} for {:?} ({})",
                         want,
-                        msg,
-                        input
-                    );
+                        input,
+                        opt,
+                    ),
+                    Err(want) => {
+                        let err = err.unwrap_or_else(|| {
+                            panic!(
+                                "wanted error {:?} but no error for {:?} ({})",
+                                want, input, opt
+                            )
+                        });
+                        let msg = format!("{}", err);
+                        assert!(
+                            msg.contains(want),
+                            "wanted error {:?} but got {:?} for {:?} ({})",
+                            want,
+                            msg,
+                            input,
+                            opt,
+                        );
+                    }
                 }
             }
         }
