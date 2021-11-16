@@ -20,6 +20,26 @@ use std::sync::Mutex;
 
 // Note: 'main is a lifetime of scope of main() function
 
+fn parse_size(input: &str) -> Result<u64> {
+    if input.is_empty() {
+        anyhow::bail!("Size string must not be empty");
+    }
+
+    let i = input.len() - 1;
+    let (input, mag) = match input.as_bytes()[i] {
+        b'k' | b'K' => (&input[..i], 1 << 10),
+        b'm' | b'M' => (&input[..i], 1 << 20),
+        b'g' | b'G' => (&input[..i], 1 << 30),
+        _ => (input, 1),
+    };
+
+    let u: u64 = input
+        .parse()
+        .with_context(|| format!("could not parse {:?} as unsigned integer", input))?;
+
+    Ok(u * mag)
+}
+
 #[derive(Default)]
 pub struct Config<'main> {
     min_context: u64,
@@ -47,6 +67,7 @@ pub struct Config<'main> {
     invert_match: bool,
     one_file_system: bool,
     no_unicode: bool,
+    regex_size_limit: Option<usize>,
 }
 
 impl<'main> Config<'main> {
@@ -177,24 +198,7 @@ impl<'main> Config<'main> {
     }
 
     pub fn max_filesize(&mut self, input: &str) -> Result<&mut Self> {
-        if input.is_empty() {
-            anyhow::bail!("Size string must not be empty");
-        }
-
-        let i = input.len() - 1;
-        let (input, mag) = match input.as_bytes()[i] {
-            b'k' | b'K' => (&input[..i], 1 << 10),
-            b'm' | b'M' => (&input[..i], 1 << 20),
-            b'g' | b'G' => (&input[..i], 1 << 30),
-            _ => (input, 1),
-        };
-
-        let u: u64 = input
-            .parse()
-            .context("could not parse file size value as unsigned integer")?;
-
-        self.max_filesize = Some(u * mag);
-
+        self.max_filesize = Some(parse_size(input)?);
         Ok(self)
     }
 
@@ -211,6 +215,11 @@ impl<'main> Config<'main> {
     pub fn no_unicode(&mut self, yes: bool) -> &mut Self {
         self.no_unicode = yes;
         self
+    }
+
+    pub fn regex_size_limit(&mut self, input: &str) -> Result<&mut Self> {
+        self.regex_size_limit = Some(parse_size(input)? as usize);
+        Ok(self)
     }
 
     fn build_walker(&self, mut paths: impl Iterator<Item = &'main OsStr>) -> Result<Walk> {
@@ -270,6 +279,10 @@ impl<'main> Config<'main> {
                 .line_terminator(Some(b'\n'))
                 .dot_matches_new_line(false)
                 .crlf(self.crlf);
+        }
+
+        if let Some(limit) = self.regex_size_limit {
+            builder.size_limit(limit);
         }
 
         Ok(if self.fixed_strings {

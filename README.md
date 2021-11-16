@@ -292,7 +292,7 @@ Author's Zsh configuration for `hgrep` is [here][rhysd-config].
   - `--first-only` (`-f`): Show only the first code snippet per file
 - Only for `ripgrep` feature
   - `--no-ignore`: Don't respect ignore files (.gitignore, .ignore, etc.)
-  - `--ignore-case` (`-i`): When this flag is provided, the given patterns will be searched case insensitively
+  - `--ignore-case` (`-i`): When this flag is provided, the given pattern will be searched case insensitively
   - `--smart-case` (`-S`): Search case insensitively if the pattern is all lowercase. Search case sensitively otherwise
   - `--glob GLOB...` (`-g`): Include or exclude files and directories for searching that match the given glob
   - `--glob-case-insensitive`: Process glob patterns given with the -g/--glob flag case insensitively
@@ -307,7 +307,7 @@ Author's Zsh configuration for `hgrep` is [here][rhysd-config].
   - `--max-depth NUM`: Limit the depth of directory traversal to NUM levels beyond the paths given
   - `--max-filesize NUM+SUFFIX?`: Ignore files larger than NUM in size. This does not apply to directories.The input format accepts suffixes of K, M or G
   - `--line-regexp` (`-x`): Only show matches surrounded by line boundaries. This is equivalent to putting `^...$` around the search pattern
-  - `--invert-match` (`-v`): Invert matching. Show lines that do not match the given patterns
+  - `--invert-match` (`-v`): Invert matching. Show lines that do not match the given pattern
   - `--pcre2` (`-P`): When this flag is present, hgrep will use the PCRE2 regex engine instead of its default regex engine
   - `--type TYPE` (`-t`): Only search files matching TYPE. This option is repeatable
   - `--type-not TYPE` (`-T`): Do not search files matching TYPE. Inverse of --type. This option is repeatable

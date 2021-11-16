@@ -162,7 +162,7 @@ fn cli<'a>() -> App<'a> {
                 Arg::new("ignore-case")
                     .short('i')
                     .long("ignore-case")
-                    .about("When this flag is provided, the given patterns will be searched case insensitively"),
+                    .about("When this flag is provided, the given pattern will be searched case insensitively"),
             )
             .arg(
                 Arg::new("smart-case")
@@ -291,7 +291,7 @@ fn cli<'a>() -> App<'a> {
                 Arg::new("invert-match")
                     .short('v')
                     .long("invert-match")
-                    .about("Invert matching. Show lines that do not match the given patterns"),
+                    .about("Invert matching. Show lines that do not match the given pattern"),
             )
             .arg(
                 Arg::new("one-file-system")
@@ -302,6 +302,13 @@ fn cli<'a>() -> App<'a> {
                 Arg::new("no-unicode")
                     .long("no-unicode")
                     .about("Disable unicode-aware regular expression matching"),
+            )
+            .arg(
+                Arg::new("regex-size-limit")
+                    .long("regex-size-limit")
+                    .takes_value(true)
+                    .value_name("NUM+SUFFIX?")
+                    .about("The upper size limit of the compiled regex. The default limit is 10M. For the size suffixes, see --max-filesize"),
             )
             .arg(
                 Arg::new("PATTERN")
@@ -390,6 +397,12 @@ fn build_ripgrep_config(
         config
             .max_filesize(size)
             .context("coult not parse --max-filesize option value as file size string")?;
+    }
+
+    if let Some(limit) = matches.value_of("regex-size-limit") {
+        config
+            .regex_size_limit(limit)
+            .context("coult not parse --regex-size-limit option value as size string")?;
     }
 
     let types = matches.values_of("type");
