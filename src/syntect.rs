@@ -910,8 +910,6 @@ impl<'file, W: Write> Drawer<'file, W> {
         let mut chunks = file.chunks.iter();
         let mut chunk = chunks.next().unwrap(); // OK since chunks is not empty
 
-        // Note: `bytes` contains newline at the end since SyntaxSet requires it. The newline will be trimmed when
-        // `HighlightedLine` instance is created.
         for Line(bytes, lnum) in LinesInclusive::new(&file.contents) {
             let (start, end) = *chunk;
             if lnum < start {
