@@ -61,4 +61,7 @@ _update 'x86_64-unknown-linux-gnu'
 echo "Clean up zip files"
 rm -rf ./*.zip
 
+echo "Updating version of formula to ${VERSION}"
+_sed -E "s/  version '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*'/  version '${VERSION#v}'/" hgrep.rb
+
 echo 'Done.'

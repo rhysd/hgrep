@@ -1,5 +1,5 @@
 class Hgrep < Formula
-  version '0.2.0'
+  version '0.2.1'
   desc 'hgrep is grep with human-friendly search output'
   homepage 'https://github.com/rhysd/hgrep'
 
