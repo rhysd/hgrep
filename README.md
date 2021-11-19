@@ -86,14 +86,15 @@ make install
 cargo install hgrep
 ```
 
-If you always use hgrep with reading the grep output from stdin and don't want the built-in ripgrep feature, it can be omitted.
-This reduces the number of dependencies, installation time, and binary size.
+Since `cargo` builds `hgrep` command from sources, you can choose your favorite features and drop others by feature flags. For
+example, if you always use `hgrep` with reading `grep` output from stdin and don't use `bat` printer, only enabling `syntect-printer`
+dramatically reduces the number of dependencies, installation time, and binary size.
 
 ```sh
-cargo install hgrep --no-default-features --features bat-printer,syntect-printer
+cargo install hgrep --no-default-features --features syntect-printer
 ```
 
-To customize features on installation, please see the following 'Feature flags' section for more details.
+To know features provided by `hgrep` crate, please see the following 'Feature flags' section for more details.
 
 ### Feature flags
 
