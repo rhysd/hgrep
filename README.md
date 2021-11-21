@@ -260,19 +260,22 @@ hgrep --background ...
 
 Wrapping `hgrep` command with shell's `alias` command works fine for setting default command options.
 
-For example, if you're using Bash, you can put the following line in your `.bash_profile`.
+For example, if you're using Bash and want to search hidden files with `bat` printer, you can put the following line in your
+`.bash_profile`.
 
 ```sh
-# Use ayu-dark theme by default with background and search hidden files by default
-alias hgrep='hgrep --hidden --theme ayu-dark --background'
+# Search hidden files with 'bat' printer by default
+alias hgrep='hgrep --hidden --printer bat'
 ```
 
 If you like a pager, try the following wrapper function. `--term-width` propagates the correct width of the terminal window.
+Passing terminal width via the option is necessary because `hgrep`'s stdout is not connected to a terminal when it is piped to
+a pager process.
 
 ```sh
-# Remove grid borderlines and use less as pager. $COLUMNS corrects terminal window
+# Always use ayu-dark theme enabling background colors with less as pager. $COLUMNS corrects terminal window width
 function hgrep() {
-    command hgrep --no-grid --term-width "$COLUMNS" "$@" | less -R
+    command hgrep --theme ayu-dark --background --term-width "$COLUMNS" "$@" | less -R
 }
 ```
 
