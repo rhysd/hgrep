@@ -143,6 +143,7 @@ jobs:
     name: Update Homebrew formula
     needs: [upload]
     runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -158,4 +159,3 @@ jobs:
           git -c user.email='41898282+github-actions[bot]@users.noreply.github.com' -c user.name='github-actions[bot]' commit -m "Homebrew formula to ${{ needs.upload.outputs.version }}"
           git log -n 1
           git push
-        if: ${{ github.event_name != 'workflow_dispatch' }}
