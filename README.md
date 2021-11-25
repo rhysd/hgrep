@@ -56,6 +56,9 @@ brew tap "rhysd/hgrep" "https://github.com/rhysd/hgrep"
 brew install hgrep
 ```
 
+Note: If you installed Homebrew to the default location (e.g. `~/homebrew`), you might see some errors. In the case, please try
+to install `hgrep` via [cargo][] instead. See [#6][issue-6] for more details.
+
 ### Via [MacPorts][macports]
 
 On macOS, you can install `hgrep` with the following commands through MacPorts:
@@ -430,3 +433,4 @@ hgrep is distributed under [the MIT license](./LICENSE.txt).
 [predawn]: https://github.com/jamiewilson/predawn
 [rhysd-config]: https://github.com/rhysd/dogfiles/blob/4aeccbc98ced7fbd9cf590003adb7217810f8b24/zshrc#L124-L127
 [formula]: ./HomebrewFormula/hgrep.rb
+[issue-6]: https://github.com/rhysd/hgrep/issues/6
