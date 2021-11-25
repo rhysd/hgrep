@@ -19,8 +19,11 @@ class Hgrep < Formula
 
   def install
     bin.install 'hgrep'
-    output = Utils.safe_popen_read(bin/'hgrep', '--generate-completion-script', 'zsh')
-    (zsh_completion/'_hgrep').write output
+    hgrep = bin/'hgrep'
+    if hgrep.exist?
+      output = Utils.safe_popen_read(hgrep, '--generate-completion-script', 'zsh')
+      (zsh_completion/'_hgrep').write output
+    end
   end
 
   test do
