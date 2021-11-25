@@ -56,7 +56,7 @@ brew tap "rhysd/hgrep" "https://github.com/rhysd/hgrep"
 brew install hgrep
 ```
 
-Note: If you installed Homebrew to the default location (e.g. `~/homebrew`), you might see some errors. In the case, please try
+Note: If you installed Homebrew to a non-default location (e.g. `~/homebrew`), you might see some errors. In the case, please try
 to install `hgrep` via [cargo][] instead. See [#6][issue-6] for more details.
 
 ### Via [MacPorts][macports]
@@ -321,8 +321,8 @@ Author's Zsh configuration for `hgrep` is [here][rhysd-config].
   - `--type-list`: Show all supported file types and their corresponding globs
   - `--one-file-system`: When enabled, the search will not cross file system boundaries relative to where it started from
   - `--no-unicode`: Disable unicode-aware regular expression matching
-  - `--regex-size-limit`: The upper size limit of the compiled regex. The default limit is 10M. For the size suffixes, see --max-filesize
-  - `--dfa-size-limit`: The upper size limit of the regex DFA. The default limit is 10M. For the size suffixes, see --max-filesize
+  - `--regex-size-limit NUM+SUFFIX?`: The upper size limit of the compiled regex. The default limit is 10M. For the size suffixes, see --max-filesize
+  - `--dfa-size-limit NUM+SUFFIX?`: The upper size limit of the regex DFA. The default limit is 10M. For the size suffixes, see --max-filesize
 - Only for `syntect-printer` feature
   - `--background`: Paint background colors. This is useful when your favorite theme does not fit to your terminal's background color
   - `--ascii-lines`: Use ASCII characters for drawing border lines instead of Unicode characters
