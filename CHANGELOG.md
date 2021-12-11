@@ -1,3 +1,15 @@
+<a name="v0.2.2"></a>
+# [v0.2.2](https://github.com/rhysd/batgrep/releases/tag/v0.2.2) - 11 Dec 2021
+
+- Fix a build failure since new RC version of `clap` crate was released.
+- Fix a dynamic link error of pcre2 library by linking the library statically. The error could happen when you installed Homebrew to non-default location on macOS (#6).
+- Add `--regex-size-limit` option for built-in grep feature.
+- Add `--dfa-size-limit` option for built-in grep feature.
+- Use Rust compiler v1.57 to build binaries.
+
+[Changes][v0.2.2]
+
+
 <a name="v0.2.1"></a>
 # [v0.2.1](https://github.com/rhysd/batgrep/releases/tag/v0.2.1) - 13 Nov 2021
 
@@ -189,6 +201,7 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [Changes][v0.1.1]
 
 
+[v0.2.2]: https://github.com/rhysd/batgrep/compare/v0.2.1...v0.2.2
 [v0.2.1]: https://github.com/rhysd/batgrep/compare/v0.2.0...v0.2.1
 [v0.2.0]: https://github.com/rhysd/batgrep/compare/v0.1.9...v0.2.0
 [v0.1.9]: https://github.com/rhysd/batgrep/compare/v0.1.8...v0.1.9
