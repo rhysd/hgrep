@@ -41,7 +41,7 @@ fn cli<'a>() -> App<'a> {
                 .takes_value(true)
                 .value_name("NUM")
                 .default_value("3")
-                .about("Minimum lines of leading and trailing context surrounding each match"),
+                .help("Minimum lines of leading and trailing context surrounding each match"),
         )
         .arg(
             Arg::new("max-context")
@@ -50,18 +50,18 @@ fn cli<'a>() -> App<'a> {
                 .takes_value(true)
                 .value_name("NUM")
                 .default_value("6")
-                .about("Maximum lines of leading and trailing context surrounding each match"),
+                .help("Maximum lines of leading and trailing context surrounding each match"),
         )
         .arg(
             Arg::new("no-grid")
                 .short('G')
                 .long("no-grid")
-                .about("Remove borderlines for more compact output"),
+                .help("Remove borderlines for more compact output"),
         )
         .arg(
             Arg::new("grid")
                 .long("grid")
-                .about("Add borderlines to output. This flag is an opposite of --no-grid"),
+                .help("Add borderlines to output. This flag is an opposite of --no-grid"),
         )
         .arg(
             Arg::new("tab")
@@ -69,19 +69,19 @@ fn cli<'a>() -> App<'a> {
                 .takes_value(true)
                 .value_name("NUM")
                 .default_value("4")
-                .about("Number of spaces for tab character. Set 0 to pass tabs through directly"),
+                .help("Number of spaces for tab character. Set 0 to pass tabs through directly"),
         )
         .arg(
             Arg::new("theme")
                 .long("theme")
                 .takes_value(true)
                 .value_name("THEME")
-                .about("Theme for syntax highlighting. Use --list-themes flag to print the theme list"),
+                .help("Theme for syntax highlighting. Use --list-themes flag to print the theme list"),
         )
         .arg(
             Arg::new("list-themes")
                 .long("list-themes")
-                .about("List all available theme names and their samples. Samples show the output where 'let' is searched. The names can be used at --theme option"),
+                .help("List all available theme names and their samples. Samples show the output where 'let' is searched. The names can be used at --theme option"),
         )
         .arg(
             Arg::new("printer")
@@ -89,14 +89,14 @@ fn cli<'a>() -> App<'a> {
                 .long("printer")
                 .value_name("PRINTER")
                 .default_value(DEFAULT_PRINTER)
-                .about("Printer to print the match results. 'bat' or 'syntect' is available"),
+                .help("Printer to print the match results. 'bat' or 'syntect' is available"),
         )
         .arg(
             Arg::new("term-width")
                 .long("term-width")
                 .takes_value(true)
                 .value_name("NUM")
-                .about("Width (number of characters) of terminal window"),
+                .help("Width (number of characters) of terminal window"),
         ).arg(
             Arg::new("wrap")
                 .long("wrap")
@@ -104,13 +104,13 @@ fn cli<'a>() -> App<'a> {
                 .value_name("MODE")
                 .default_value("char")
                 .possible_values(["char", "never"])
-                .case_insensitive(true)
-                .about("Text-wrapping mode. 'char' enables character-wise text-wrapping. 'never' disables text-wrapping")
+                .ignore_case(true)
+                .help("Text-wrapping mode. 'char' enables character-wise text-wrapping. 'never' disables text-wrapping")
         ).arg(
             Arg::new("first-only")
                 .short('f')
                 .long("first-only")
-                .about("Show only the first code snippet per file")
+                .help("Show only the first code snippet per file")
         )
         .arg(
             Arg::new("generate-completion-script")
@@ -118,15 +118,15 @@ fn cli<'a>() -> App<'a> {
                 .takes_value(true)
                 .value_name("SHELL")
                 .possible_values(["bash", "zsh", "powershell", "fish", "elvish"])
-                .case_insensitive(true)
-                .about("Print completion script for SHELL to stdout"),
+                .ignore_case(true)
+                .help("Print completion script for SHELL to stdout"),
         );
 
     #[cfg(feature = "bat-printer")]
     let app = app.arg(
         Arg::new("custom-assets")
             .long("custom-assets")
-            .about("Load bat's custom assets. Note that this flag may not work with some version of `bat` command. This flag is only for bat printer"),
+            .help("Load bat's custom assets. Note that this flag may not work with some version of `bat` command. This flag is only for bat printer"),
     );
 
     #[cfg(feature = "syntect-printer")]
@@ -134,10 +134,10 @@ fn cli<'a>() -> App<'a> {
         .arg(
             Arg::new("background")
                 .long("background")
-                .about("Paint background colors. This flag is only for syntect printer"),
+                .help("Paint background colors. This flag is only for syntect printer"),
         )
         .arg(
-            Arg::new("ascii-lines").long("ascii-lines").about(
+            Arg::new("ascii-lines").long("ascii-lines").help(
                 "Use ASCII characters for drawing border lines instead of Unicode characters",
             ),
         );
@@ -156,25 +156,25 @@ fn cli<'a>() -> App<'a> {
             .arg(
                 Arg::new("no-ignore")
                     .long("no-ignore")
-                    .about("Don't respect ignore files (.gitignore, .ignore, etc.)"),
+                    .help("Don't respect ignore files (.gitignore, .ignore, etc.)"),
             )
             .arg(
                 Arg::new("ignore-case")
                     .short('i')
                     .long("ignore-case")
-                    .about("When this flag is provided, the given pattern will be searched case insensitively"),
+                    .help("When this flag is provided, the given pattern will be searched case insensitively"),
             )
             .arg(
                 Arg::new("smart-case")
                     .short('S')
                     .long("smart-case")
-                    .about("Search case insensitively if the pattern is all lowercase. Search case sensitively otherwise"),
+                    .help("Search case insensitively if the pattern is all lowercase. Search case sensitively otherwise"),
             )
             .arg(
                 Arg::new("hidden")
                     .short('.')
                     .long("hidden")
-                    .about("Search hidden files and directories. By default, hidden files and directories are skipped"),
+                    .help("Search hidden files and directories. By default, hidden files and directories are skipped"),
             )
             .arg(
                 Arg::new("glob")
@@ -184,51 +184,51 @@ fn cli<'a>() -> App<'a> {
                     .value_name("GLOB")
                     .multiple_values(true)
                     .allow_hyphen_values(true)
-                    .about("Include or exclude files and directories for searching that match the given glob"),
+                    .help("Include or exclude files and directories for searching that match the given glob"),
             )
             .arg(
                 Arg::new("glob-case-insensitive")
                     .long("glob-case-insensitive")
-                    .about("Process glob patterns given with the -g/--glob flag case insensitively"),
+                    .help("Process glob patterns given with the -g/--glob flag case insensitively"),
             )
             .arg(
                 Arg::new("fixed-strings")
                     .short('F')
                     .long("fixed-strings")
-                    .about("Treat the pattern as a literal string instead of a regular expression"),
+                    .help("Treat the pattern as a literal string instead of a regular expression"),
             )
             .arg(
                 Arg::new("word-regexp")
                     .short('w')
                     .long("word-regexp")
-                    .about("Only show matches surrounded by word boundaries"),
+                    .help("Only show matches surrounded by word boundaries"),
             )
             .arg(
                 Arg::new("follow-symlink")
                     .short('L')
                     .long("follow")
-                    .about("When this flag is enabled, hgrep will follow symbolic links while traversing directories"),
+                    .help("When this flag is enabled, hgrep will follow symbolic links while traversing directories"),
             )
             .arg(
                 Arg::new("multiline")
                     .short('U')
                     .long("multiline")
-                    .about("Enable matching across multiple lines"),
+                    .help("Enable matching across multiple lines"),
             )
             .arg(
                 Arg::new("multiline-dotall")
                     .long("multiline-dotall")
-                    .about("Enable \"dot all\" in your regex pattern, which causes '.' to match newlines when multiline searching is enabled"),
+                    .help("Enable \"dot all\" in your regex pattern, which causes '.' to match newlines when multiline searching is enabled"),
             )
             .arg(
                 Arg::new("crlf")
                     .long("crlf")
-                    .about(r"When enabled, hgrep will treat CRLF ('\r\n') as a line terminator instead of just '\n'. This flag is useful on Windows"),
+                    .help(r"When enabled, hgrep will treat CRLF ('\r\n') as a line terminator instead of just '\n'. This flag is useful on Windows"),
             )
             .arg(
                 Arg::new("mmap")
                     .long("mmap")
-                    .about("Search using memory maps when possible. mmap is disabled by default unlike ripgrep"),
+                    .help("Search using memory maps when possible. mmap is disabled by default unlike ripgrep"),
             )
             .arg(
                 Arg::new("max-count")
@@ -236,26 +236,26 @@ fn cli<'a>() -> App<'a> {
                     .long("max-count")
                     .takes_value(true)
                     .value_name("NUM")
-                    .about("Limit the number of matching lines per file searched to NUM"),
+                    .help("Limit the number of matching lines per file searched to NUM"),
             )
             .arg(
                 Arg::new("max-depth")
                     .long("max-depth")
                     .takes_value(true)
                     .value_name("NUM")
-                    .about("Limit the depth of directory traversal to NUM levels beyond the paths given"),
+                    .help("Limit the depth of directory traversal to NUM levels beyond the paths given"),
             )
             .arg(
                 Arg::new("line-regexp")
                     .short('x')
                     .long("line-regexp")
-                    .about("Only show matches surrounded by line boundaries. This is equivalent to putting ^...$ around the search pattern"),
+                    .help("Only show matches surrounded by line boundaries. This is equivalent to putting ^...$ around the search pattern"),
             )
             .arg(
                 Arg::new("pcre2")
                     .short('P')
                     .long("pcre2")
-                    .about("When this flag is present, hgrep will use the PCRE2 regex engine instead of its default regex engine"),
+                    .help("When this flag is present, hgrep will use the PCRE2 regex engine instead of its default regex engine"),
             )
             .arg(
                 Arg::new("type")
@@ -264,7 +264,7 @@ fn cli<'a>() -> App<'a> {
                     .takes_value(true)
                     .value_name("TYPE")
                     .multiple_occurrences(true)
-                    .about("Only search files matching TYPE. This option is repeatable. --type-list can print the list of types"),
+                    .help("Only search files matching TYPE. This option is repeatable. --type-list can print the list of types"),
             )
             .arg(
                 Arg::new("type-not")
@@ -273,57 +273,57 @@ fn cli<'a>() -> App<'a> {
                     .takes_value(true)
                     .value_name("TYPE")
                     .multiple_occurrences(true)
-                    .about("Do not search files matching TYPE. Inverse of --type. This option is repeatable. --type-list can print the list of types"),
+                    .help("Do not search files matching TYPE. Inverse of --type. This option is repeatable. --type-list can print the list of types"),
             )
             .arg(
                 Arg::new("type-list")
                     .long("type-list")
-                    .about("Show all supported file types and their corresponding globs"),
+                    .help("Show all supported file types and their corresponding globs"),
             )
             .arg(
                 Arg::new("max-filesize")
                     .long("max-filesize")
                     .takes_value(true)
                     .value_name("NUM+SUFFIX?")
-                    .about("Ignore files larger than NUM in size. This does not apply to directories.The input format accepts suffixes of K, M or G which correspond to kilobytes, megabytes and gigabytes, respectively. If no suffix is provided the input is treated as bytes"),
+                    .help("Ignore files larger than NUM in size. This does not apply to directories.The input format accepts suffixes of K, M or G which correspond to kilobytes, megabytes and gigabytes, respectively. If no suffix is provided the input is treated as bytes"),
             )
             .arg(
                 Arg::new("invert-match")
                     .short('v')
                     .long("invert-match")
-                    .about("Invert matching. Show lines that do not match the given pattern"),
+                    .help("Invert matching. Show lines that do not match the given pattern"),
             )
             .arg(
                 Arg::new("one-file-system")
                     .long("one-file-system")
-                    .about("When enabled, the search will not cross file system boundaries relative to where it started from"),
+                    .help("When enabled, the search will not cross file system boundaries relative to where it started from"),
             )
             .arg(
                 Arg::new("no-unicode")
                     .long("no-unicode")
-                    .about("Disable unicode-aware regular expression matching"),
+                    .help("Disable unicode-aware regular expression matching"),
             )
             .arg(
                 Arg::new("regex-size-limit")
                     .long("regex-size-limit")
                     .takes_value(true)
                     .value_name("NUM+SUFFIX?")
-                    .about("The upper size limit of the compiled regex. The default limit is 10M. For the size suffixes, see --max-filesize"),
+                    .help("The upper size limit of the compiled regex. The default limit is 10M. For the size suffixes, see --max-filesize"),
             )
             .arg(
                 Arg::new("dfa-size-limit")
                     .long("dfa-size-limit")
                     .takes_value(true)
                     .value_name("NUM+SUFFIX?")
-                    .about("The upper size limit of the regex DFA. The default limit is 10M. For the size suffixes, see --max-filesize"),
+                    .help("The upper size limit of the regex DFA. The default limit is 10M. For the size suffixes, see --max-filesize"),
             )
             .arg(
                 Arg::new("PATTERN")
-                    .about("Pattern to search. Regular expression is available"),
+                    .help("Pattern to search. Regular expression is available"),
             )
             .arg(
                 Arg::new("PATH")
-                    .about("Paths to search")
+                    .help("Paths to search")
                     .multiple_values(true)
                     .value_hint(clap::ValueHint::AnyPath),
             );

@@ -66,8 +66,8 @@ bat-printer = [
 
 [dependencies]
 anyhow = "1"
-clap = { version = "3.0.0-beta", default-features = false, features = ["std", "color", "suggestions"] }
-clap_generate = "3.0.0-beta"
+clap = { version = "3.0.0-rc", default-features = false, features = ["std", "color", "suggestions"] }
+clap_generate = "3.0.0-rc"
 memchr = "2"
 pathdiff = "0.2"
 term = "0.7"
