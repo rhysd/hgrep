@@ -325,7 +325,8 @@ fn cli<'a>() -> App<'a> {
                 Arg::new("PATH")
                     .help("Paths to search")
                     .multiple_values(true)
-                    .value_hint(clap::ValueHint::AnyPath),
+                    .value_hint(clap::ValueHint::AnyPath)
+                    .allow_invalid_utf8(true),
             );
 
     app
