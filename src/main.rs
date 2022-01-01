@@ -656,3 +656,13 @@ fn main() {
     };
     process::exit(status);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cli_parser() {
+        cli().debug_assert();
+    }
+}
