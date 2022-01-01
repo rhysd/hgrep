@@ -333,8 +333,8 @@ fn cli<'a>() -> App<'a> {
 }
 
 fn generate_completion_script(shell: &str) {
-    use clap_generate::generate;
-    use clap_generate::generators::*;
+    use clap_complete::generate;
+    use clap_complete::shells::*;
 
     let mut app = cli();
     let stdout = io::stdout();

@@ -175,9 +175,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.0.0-rc.4"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "967965e82fc46fee1a88147a7a977a66d615ed5f83eb95b18577b342c08f90ff"
+checksum = "d17bf219fcd37199b9a29e00ba65dfb8cd5b2688b7297ec14ff829c40ac50ca9"
 dependencies = [
  "atty",
  "bitflags",
@@ -189,12 +189,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "clap_generate"
-version = "3.0.0-rc.4"
+name = "clap_complete"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bdf3ee47de9ce0e5bfb686d0cf84eb9a2d4ee8e6fa78f97267ac0d37e060b9bd"
+checksum = "60d123fbea4c5d9799cffd44051e2125c880efd23b3b7c529baf3ea5508c8736"
 dependencies = [
- "clap 3.0.0-rc.4",
+ "clap 3.0.0",
 ]
 
 [[package]]
@@ -670,8 +670,8 @@ dependencies = [
  "anyhow",
  "bat",
  "bincode",
- "clap 3.0.0-rc.4",
- "clap_generate",
+ "clap 3.0.0",
+ "clap_complete",
  "dirs-next",
  "flate2",
  "grep-matcher",
