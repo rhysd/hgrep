@@ -1,3 +1,12 @@
+<a name="v0.2.3"></a>
+# [v0.2.3](https://github.com/rhysd/batgrep/releases/tag/v0.2.3) - 02 Feb 2022
+
+- Update dependencies including `bat` v0.19 and `clap` v3
+- Build binaries with the latest Rust compiler v1.58.1
+
+[Changes][v0.2.3]
+
+
 <a name="v0.2.2"></a>
 # [v0.2.2](https://github.com/rhysd/batgrep/releases/tag/v0.2.2) - 11 Dec 2021
 
@@ -201,6 +210,7 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [Changes][v0.1.1]
 
 
+[v0.2.3]: https://github.com/rhysd/batgrep/compare/v0.2.2...v0.2.3
 [v0.2.2]: https://github.com/rhysd/batgrep/compare/v0.2.1...v0.2.2
 [v0.2.1]: https://github.com/rhysd/batgrep/compare/v0.2.0...v0.2.1
 [v0.2.0]: https://github.com/rhysd/batgrep/compare/v0.1.9...v0.2.0
