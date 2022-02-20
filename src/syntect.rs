@@ -1178,7 +1178,7 @@ mod tests {
                         l = &l[end..];
                         base += end;
                     }
-                    if ranges.len() > 0 {
+                    if !ranges.is_empty() {
                         lmats.push(LineMatch::new(lnum, ranges));
                     }
                 } else {
@@ -1601,8 +1601,7 @@ mod tests {
         let this_is_test_line = lines.nth(3).unwrap();
         let found = this_is_test_line
             .windows(expected.len())
-            .find(|s| s == expected)
-            .is_some();
+            .any(|s| s == expected);
         assert!(
             found,
             "line={:?}",
