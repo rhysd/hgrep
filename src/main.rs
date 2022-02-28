@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use clap::{App, Arg};
+use clap::{Arg, Command};
 use hgrep::grep::BufReadExt;
 use hgrep::printer::{PrinterOptions, TextWrapMode};
 use std::cmp;
@@ -19,14 +19,14 @@ use hgrep::bat::BatPrinter;
 #[cfg(feature = "syntect-printer")]
 use hgrep::syntect::SyntectPrinter;
 
-fn cli<'a>() -> App<'a> {
+fn command<'a>() -> Command<'a> {
     #[cfg(feature = "syntect-printer")]
     const DEFAULT_PRINTER: &str = "syntect";
 
     #[cfg(all(not(feature = "syntect-printer"), feature = "bat-printer"))]
     const DEFAULT_PRINTER: &str = "bat";
 
-    let app = App::new("hgrep")
+    let cmd = Command::new("hgrep")
         .version(env!("CARGO_PKG_VERSION"))
         .about(
             "hgrep is grep with human-friendly search output. It eats an output of `grep -nH` and prints the matches \
@@ -123,14 +123,14 @@ fn cli<'a>() -> App<'a> {
         );
 
     #[cfg(feature = "bat-printer")]
-    let app = app.arg(
+    let cmd = cmd.arg(
         Arg::new("custom-assets")
             .long("custom-assets")
             .help("Load bat's custom assets. Note that this flag may not work with some version of `bat` command. This flag is only for bat printer"),
     );
 
     #[cfg(feature = "syntect-printer")]
-    let app = app
+    let cmd = cmd
         .arg(
             Arg::new("background")
                 .long("background")
@@ -143,7 +143,7 @@ fn cli<'a>() -> App<'a> {
         );
 
     #[cfg(feature = "ripgrep")]
-    let app = app
+    let cmd = cmd
             .about(
                 "hgrep is grep with human-friendly search output. It eats an output of `grep -nH` and prints the \
                 matches with syntax-highlighted code snippets.\n\n\
@@ -329,26 +329,26 @@ fn cli<'a>() -> App<'a> {
                     .allow_invalid_utf8(true),
             );
 
-    app
+    cmd
 }
 
 fn generate_completion_script(shell: &str) {
     use clap_complete::generate;
     use clap_complete::shells::*;
 
-    let mut app = cli();
+    let mut cmd = command();
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
     if shell.eq_ignore_ascii_case("bash") {
-        generate(Bash, &mut app, "hgrep", &mut stdout)
+        generate(Bash, &mut cmd, "hgrep", &mut stdout)
     } else if shell.eq_ignore_ascii_case("zsh") {
-        generate(Zsh, &mut app, "hgrep", &mut stdout)
+        generate(Zsh, &mut cmd, "hgrep", &mut stdout)
     } else if shell.eq_ignore_ascii_case("powershell") {
-        generate(PowerShell, &mut app, "hgrep", &mut stdout)
+        generate(PowerShell, &mut cmd, "hgrep", &mut stdout)
     } else if shell.eq_ignore_ascii_case("fish") {
-        generate(Fish, &mut app, "hgrep", &mut stdout)
+        generate(Fish, &mut cmd, "hgrep", &mut stdout)
     } else if shell.eq_ignore_ascii_case("elvish") {
-        generate(Elvish, &mut app, "hgrep", &mut stdout)
+        generate(Elvish, &mut cmd, "hgrep", &mut stdout)
     } else {
         unreachable!() // SHELL argument was validated by clap
     }
@@ -441,7 +441,7 @@ enum PrinterKind {
 }
 
 fn app() -> Result<bool> {
-    let matches = cli().get_matches();
+    let matches = command().get_matches();
     if let Some(shell) = matches.value_of("generate-completion-script") {
         generate_completion_script(shell);
         return Ok(true);
@@ -663,6 +663,6 @@ mod tests {
 
     #[test]
     fn cli_parser() {
-        cli().debug_assert();
+        command().debug_assert();
     }
 }
