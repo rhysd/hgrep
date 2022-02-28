@@ -1,6 +1,6 @@
 ## Assets imported from [bat](https://github.com/sharkdp/bat)
 
-`syntaxes.bin` and `ansi.tmTheme` were imported from bat `9287cf6b0ba98be2611b5a682dffcc1a8583b151`. They're licensed with
+`syntaxes.bin` and `ansi.tmTheme` were imported from bat `7be9485c3690799ee204ec5195172f9e90f49924`. They're licensed with
 [the MIT license](./bat-LICENSE-MIT).
 
 ## How to update `syntaxes.bin`
