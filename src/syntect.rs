@@ -1251,9 +1251,11 @@ mod tests {
 
         fn run_uitest(file: File, expected_file: PathBuf, f: fn(&mut PrinterOptions<'_>) -> ()) {
             let stdout = DummyStdout(RefCell::new(vec![]));
-            let mut opts = PrinterOptions::default();
-            opts.term_width = 80;
-            opts.color_support = TermColorSupport::True;
+            let mut opts = PrinterOptions {
+                term_width: 80,
+                color_support: TermColorSupport::True,
+                ..Default::default()
+            };
             f(&mut opts);
             let mut printer = SyntectPrinter::with_assets(ASSETS.clone(), stdout, opts);
             printer.print(file).unwrap();
@@ -1442,9 +1444,11 @@ mod tests {
             let expected = Path::new("testdata").join("syntect").join(file);
             let expected = fs::read(&expected).unwrap();
 
-            let mut opts = PrinterOptions::default();
-            opts.term_width = 80;
-            opts.color_support = TermColorSupport::True;
+            let mut opts = PrinterOptions {
+                term_width: 80,
+                color_support: TermColorSupport::True,
+                ..Default::default()
+            };
             f(&mut opts);
 
             let mut got = vec![];
@@ -1540,8 +1544,10 @@ mod tests {
 
     #[test]
     fn test_unknown_theme() {
-        let mut opts = PrinterOptions::default();
-        opts.theme = Some("this theme does not exist");
+        let opts = PrinterOptions {
+            theme: Some("this theme does not exist"),
+            ..Default::default()
+        };
         let err = match SyntectPrinter::with_stdout(opts) {
             Err(e) => e,
             Ok(_) => panic!("error did not occur"),
@@ -1587,8 +1593,10 @@ mod tests {
         let chunks = vec![(1, 1)];
         let file = File::new(PathBuf::from("test.txt"), lmats, chunks, contents.to_vec());
 
-        let mut opts = PrinterOptions::default();
-        opts.color_support = TermColorSupport::True;
+        let opts = PrinterOptions {
+            color_support: TermColorSupport::True,
+            ..Default::default()
+        };
         let stdout = DummyStdout(RefCell::new(vec![]));
         let mut printer = SyntectPrinter::with_assets(ASSETS.clone(), stdout, opts);
         printer.print(file).unwrap();

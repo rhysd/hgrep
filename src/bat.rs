@@ -228,11 +228,13 @@ mod tests {
 
     #[test]
     fn test_print_with_flags() {
-        let mut opts = PrinterOptions::default();
-        opts.tab_width = 2;
-        opts.theme = Some("Nord");
-        opts.grid = false;
-        opts.text_wrap = TextWrapMode::Never;
+        let opts = PrinterOptions {
+            tab_width: 2,
+            theme: Some("Nord"),
+            grid: false,
+            text_wrap: TextWrapMode::Never,
+            ..Default::default()
+        };
         let p = BatPrinter::new(opts);
         let f = sample_file();
         p.print(f).unwrap();

@@ -26,8 +26,7 @@ pub(crate) fn read_matches<S: AsRef<str>>(dir: &Path, input: S) -> Vec<Result<Gr
 pub(crate) fn read_all_matches<S: AsRef<str>>(dir: &Path, inputs: &[S]) -> Vec<Result<GrepMatch>> {
     inputs
         .iter()
-        .map(|input| read_matches(dir, input).into_iter())
-        .flatten()
+        .flat_map(|input| read_matches(dir, input).into_iter())
         .collect()
 }
 
