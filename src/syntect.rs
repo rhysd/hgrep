@@ -1081,6 +1081,10 @@ where
             Some("pac") => Some("JavaScript (Babel)"),
             _ => None,
         };
+        let name = name.or_else(|| match path.file_name().and_then(OsStr::to_str) {
+            Some(".clang-format") => Some("YAML"),
+            _ => None,
+        });
         if let Some(syntax) = name.and_then(|n| self.syntaxes.find_syntax_by_name(n)) {
             return Ok(syntax);
         }
