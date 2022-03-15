@@ -1400,6 +1400,7 @@ mod tests {
             test_wide_char_region_bg(|o| {
                 o.background_color = true;
             }),
+            test_wrap_accross_regions(|_| {}),
             test_wrap_match_at_second_line(|_| {}),
             test_wrap_region_accross_line(|_| {}),
             test_wrap_region_jp_accross_line(|_| {}),
