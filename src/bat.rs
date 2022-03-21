@@ -63,14 +63,14 @@ impl<'main> BatPrinter<'main> {
             &[
                 StyleComponent::LineNumbers,
                 StyleComponent::Snip,
-                StyleComponent::Header,
+                StyleComponent::HeaderFilename,
                 StyleComponent::Grid,
             ][..]
         } else {
             &[
                 StyleComponent::LineNumbers,
                 StyleComponent::Snip,
-                StyleComponent::Header,
+                StyleComponent::HeaderFilename,
             ][..]
         };
 
