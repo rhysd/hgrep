@@ -6,6 +6,13 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            triple: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            triple: x86_64-apple-darwin
+          - os: windows-latest
+            triple: x86_64-pc-windows-msvc
       fail-fast: true
     runs-on: ${{ matrix.os }}
     env:
@@ -21,14 +28,24 @@ jobs:
           override: true
       - uses: Swatinem/rust-cache@v1
       - name: Run tests
-        run: cargo test --color always -- --color always
+        run: cargo test -- --color always
         env:
           LLVM_PROFILE_FILE: "./cov/cov-%p-%m.profraw"
           RUSTFLAGS: "-C instrument-coverage"
-      - name: Install grcov
-        run: cargo install grcov
+      - name: Install grcov on macOS or Linux
+        if: ${{ matrix.os == 'macos-latest' || matrix.os == 'ubuntu-latest' }}
+        run: |
+          curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-${{matrix.triple}}.tar.bz2 > grcov.tar.bz2
+          tar xf ./grcov.tar.bz2
+          ./grcov --version
+      - name: Install grcov on Windows
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-${{matrix.triple}}.zip > grcov.zip
+          unzip ./grcov.zip
+          ./grcov --version
       - name: Generate coverage results
-        run: grcov . -s . --binary-path ./target/debug/ -t html --branch --ignore-not-existing -o ./cov/out.lcov
+        run: ./grcov . -s . --binary-path ./target/debug/ -t lcov --branch --ignore-not-existing -o ./cov/out.lcov
       - uses: codecov/codecov-action@v2
         with:
           files: ./cov/out.lcov
