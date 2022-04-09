@@ -48,19 +48,21 @@ jobs:
           tar xf ./grcov.tar.bz2
           ./grcov --version
         shell: bash
-      - name: Install grcov (zip)
-        if: ${{ endsWith(matrix.grcov, '.zip') }}
-        run: |
-          curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-${{matrix.grcov}} > grcov.zip
-          unzip ./grcov.zip
-          ./grcov --version
-        shell: bash
+      # - name: Install grcov (zip)
+      #   if: ${{ endsWith(matrix.grcov, '.zip') }}
+      #   run: |
+      #     curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-${{matrix.grcov}} > grcov.zip
+      #     unzip ./grcov.zip
+      #     ./grcov --version
+      #   shell: bash
       - name: Generate coverage results
         run: ./grcov ./cov -s . --binary-path ./target/debug/ -t lcov --ignore-not-existing --ignore "/*" -o ./cov/lcov.info
         shell: bash
+        if: ${{ matrix.os != 'windows-latest' }}
       - uses: codecov/codecov-action@v2
         with:
           files: ./cov/lcov.info
+        if: ${{ matrix.os != 'windows-latest' }}
   lint:
     runs-on: ubuntu-latest
     steps:
