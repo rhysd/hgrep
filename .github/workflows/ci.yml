@@ -17,11 +17,22 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
+          components: llvm-tools-preview
           override: true
       - uses: Swatinem/rust-cache@v1
       - name: Run tests
         run: cargo test --color always -- --color always
-      - name: Run command
+        env:
+          LLVM_PROFILE_FILE: "./cov/cov-%p-%m.profraw"
+          RUSTFLAGS: "-C instrument-coverage"
+      - name: Install grcov
+        run: cargo install grcov
+      - name: Generate coverage results
+        run: grcov . -s . --binary-path ./target/debug/ -t html --branch --ignore-not-existing -o ./cov/out.lcov
+      - uses: codecov/codecov-action@v2
+        with:
+          files: ./cov/out.lcov
+      - name: Sanity check
         run: cargo run --color always -- hgrep README.md
       - run: cargo run --color always --no-default-features --features syntect-printer             -- --version
       - run: cargo run --color always --no-default-features --features bat-printer                 -- --version
