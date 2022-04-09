@@ -2,6 +2,7 @@ hgrep: Human-friendly GREP
 ==========================
 [![CI][ci-badge]][ci]
 [![crate][crates-io-badge]][crates-io]
+[![Coverage][codecov-badge]][codecov]
 
 [hgrep][] is a grep tool to search files with a given pattern and print the matched code snippets with human-friendly syntax
 highlighting. This tool brings search results like the code search on GitHub to your local machine. In short, it's something like
@@ -418,6 +419,8 @@ hgrep is distributed under [the MIT license](./LICENSE.txt).
 [ci]: https://github.com/rhysd/hgrep/actions/workflows/ci.yml
 [crates-io]: https://crates.io/crates/hgrep
 [crates-io-badge]: https://img.shields.io/crates/v/hgrep.svg
+[codecov-badge]: https://codecov.io/gh/rhysd/hgrep/branch/main/graph/badge.svg?token=IF41OXFJEQ
+[codecov]: https://codecov.io/gh/rhysd/hgrep
 [releases]: https://github.com/rhysd/hgrep/releases
 [bash]: https://www.gnu.org/software/bash/
 [zsh]: https://www.zsh.org/
