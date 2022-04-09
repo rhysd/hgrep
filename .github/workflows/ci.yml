@@ -28,9 +28,10 @@ jobs:
           override: true
       - uses: Swatinem/rust-cache@v1
       - name: Run tests
-        run: cargo test -- --color always
+        run: |
+          cargo build --color always
+          LLVM_PROFILE_FILE="./cov/cov-%p-%m.profraw" cargo test -- --color always
         env:
-          LLVM_PROFILE_FILE: "./cov/cov-%p-%m.profraw"
           RUSTFLAGS: "-C instrument-coverage"
       - name: Install grcov on macOS or Linux
         if: ${{ matrix.os == 'macos-latest' || matrix.os == 'ubuntu-latest' }}
