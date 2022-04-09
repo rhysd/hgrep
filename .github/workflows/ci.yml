@@ -31,6 +31,16 @@ jobs:
         run: cargo test -- --color always
         env:
           LLVM_PROFILE_FILE: "./cov/cov-%p-%m.profraw"
+      - name: Sanity check
+        run: cargo run --color always -- hgrep README.md
+      - run: cargo run --color always --no-default-features --features syntect-printer             -- --version
+      - run: cargo run --color always --no-default-features --features bat-printer                 -- --version
+      - run: cargo run --color always --no-default-features --features syntect-printer,bat-printer -- --version
+      - run: cargo run --color always --no-default-features --features ripgrep,syntect-printer     -- --version
+      - run: cargo run --color always --no-default-features --features ripgrep,bat-printer         -- --version
+      # `head -n` exits before `cargo run` exits. Since `cargo run` does not know that, it tries to write additional
+      # outputs to stdout. But the stdout is already closed by the succeeding process.
+      - run: cargo run --color always -- Printer src | head -n 5
       - name: Install grcov (tar.bz2)
         if: ${{ endsWith(matrix.grcov, '.tar.bz2') }}
         run: |
@@ -51,16 +61,6 @@ jobs:
       - uses: codecov/codecov-action@v2
         with:
           files: ./cov/lcov.info
-      - name: Sanity check
-        run: cargo run --color always -- hgrep README.md
-      - run: cargo run --color always --no-default-features --features syntect-printer             -- --version
-      - run: cargo run --color always --no-default-features --features bat-printer                 -- --version
-      - run: cargo run --color always --no-default-features --features syntect-printer,bat-printer -- --version
-      - run: cargo run --color always --no-default-features --features ripgrep,syntect-printer     -- --version
-      - run: cargo run --color always --no-default-features --features ripgrep,bat-printer         -- --version
-      # `head -n` exits before `cargo run` exits. Since `cargo run` does not know that, it tries to write additional
-      # outputs to stdout. But the stdout is already closed by the succeeding process.
-      - run: cargo run --color always -- Printer src | head -n 5
   lint:
     runs-on: ubuntu-latest
     steps:
