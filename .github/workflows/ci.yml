@@ -46,11 +46,11 @@ jobs:
           ./grcov --version
         shell: bash
       - name: Generate coverage results
-        run: ./grcov . -s . --binary-path ./target/debug/ -t lcov --branch --ignore-not-existing -o ./cov/out.lcov
+        run: ./grcov ./cov -s . --binary-path ./target/debug/ -t lcov --ignore-not-existing -o ./cov/lcov.info
         shell: bash
       - uses: codecov/codecov-action@v2
         with:
-          files: ./cov/out.lcov
+          files: ./cov/lcov.info
       - name: Sanity check
         run: cargo run --color always -- hgrep README.md
       - run: cargo run --color always --no-default-features --features syntect-printer             -- --version
