@@ -44,8 +44,10 @@ jobs:
           curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-${{matrix.triple}}.zip > grcov.zip
           unzip ./grcov.zip
           ./grcov --version
+        shell: bash
       - name: Generate coverage results
         run: ./grcov . -s . --binary-path ./target/debug/ -t lcov --branch --ignore-not-existing -o ./cov/out.lcov
+        shell: bash
       - uses: codecov/codecov-action@v2
         with:
           files: ./cov/out.lcov
