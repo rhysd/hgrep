@@ -16,7 +16,7 @@ jobs:
       fail-fast: true
     runs-on: ${{ matrix.os }}
     env:
-      RUSTFLAGS: -D warnings
+      RUSTFLAGS: -D warnings -C instrument-coverage
       RUST_BACKTRACE: 1
     steps:
       - uses: actions/checkout@v2
@@ -28,11 +28,9 @@ jobs:
           override: true
       - uses: Swatinem/rust-cache@v1
       - name: Run tests
-        run: |
-          cargo build --color always
-          LLVM_PROFILE_FILE="./cov/cov-%p-%m.profraw" cargo test -- --color always
+        run: cargo test -- --color always
         env:
-          RUSTFLAGS: "-C instrument-coverage"
+          LLVM_PROFILE_FILE: "./cov/cov-%p-%m.profraw"
       - name: Install grcov on macOS or Linux
         if: ${{ matrix.os == 'macos-latest' || matrix.os == 'ubuntu-latest' }}
         run: |
