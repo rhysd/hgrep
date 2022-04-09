@@ -8,11 +8,11 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         include:
           - os: ubuntu-latest
-            triple: x86_64-unknown-linux-gnu
+            grcov: x86_64-unknown-linux-gnu.tar.bz2
           - os: macos-latest
-            triple: x86_64-apple-darwin
+            grcov: x86_64-apple-darwin.tar.bz2
           - os: windows-latest
-            triple: x86_64-pc-windows-msvc
+            grcov: x86_64-pc-windows-msvc.zip
       fail-fast: true
     runs-on: ${{ matrix.os }}
     env:
@@ -31,16 +31,17 @@ jobs:
         run: cargo test -- --color always
         env:
           LLVM_PROFILE_FILE: "./cov/cov-%p-%m.profraw"
-      - name: Install grcov on macOS or Linux
-        if: ${{ matrix.os == 'macos-latest' || matrix.os == 'ubuntu-latest' }}
+      - name: Install grcov (tar.bz2)
+        if: ${{ endsWith(matrix.grcov, '.tar.bz2') }}
         run: |
-          curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-${{matrix.triple}}.tar.bz2 > grcov.tar.bz2
+          curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-${{matrix.grcov}} > grcov.tar.bz2
           tar xf ./grcov.tar.bz2
           ./grcov --version
-      - name: Install grcov on Windows
-        if: ${{ matrix.os == 'windows-latest' }}
+        shell: bash
+      - name: Install grcov (zip)
+        if: ${{ endsWith(matrix.grcov, '.zip') }}
         run: |
-          curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-${{matrix.triple}}.zip > grcov.zip
+          curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-${{matrix.grcov}} > grcov.zip
           unzip ./grcov.zip
           ./grcov --version
         shell: bash
