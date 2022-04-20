@@ -12,11 +12,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build: [linux, mac-x86_64, mac-aarch64, win]
+        build: [linux-x86_64, linux-aarch64, mac-x86_64, mac-aarch64, win]
         include:
-          - build: linux
+          - build: linux-x86_64
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+          - build: linux-aarch64
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
           - build: mac-x86_64
             os: macos-latest
             target: x86_64-apple-darwin
@@ -54,12 +57,16 @@ jobs:
           target: ${{ matrix.target }}
       - name: Prepare cross compilation for M1 Mac
         run: |
-          rustup target add ${{ matrix.target }}
           # /usr/local/lib/libpcre2-8.dylib is built for x86_64. Link error happens on `cargo build` for dynamic linking.
           # Build pcre2-sys with static link to avoid the problem.
           # https://github.com/BurntSushi/rust-pcre2/tree/master/pcre2-sys
           echo 'PCRE2_SYS_STATIC=1' >> "$GITHUB_ENV"
         if: matrix.build == 'mac-aarch64'
+      - name: Prepare cross compilation for AArch64 Linux
+        run: |
+          sudo apt-get install gcc-aarch64-linux-gnu
+          echo "RUSTFLAGS=${RUSTFLAGS} -C linker=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+        if: matrix.build == 'linux-aarch64'
       - name: Build
         run: cargo build --release --color always --target=${{ matrix.target }} --verbose
         env:
@@ -67,7 +74,7 @@ jobs:
           RUST_BACKTRACE: 1
           PCRE2_SYS_STATIC: 1
       - name: Archive files
-        if: matrix.build == 'linux' || matrix.build == 'mac-x86_64' || matrix.build == 'mac-aarch64'
+        if: startsWith(matrix.build, 'linux-') || startsWith(matrix.build, 'mac-')
         run: |
           mkdir ${{ steps.info.outputs.asset_dir }}
           cp target/${{ matrix.target }}/release/hgrep LICENSE.txt README.md ${{ steps.info.outputs.asset_dir }}
