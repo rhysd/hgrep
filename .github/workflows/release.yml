@@ -65,7 +65,6 @@ jobs:
       - name: Prepare cross compilation for AArch64 Linux
         run: |
           sudo apt-get install gcc-aarch64-linux-gnu
-          echo "RUSTFLAGS=${RUSTFLAGS} -C linker=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
         if: matrix.build == 'linux-aarch64'
       - name: Build
         run: cargo build --release --color always --target=${{ matrix.target }} --verbose
