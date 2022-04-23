@@ -1,3 +1,11 @@
+<a name="v0.2.5"></a>
+# [v0.2.5](https://github.com/rhysd/batgrep/releases/tag/v0.2.5) - 23 Apr 2022
+
+- Add pre-built binary for AArch64 Linux. (#9)
+
+[Changes][v0.2.5]
+
+
 <a name="v0.2.4"></a>
 # [v0.2.4](https://github.com/rhysd/batgrep/releases/tag/v0.2.4) - 17 Apr 2022
 
@@ -219,6 +227,7 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [Changes][v0.1.1]
 
 
+[v0.2.5]: https://github.com/rhysd/batgrep/compare/v0.2.4...v0.2.5
 [v0.2.4]: https://github.com/rhysd/batgrep/compare/v0.2.3...v0.2.4
 [v0.2.3]: https://github.com/rhysd/batgrep/compare/v0.2.2...v0.2.3
 [v0.2.2]: https://github.com/rhysd/batgrep/compare/v0.2.1...v0.2.2
