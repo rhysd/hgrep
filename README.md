@@ -43,7 +43,7 @@ Visit [the releases page][releases] and download the zip file for your platform.
 in some `$PATH` directory. Currently, the following targets are supported. If you want a binary for some other platform, feel free
 to make an issue to request it.
 
-- Linux (x86_64-gnu, x86_64-musl)
+- Linux (x86_64-gnu, x86_64-musl, aarch64-gnu)
 - macOS (x86_64, aarch64)
 - Windows (x86_64-msvc)
 
