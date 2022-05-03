@@ -1,9 +1,9 @@
 use crate::chunk::{File, Line};
 use crate::printer::{Printer, PrinterOptions, TermColorSupport, TextWrapMode};
+use ansi_colours::ansi256_from_rgb;
 use anyhow::Result;
 use flate2::read::ZlibDecoder;
 use memchr::{memchr_iter, Memchr};
-use rgb2ansi256::rgb_to_ansi256;
 use std::cmp;
 use std::ffi::OsStr;
 use std::fmt;
@@ -435,8 +435,8 @@ impl<W: Write> Canvas<W> {
                 write!(self.out, "\x1b[{};2;{};{};{}m", code + 8, c.r, c.g, c.b)?;
             }
             _ => {
-                let c = rgb_to_ansi256(c.r, c.g, c.b);
-                write!(self.out, "\x1b[{};5;{}m", code + 8, c,)?;
+                let c = ansi256_from_rgb((c.r, c.g, c.b));
+                write!(self.out, "\x1b[{};5;{}m", code + 8, c)?;
             }
         }
         Ok(())

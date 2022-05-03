@@ -634,6 +634,7 @@ dependencies = [
 name = "hgrep"
 version = "0.2.5"
 dependencies = [
+ "ansi_colours",
  "ansi_term",
  "anyhow",
  "bat",
@@ -654,7 +655,6 @@ dependencies = [
  "pretty_assertions",
  "rayon",
  "regex",
- "rgb2ansi256",
  "syntect",
  "term",
  "terminal_size",
@@ -1134,12 +1134,6 @@ checksum = "e74fdc210d8f24a7dbfedc13b04ba5764f5232754ccebfdf5fff1bad791ccbc6"
 dependencies = [
  "bytemuck",
 ]
-
-[[package]]
-name = "rgb2ansi256"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ebca96b1c05912d531790498048bab5b7b97a756a7bb9df71fa4ef7ef9814e1"
 
 [[package]]
 name = "rustc_version"
