@@ -1,3 +1,12 @@
+<a name="v0.2.6"></a>
+# [v0.2.6](https://github.com/rhysd/batgrep/releases/tag/v0.2.6) - 27 May 2022
+
+- `x86_64-unknown-linux-musl` release binary now links libc statically (#10)
+- Replace `rgb2ansi256` crate with `ansi_colors` crate
+
+[Changes][v0.2.6]
+
+
 <a name="v0.2.5"></a>
 # [v0.2.5](https://github.com/rhysd/batgrep/releases/tag/v0.2.5) - 23 Apr 2022
 
@@ -227,6 +236,7 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [Changes][v0.1.1]
 
 
+[v0.2.6]: https://github.com/rhysd/batgrep/compare/v0.2.5...v0.2.6
 [v0.2.5]: https://github.com/rhysd/batgrep/compare/v0.2.4...v0.2.5
 [v0.2.4]: https://github.com/rhysd/batgrep/compare/v0.2.3...v0.2.4
 [v0.2.3]: https://github.com/rhysd/batgrep/compare/v0.2.2...v0.2.3
