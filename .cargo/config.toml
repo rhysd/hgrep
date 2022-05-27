@@ -3,11 +3,5 @@
 [target.x86_64-pc-windows-msvc]
 rustflags = ["-C", "target-feature=+crt-static"]
 
-
-# https://github.com/rust-analyzer/rust-analyzer/blob/master/.github/workflows/release.yaml
-# For some reason `-crt-static` is not working for clang without lld
-[target.x86_64-unknown-linux-musl]
-rustflags = ["-C", "link-arg=-fuse-ld=lld", "-C", "target-feature=-crt-static"]
-
 [target.aarch64-unknown-linux-gnu]
 rustflags = ["-C", "linker=aarch64-linux-gnu-gcc"]
