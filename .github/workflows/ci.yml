@@ -12,7 +12,7 @@ jobs:
       RUSTFLAGS: -D warnings
       RUST_BACKTRACE: 1
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -34,7 +34,7 @@ jobs:
       # `head -n` exits before `cargo run` exits. Since `cargo run` does not know that, it tries to write additional
       # outputs to stdout. But the stdout is already closed by the succeeding process.
       - run: cargo run --color always -- Printer src | head -n 5
-      - uses: codecov/codecov-action@v2
+      - uses: codecov/codecov-action@v3
         with:
           files: lcov.info
   lint:
