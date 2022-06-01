@@ -6,20 +6,13 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        include:
-          - os: ubuntu-latest
-            grcov: x86_64-unknown-linux-gnu.tar.bz2
-          - os: macos-latest
-            grcov: x86_64-apple-darwin.tar.bz2
-          - os: windows-latest
-            grcov: x86_64-pc-windows-msvc.zip
       fail-fast: true
     runs-on: ${{ matrix.os }}
     env:
-      RUSTFLAGS: -D warnings -C instrument-coverage
+      RUSTFLAGS: -D warnings
       RUST_BACKTRACE: 1
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -27,10 +20,10 @@ jobs:
           components: llvm-tools-preview
           override: true
       - uses: Swatinem/rust-cache@v1
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
       - name: Run tests
-        run: cargo test -- --color always
-        env:
-          LLVM_PROFILE_FILE: "./cov/cov-%p-%m.profraw"
+        run: cargo llvm-cov --color always --lcov --output-path lcov.info
       - name: Sanity check
         run: cargo run --color always -- hgrep README.md
       - run: cargo run --color always --no-default-features --features syntect-printer             -- --version
@@ -41,28 +34,9 @@ jobs:
       # `head -n` exits before `cargo run` exits. Since `cargo run` does not know that, it tries to write additional
       # outputs to stdout. But the stdout is already closed by the succeeding process.
       - run: cargo run --color always -- Printer src | head -n 5
-      - name: Install grcov (tar.bz2)
-        if: ${{ endsWith(matrix.grcov, '.tar.bz2') }}
-        run: |
-          curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-${{matrix.grcov}} > grcov.tar.bz2
-          tar xf ./grcov.tar.bz2
-          ./grcov --version
-        shell: bash
-      # - name: Install grcov (zip)
-      #   if: ${{ endsWith(matrix.grcov, '.zip') }}
-      #   run: |
-      #     curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-${{matrix.grcov}} > grcov.zip
-      #     unzip ./grcov.zip
-      #     ./grcov --version
-      #   shell: bash
-      - name: Generate coverage results
-        run: ./grcov ./cov -s . --binary-path ./target/debug/ -t lcov --ignore-not-existing --ignore "/*" -o ./cov/lcov.info
-        shell: bash
-        if: ${{ matrix.os != 'windows-latest' }}
-      - uses: codecov/codecov-action@v2
+      - uses: codecov/codecov-action@v3
         with:
-          files: ./cov/lcov.info
-        if: ${{ matrix.os != 'windows-latest' }}
+          files: lcov.info
   lint:
     runs-on: ubuntu-latest
     steps:
