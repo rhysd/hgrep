@@ -23,7 +23,9 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Run tests
-        run: cargo llvm-cov --color always --lcov --output-path lcov.info
+        run: |
+          cargo llvm-cov --color always --lcov --output-path lcov.info
+          cargo llvm-cov --color always --no-run
       - name: Sanity check
         run: cargo run --color always -- hgrep README.md
       - run: cargo run --color always --no-default-features --features syntect-printer             -- --version
