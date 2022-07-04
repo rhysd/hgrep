@@ -26,6 +26,7 @@ jobs:
         run: |
           cargo llvm-cov --color always --lcov --output-path lcov.info
           cargo llvm-cov --color always --no-run
+        shell: bash
       - name: Sanity check
         run: cargo run --color always -- hgrep README.md
       - run: cargo run --color always --no-default-features --features syntect-printer             -- --version
