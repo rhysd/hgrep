@@ -1,7 +1,7 @@
 <a name="v0.2.6"></a>
 # [v0.2.6](https://github.com/rhysd/batgrep/releases/tag/v0.2.6) - 27 May 2022
 
-- `x86_64-unknown-linux-musl` release binary now links libc statically (#10)
+- `x86_64-unknown-linux-musl` release binary now links libc statically ([#10](https://github.com/rhysd/batgrep/issues/10))
 - Replace `rgb2ansi256` crate with `ansi_colors` crate
 
 [Changes][v0.2.6]
@@ -10,7 +10,7 @@
 <a name="v0.2.5"></a>
 # [v0.2.5](https://github.com/rhysd/batgrep/releases/tag/v0.2.5) - 23 Apr 2022
 
-- Add pre-built binary for AArch64 Linux. (#9)
+- Add pre-built binary for AArch64 Linux. ([#9](https://github.com/rhysd/batgrep/issues/9))
 
 [Changes][v0.2.5]
 
@@ -37,7 +37,7 @@
 # [v0.2.2](https://github.com/rhysd/batgrep/releases/tag/v0.2.2) - 11 Dec 2021
 
 - Fix a build failure since new RC version of `clap` crate was released.
-- Fix a dynamic link error of pcre2 library by linking the library statically. The error could happen when you installed Homebrew to non-default location on macOS (#6).
+- Fix a dynamic link error of pcre2 library by linking the library statically. The error could happen when you installed Homebrew to non-default location on macOS ([#6](https://github.com/rhysd/batgrep/issues/6)).
 - Add `--regex-size-limit` option for built-in grep feature.
 - Add `--dfa-size-limit` option for built-in grep feature.
 - Use Rust compiler v1.57 to build binaries.
@@ -105,7 +105,7 @@
     <img width="584" alt="cyanide" src="https://user-images.githubusercontent.com/823277/140618295-496ba46f-8500-44e5-85b2-d4094a049b68.png">
 - Output of `--list-themes` is much improved. It shows sample outputs per theme so that users can know what they look like. Options related to outputs like `--background` and `--no-grid` are reflected to the sample outputs. At v0.1.9, only theme names were printed so users needed to try the themes by themselves.
   <img width="584" alt="list themes output example" src="https://user-images.githubusercontent.com/823277/140618330-37d418be-c7ea-4b98-b57e-a7fabefe5199.png">
-- Linux x86_64 musl target was added to pre-built releases. Find `hgrep-*-x86_64-unknown-linux-musl.zip` in released assets. Note that this binary is not tested. (#5)
+- Linux x86_64 musl target was added to pre-built releases. Find `hgrep-*-x86_64-unknown-linux-musl.zip` in released assets. Note that this binary is not tested. ([#5](https://github.com/rhysd/batgrep/issues/5))
 - Depend on `ansi_term` crate only when targeting Windows. It reduces number of dependencies when `bat-printer` is not enabled.
 - Improve a compile error when both feature `syntect-printer` and `bat-printer` are disabled.
 - Describe the exit status of `hgrep` command and versioning of this project in [the readme document](https://github.com/rhysd/hgrep#readme).
@@ -161,7 +161,7 @@
 - `bat-printer` now looks at bat's cache directory when `--custom-assets` flag is given. This is useful if you use some custom syntax highlighting or theme. Note that this may not work fine with some versions of `bat` command.
 - `bat-printer` automatically uses 'ansi' theme for terminals which enable only 16 colors since other themes don't work.
 - Add `--terminal-width` option to give the width of terminal explicitly. This is useful when piping the results to other command like `less`.
-- Fix build failure due to lack of assets (#4).
+- Fix build failure due to lack of assets ([#4](https://github.com/rhysd/batgrep/issues/4)).
 - Fix some newlines were missing when printing results with `syntect-printer`.
 - Use `terminal_size` crate directly instead of using `console` crate. It removes 3 dependencies when `bat-printer` feature is not enabled.
 - The document has been improved. Especially if you like a pager such as `less`, I recommend to check ['Set default command options'](https://github.com/rhysd/hgrep#set-default-command-options) section.
@@ -180,7 +180,7 @@
   - See [`bat` printer v.s. `syntect` printer](https://github.com/rhysd/hgrep#bat-printer-vs-syntect-printer) section for comparison of the two printers.
 - Add `--printer` (`-p`) flag to specify printer to use. It takes argument `bat` or `syntect`. `-p syntect` enables the new experimental printer
 - `bat` printer is now optional through `bat-printer` feature gate. Note that at least `bat-printer` or `syntect-printer` must be enabled. Both printers are enabled by default. See [Feature flags](https://github.com/rhysd/hgrep#feature-flags) section for more details.
-- hgrep is now available for NetBSD. See [the instruction](https://github.com/rhysd/hgrep#for-netbsd) (thanks @0323pin, #3)
+- hgrep is now available for NetBSD. See [the instruction](https://github.com/rhysd/hgrep#for-netbsd) (thanks [@0323pin](https://github.com/0323pin), [#3](https://github.com/rhysd/batgrep/issues/3))
 
 [Changes][v0.1.6]
 
@@ -197,8 +197,8 @@
 <a name="v0.1.4"></a>
 # [v0.1.4](https://github.com/rhysd/batgrep/releases/tag/v0.1.4) - 19 Oct 2021
 
-- Fix compile error on `cargo install` due to new release of `clap` crate v3.0.0-beta.5 (#2)
-- Add how to install `hgrep` command with [MacPorts](https://www.macports.org/). See [the document](https://github.com/rhysd/hgrep#via-macports) for more details (thanks @herbygillot, #1)
+- Fix compile error on `cargo install` due to new release of `clap` crate v3.0.0-beta.5 ([#2](https://github.com/rhysd/batgrep/issues/2))
+- Add how to install `hgrep` command with [MacPorts](https://www.macports.org/). See [the document](https://github.com/rhysd/hgrep#via-macports) for more details (thanks [@herbygillot](https://github.com/herbygillot), [#1](https://github.com/rhysd/batgrep/issues/1))
 
 [Changes][v0.1.4]
 
