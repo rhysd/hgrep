@@ -6,7 +6,7 @@ use hgrep::printer::{PrinterOptions, TextWrapMode};
 use std::cmp;
 use std::env;
 use std::io;
-use std::path::Path;
+use std::path::PathBuf;
 use std::process;
 
 #[global_allocator]
@@ -384,50 +384,50 @@ fn build_ripgrep_config(
         .one_file_system(matches.contains_id("one-file-system"))
         .no_unicode(matches.contains_id("no-unicode"));
 
-    if let Some(globs) = matches.get_many::<&str>("glob") {
-        config.globs(globs.copied());
+    if let Some(globs) = matches.get_many::<String>("glob") {
+        config.globs(globs.map(String::as_str));
     }
 
-    if let Some(num) = matches.get_one::<&str>("max-count") {
+    if let Some(num) = matches.get_one::<String>("max-count") {
         let num = num
             .parse()
             .context("could not parse --max-count option value as unsigned integer")?;
         config.max_count(num);
     }
 
-    if let Some(num) = matches.get_one::<&str>("max-depth") {
+    if let Some(num) = matches.get_one::<String>("max-depth") {
         let num = num
             .parse()
             .context("could not parse --max-depth option value as unsigned integer")?;
         config.max_depth(num);
     }
 
-    if let Some(size) = matches.get_one::<&str>("max-filesize") {
+    if let Some(size) = matches.get_one::<String>("max-filesize") {
         config
             .max_filesize(size)
             .context("coult not parse --max-filesize option value as file size string")?;
     }
 
-    if let Some(limit) = matches.get_one::<&str>("regex-size-limit") {
+    if let Some(limit) = matches.get_one::<String>("regex-size-limit") {
         config
             .regex_size_limit(limit)
             .context("coult not parse --regex-size-limit option value as size string")?;
     }
 
-    if let Some(limit) = matches.get_one::<&str>("dfa-size-limit") {
+    if let Some(limit) = matches.get_one::<String>("dfa-size-limit") {
         config
             .dfa_size_limit(limit)
             .context("coult not parse --dfa-size-limit option value as size string")?;
     }
 
-    let types = matches.get_many::<&str>("type");
+    let types = matches.get_many::<String>("type");
     if let Some(types) = types {
-        config.types(types.copied());
+        config.types(types.map(String::as_str));
     }
 
-    let types_not = matches.get_many::<&str>("type-not");
+    let types_not = matches.get_many::<String>("type-not");
     if let Some(types_not) = types_not {
-        config.types_not(types_not.copied());
+        config.types_not(types_not.map(String::as_str));
     }
 
     Ok(config)
@@ -443,13 +443,13 @@ enum PrinterKind {
 
 fn app() -> Result<bool> {
     let matches = command().get_matches();
-    if let Some(shell) = matches.get_one::<&str>("generate-completion-script") {
+    if let Some(shell) = matches.get_one::<String>("generate-completion-script") {
         generate_completion_script(shell);
         return Ok(true);
     }
 
     #[allow(unused_variables)] // printer_kind is unused when syntect-printer is disabled for now
-    let printer_kind = match *matches.get_one::<&str>("printer").unwrap() {
+    let printer_kind = match matches.get_one::<String>("printer").unwrap().as_str() {
         #[cfg(feature = "bat-printer")]
         "bat" => PrinterKind::Bat,
         #[cfg(not(feature = "bat-printer"))]
@@ -462,19 +462,19 @@ fn app() -> Result<bool> {
     };
 
     let min_context = matches
-        .get_one::<&str>("min-context")
+        .get_one::<String>("min-context")
         .unwrap()
         .parse()
         .context("could not parse \"min-context\" option value as unsigned integer")?;
     let max_context = matches
-        .get_one::<&str>("max-context")
+        .get_one::<String>("max-context")
         .unwrap()
         .parse()
         .context("could not parse \"max-context\" option value as unsigned integer")?;
     let max_context = cmp::max(min_context, max_context);
 
     let mut printer_opts = PrinterOptions::default();
-    if let Some(width) = matches.get_one::<&str>("tab") {
+    if let Some(width) = matches.get_one::<String>("tab") {
         printer_opts.tab_width = width
             .parse()
             .context("could not parse \"tab\" option value as unsigned integer")?;
@@ -488,7 +488,7 @@ fn app() -> Result<bool> {
             printer_opts.theme = Some(var);
         }
     }
-    if let Some(theme) = matches.get_one::<&str>("theme") {
+    if let Some(theme) = matches.get_one::<String>("theme") {
         printer_opts.theme = Some(theme);
     }
 
@@ -507,7 +507,7 @@ fn app() -> Result<bool> {
         printer_opts.grid = false;
     }
 
-    if let Some(width) = matches.get_one::<&str>("term-width") {
+    if let Some(width) = matches.get_one::<String>("term-width") {
         let width = width
             .parse()
             .context("could not parse \"term-width\" option value as unsigned integer")?;
@@ -517,7 +517,7 @@ fn app() -> Result<bool> {
         }
     }
 
-    if let Some(mode) = matches.get_one::<&str>("wrap") {
+    if let Some(mode) = matches.get_one::<String>("wrap") {
         if mode.eq_ignore_ascii_case("never") {
             printer_opts.text_wrap = TextWrapMode::Never;
         } else if mode.eq_ignore_ascii_case("char") {
@@ -583,8 +583,10 @@ fn app() -> Result<bool> {
     }
 
     #[cfg(feature = "ripgrep")]
-    if let Some(pattern) = matches.get_one::<&str>("PATTERN") {
-        let paths = matches.get_many::<&Path>("PATH").map(Iterator::copied);
+    if let Some(pattern) = matches.get_one::<String>("PATTERN") {
+        let paths = matches
+            .get_many::<PathBuf>("PATH")
+            .map(|p| p.map(PathBuf::as_path));
         let config = build_ripgrep_config(min_context, max_context, &matches)?;
 
         #[cfg(feature = "syntect-printer")]
