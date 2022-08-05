@@ -12,10 +12,9 @@ use ignore::{Walk, WalkBuilder};
 use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
 use std::env;
-use std::ffi::OsStr;
 use std::fs::File;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 // Note: 'main is a lifetime of scope of main() function
@@ -228,7 +227,7 @@ impl<'main> Config<'main> {
         Ok(self)
     }
 
-    fn build_walker(&self, mut paths: impl Iterator<Item = &'main OsStr>) -> Result<Walk> {
+    fn build_walker(&self, mut paths: impl Iterator<Item = &'main Path>) -> Result<Walk> {
         let target = paths.next().unwrap();
 
         let mut builder = OverrideBuilder::new(target);
@@ -394,14 +393,14 @@ impl<'main> Config<'main> {
 pub fn grep<'main, P: Printer + Sync>(
     printer: P,
     pat: &str,
-    paths: Option<impl Iterator<Item = &'main OsStr>>,
+    paths: Option<impl Iterator<Item = &'main Path>>,
     config: Config<'main>,
 ) -> Result<bool> {
     let entries = if let Some(paths) = paths {
         config.build_walker(paths)?
     } else {
         let cwd = env::current_dir()?;
-        let paths = std::iter::once(cwd.as_os_str());
+        let paths = std::iter::once(cwd.as_path());
         config.build_walker(paths)?
     };
 

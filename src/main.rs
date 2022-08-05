@@ -5,8 +5,8 @@ use hgrep::grep::BufReadExt;
 use hgrep::printer::{PrinterOptions, TextWrapMode};
 use std::cmp;
 use std::env;
-use std::ffi::OsStr;
 use std::io;
+use std::path::Path;
 use std::process;
 
 #[global_allocator]
@@ -328,7 +328,7 @@ fn command<'a>() -> Command<'a> {
                     .help("Paths to search")
                     .multiple_values(true)
                     .value_hint(clap::ValueHint::AnyPath)
-                    .value_parser(ValueParser::os_string()), // TODO: Use ValueParser::path_buf()
+                    .value_parser(ValueParser::path_buf()),
             );
 
     cmd
@@ -584,7 +584,7 @@ fn app() -> Result<bool> {
 
     #[cfg(feature = "ripgrep")]
     if let Some(pattern) = matches.get_one::<&str>("PATTERN") {
-        let paths = matches.get_many::<&OsStr>("PATH").map(Iterator::copied);
+        let paths = matches.get_many::<&Path>("PATH").map(Iterator::copied);
         let config = build_ripgrep_config(min_context, max_context, &matches)?;
 
         #[cfg(feature = "syntect-printer")]
