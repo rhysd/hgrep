@@ -677,7 +677,7 @@ mod tests {
             let mut printer = DummyPrinter::default();
             let pat = r"\*$";
             let file = dir.join(format!("{}.in", input));
-            let paths = iter::once(OsStr::new(&file));
+            let paths = iter::once(file.as_path());
             let found = grep(&printer, pat, Some(paths), Config::new(3, 6)).unwrap();
             let expected = read_expected_chunks(&dir, input)
                 .map(|f| vec![f])
@@ -721,7 +721,7 @@ mod tests {
     #[test]
     fn test_grep_no_match_found() {
         let path = Path::new("testdata").join("chunk").join("single_max.in");
-        let paths = iter::once(path.as_os_str());
+        let paths = iter::once(path.as_path());
         let printer = DummyPrinter::default();
         let pat = "^this does not match to any line!!!!!!$";
         let found = grep(&printer, pat, Some(paths), Config::new(3, 6)).unwrap();
@@ -738,7 +738,7 @@ mod tests {
                 .join("this-file-does-not-exist.txt"),
             Path::new("testdata").join("this-directory-dies-not-exist"),
         ] {
-            let paths = iter::once(path.as_os_str());
+            let paths = iter::once(path.as_path());
             let printer = DummyPrinter::default();
             let pat = ".*";
             grep(&printer, pat, Some(paths), Config::new(3, 6)).unwrap_err();
@@ -756,7 +756,7 @@ mod tests {
     #[test]
     fn test_grep_print_error() {
         let path = Path::new("testdata").join("chunk").join("single_max.in");
-        let paths = iter::once(path.as_os_str());
+        let paths = iter::once(path.as_path());
         let pat = ".*";
         let err = grep(ErrorPrinter, pat, Some(paths), Config::new(3, 6)).unwrap_err();
         let msg = format!("{}", err);
@@ -824,7 +824,7 @@ mod tests {
 
     fn test_ripgrep_config(file: &str, pat: &str, f: fn(&mut Config) -> ()) {
         let path = Path::new("testdata").join("ripgrep").join(file);
-        let paths = iter::once(path.as_os_str());
+        let paths = iter::once(path.as_path());
         let printer = DummyPrinter::default();
 
         let mut config = Config::new(1, 2);
