@@ -1,12 +1,10 @@
 use anyhow::{Context, Result};
-use clap::builder::ValueParser;
-use clap::{Arg, ArgAction, Command};
+use clap::{Arg, Command};
 use hgrep::grep::BufReadExt;
 use hgrep::printer::{PrinterOptions, TextWrapMode};
 use std::cmp;
 use std::env;
 use std::io;
-use std::path::PathBuf;
 use std::process;
 
 #[global_allocator]
@@ -265,7 +263,7 @@ fn command<'a>() -> Command<'a> {
                     .long("type")
                     .takes_value(true)
                     .value_name("TYPE")
-                    .action(ArgAction::Append)
+                    .action(clap::ArgAction::Append)
                     .help("Only search files matching TYPE. This option is repeatable. --type-list can print the list of types"),
             )
             .arg(
@@ -274,7 +272,7 @@ fn command<'a>() -> Command<'a> {
                     .long("type-not")
                     .takes_value(true)
                     .value_name("TYPE")
-                    .action(ArgAction::Append)
+                    .action(clap::ArgAction::Append)
                     .help("Do not search files matching TYPE. Inverse of --type. This option is repeatable. --type-list can print the list of types"),
             )
             .arg(
@@ -328,7 +326,7 @@ fn command<'a>() -> Command<'a> {
                     .help("Paths to search")
                     .multiple_values(true)
                     .value_hint(clap::ValueHint::AnyPath)
-                    .value_parser(ValueParser::path_buf()),
+                    .value_parser(clap::builder::ValueParser::path_buf()),
             );
 
     cmd
@@ -584,6 +582,8 @@ fn app() -> Result<bool> {
 
     #[cfg(feature = "ripgrep")]
     if let Some(pattern) = matches.get_one::<String>("PATTERN") {
+        use std::path::PathBuf;
+
         let paths = matches
             .get_many::<PathBuf>("PATH")
             .map(|p| p.map(PathBuf::as_path));
