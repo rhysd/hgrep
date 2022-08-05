@@ -1,9 +1,11 @@
 use anyhow::{Context, Result};
-use clap::{Arg, Command};
+use clap::builder::ValueParser;
+use clap::{Arg, ArgAction, Command};
 use hgrep::grep::BufReadExt;
 use hgrep::printer::{PrinterOptions, TextWrapMode};
 use std::cmp;
 use std::env;
+use std::ffi::OsStr;
 use std::io;
 use std::process;
 
@@ -103,7 +105,7 @@ fn command<'a>() -> Command<'a> {
                 .takes_value(true)
                 .value_name("MODE")
                 .default_value("char")
-                .possible_values(["char", "never"])
+                .value_parser(["char", "never"])
                 .ignore_case(true)
                 .help("Text-wrapping mode. 'char' enables character-wise text-wrapping. 'never' disables text-wrapping")
         ).arg(
@@ -117,7 +119,7 @@ fn command<'a>() -> Command<'a> {
                 .long("generate-completion-script")
                 .takes_value(true)
                 .value_name("SHELL")
-                .possible_values(["bash", "zsh", "powershell", "fish", "elvish"])
+                .value_parser(["bash", "zsh", "powershell", "fish", "elvish"])
                 .ignore_case(true)
                 .help("Print completion script for SHELL to stdout"),
         );
@@ -263,7 +265,7 @@ fn command<'a>() -> Command<'a> {
                     .long("type")
                     .takes_value(true)
                     .value_name("TYPE")
-                    .multiple_occurrences(true)
+                    .action(ArgAction::Append)
                     .help("Only search files matching TYPE. This option is repeatable. --type-list can print the list of types"),
             )
             .arg(
@@ -272,7 +274,7 @@ fn command<'a>() -> Command<'a> {
                     .long("type-not")
                     .takes_value(true)
                     .value_name("TYPE")
-                    .multiple_occurrences(true)
+                    .action(ArgAction::Append)
                     .help("Do not search files matching TYPE. Inverse of --type. This option is repeatable. --type-list can print the list of types"),
             )
             .arg(
@@ -326,7 +328,7 @@ fn command<'a>() -> Command<'a> {
                     .help("Paths to search")
                     .multiple_values(true)
                     .value_hint(clap::ValueHint::AnyPath)
-                    .allow_invalid_utf8(true),
+                    .value_parser(ValueParser::os_string()), // TODO: Use ValueParser::path_buf()
             );
 
     cmd
@@ -364,69 +366,68 @@ fn build_ripgrep_config(
     config
         .min_context(min_context)
         .max_context(max_context)
-        .no_ignore(matches.is_present("no-ignore"))
-        .hidden(matches.is_present("hidden"))
-        .case_insensitive(matches.is_present("ignore-case"))
-        .smart_case(matches.is_present("smart-case"))
-        .glob_case_insensitive(matches.is_present("glob-case-insensitive"))
-        .pcre2(matches.is_present("pcre2")) // must be before fixed_string
-        .fixed_strings(matches.is_present("fixed-strings"))
-        .word_regexp(matches.is_present("word-regexp"))
-        .follow_symlink(matches.is_present("follow-symlink"))
-        .multiline(matches.is_present("multiline"))
-        .crlf(matches.is_present("crlf"))
-        .multiline_dotall(matches.is_present("multiline-dotall"))
-        .mmap(matches.is_present("mmap"))
-        .line_regexp(matches.is_present("line-regexp"))
-        .invert_match(matches.is_present("invert-match"))
-        .one_file_system(matches.is_present("one-file-system"))
-        .no_unicode(matches.is_present("no-unicode"));
+        .no_ignore(matches.contains_id("no-ignore"))
+        .hidden(matches.contains_id("hidden"))
+        .case_insensitive(matches.contains_id("ignore-case"))
+        .smart_case(matches.contains_id("smart-case"))
+        .glob_case_insensitive(matches.contains_id("glob-case-insensitive"))
+        .pcre2(matches.contains_id("pcre2")) // must be before fixed_string
+        .fixed_strings(matches.contains_id("fixed-strings"))
+        .word_regexp(matches.contains_id("word-regexp"))
+        .follow_symlink(matches.contains_id("follow-symlink"))
+        .multiline(matches.contains_id("multiline"))
+        .crlf(matches.contains_id("crlf"))
+        .multiline_dotall(matches.contains_id("multiline-dotall"))
+        .mmap(matches.contains_id("mmap"))
+        .line_regexp(matches.contains_id("line-regexp"))
+        .invert_match(matches.contains_id("invert-match"))
+        .one_file_system(matches.contains_id("one-file-system"))
+        .no_unicode(matches.contains_id("no-unicode"));
 
-    let globs = matches.values_of("glob");
-    if let Some(globs) = globs {
-        config.globs(globs);
+    if let Some(globs) = matches.get_many::<&str>("glob") {
+        config.globs(globs.copied());
     }
 
-    if let Some(num) = matches.value_of("max-count") {
+    if let Some(num) = matches.get_one::<&str>("max-count") {
         let num = num
             .parse()
             .context("could not parse --max-count option value as unsigned integer")?;
         config.max_count(num);
     }
 
-    if let Some(num) = matches.value_of("max-depth") {
+    if let Some(num) = matches.get_one::<&str>("max-depth") {
         let num = num
             .parse()
             .context("could not parse --max-depth option value as unsigned integer")?;
         config.max_depth(num);
     }
 
-    if let Some(size) = matches.value_of("max-filesize") {
+    if let Some(size) = matches.get_one::<&str>("max-filesize") {
         config
             .max_filesize(size)
             .context("coult not parse --max-filesize option value as file size string")?;
     }
 
-    if let Some(limit) = matches.value_of("regex-size-limit") {
+    if let Some(limit) = matches.get_one::<&str>("regex-size-limit") {
         config
             .regex_size_limit(limit)
             .context("coult not parse --regex-size-limit option value as size string")?;
     }
 
-    if let Some(limit) = matches.value_of("dfa-size-limit") {
+    if let Some(limit) = matches.get_one::<&str>("dfa-size-limit") {
         config
             .dfa_size_limit(limit)
             .context("coult not parse --dfa-size-limit option value as size string")?;
     }
 
-    let types = matches.values_of("type");
+    let types = matches.get_many::<&str>("type");
     if let Some(types) = types {
-        config.types(types);
+        config.types(types.copied());
     }
 
-    let types_not = matches.values_of("type-not");
+    let types_not = matches.get_many::<&str>("type-not");
     if let Some(types_not) = types_not {
-        config.types_not(types_not);
+        config.types_not(types_not.copied());
     }
 
     Ok(config)
@@ -442,13 +443,13 @@ enum PrinterKind {
 
 fn app() -> Result<bool> {
     let matches = command().get_matches();
-    if let Some(shell) = matches.value_of("generate-completion-script") {
+    if let Some(shell) = matches.get_one::<&str>("generate-completion-script") {
         generate_completion_script(shell);
         return Ok(true);
     }
 
     #[allow(unused_variables)] // printer_kind is unused when syntect-printer is disabled for now
-    let printer_kind = match matches.value_of("printer").unwrap() {
+    let printer_kind = match *matches.get_one::<&str>("printer").unwrap() {
         #[cfg(feature = "bat-printer")]
         "bat" => PrinterKind::Bat,
         #[cfg(not(feature = "bat-printer"))]
@@ -461,19 +462,19 @@ fn app() -> Result<bool> {
     };
 
     let min_context = matches
-        .value_of("min-context")
+        .get_one::<&str>("min-context")
         .unwrap()
         .parse()
         .context("could not parse \"min-context\" option value as unsigned integer")?;
     let max_context = matches
-        .value_of("max-context")
+        .get_one::<&str>("max-context")
         .unwrap()
         .parse()
         .context("could not parse \"max-context\" option value as unsigned integer")?;
     let max_context = cmp::max(min_context, max_context);
 
     let mut printer_opts = PrinterOptions::default();
-    if let Some(width) = matches.value_of("tab") {
+    if let Some(width) = matches.get_one::<&str>("tab") {
         printer_opts.tab_width = width
             .parse()
             .context("could not parse \"tab\" option value as unsigned integer")?;
@@ -487,11 +488,11 @@ fn app() -> Result<bool> {
             printer_opts.theme = Some(var);
         }
     }
-    if let Some(theme) = matches.value_of("theme") {
+    if let Some(theme) = matches.get_one::<&str>("theme") {
         printer_opts.theme = Some(theme);
     }
 
-    let is_grid = matches.is_present("grid");
+    let is_grid = matches.contains_id("grid");
     #[cfg(feature = "bat-printer")]
     if printer_kind == PrinterKind::Bat {
         if let Ok("plain" | "header" | "numbers") =
@@ -502,11 +503,11 @@ fn app() -> Result<bool> {
             }
         }
     }
-    if matches.is_present("no-grid") && !is_grid {
+    if matches.contains_id("no-grid") && !is_grid {
         printer_opts.grid = false;
     }
 
-    if let Some(width) = matches.value_of("term-width") {
+    if let Some(width) = matches.get_one::<&str>("term-width") {
         let width = width
             .parse()
             .context("could not parse \"term-width\" option value as unsigned integer")?;
@@ -516,7 +517,7 @@ fn app() -> Result<bool> {
         }
     }
 
-    if let Some(mode) = matches.value_of("wrap") {
+    if let Some(mode) = matches.get_one::<&str>("wrap") {
         if mode.eq_ignore_ascii_case("never") {
             printer_opts.text_wrap = TextWrapMode::Never;
         } else if mode.eq_ignore_ascii_case("char") {
@@ -526,13 +527,13 @@ fn app() -> Result<bool> {
         }
     }
 
-    if matches.is_present("first-only") {
+    if matches.contains_id("first-only") {
         printer_opts.first_only = true;
     }
 
     #[cfg(feature = "syntect-printer")]
     {
-        if matches.is_present("background") {
+        if matches.contains_id("background") {
             printer_opts.background_color = true;
             #[cfg(feature = "bat-printer")]
             if printer_kind == PrinterKind::Bat {
@@ -540,7 +541,7 @@ fn app() -> Result<bool> {
             }
         }
 
-        if matches.is_present("ascii-lines") {
+        if matches.contains_id("ascii-lines") {
             printer_opts.ascii_lines = true;
             #[cfg(feature = "bat-printer")]
             if printer_kind == PrinterKind::Bat {
@@ -550,7 +551,7 @@ fn app() -> Result<bool> {
     }
 
     #[cfg(feature = "bat-printer")]
-    if matches.is_present("custom-assets") {
+    if matches.contains_id("custom-assets") {
         printer_opts.custom_assets = true;
         #[cfg(feature = "syntect-printer")]
         if printer_kind == PrinterKind::Syntect {
@@ -558,7 +559,7 @@ fn app() -> Result<bool> {
         }
     }
 
-    if matches.is_present("list-themes") {
+    if matches.contains_id("list-themes") {
         #[cfg(feature = "syntect-printer")]
         if printer_kind == PrinterKind::Syntect {
             hgrep::syntect::list_themes(io::stdout().lock(), &printer_opts)?;
@@ -575,15 +576,15 @@ fn app() -> Result<bool> {
     }
 
     #[cfg(feature = "ripgrep")]
-    if matches.is_present("type-list") {
+    if matches.contains_id("type-list") {
         let config = build_ripgrep_config(min_context, max_context, &matches)?;
         config.print_types(io::stdout().lock())?;
         return Ok(true);
     }
 
     #[cfg(feature = "ripgrep")]
-    if let Some(pattern) = matches.value_of("PATTERN") {
-        let paths = matches.values_of_os("PATH");
+    if let Some(pattern) = matches.get_one::<&str>("PATTERN") {
+        let paths = matches.get_many::<&OsStr>("PATH").map(Iterator::copied);
         let config = build_ripgrep_config(min_context, max_context, &matches)?;
 
         #[cfg(feature = "syntect-printer")]
