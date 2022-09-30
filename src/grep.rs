@@ -51,7 +51,7 @@ impl fmt::Display for ParseError {
 
 impl std::error::Error for ParseError {}
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct GrepMatch {
     pub path: PathBuf,
     pub line_number: u64,

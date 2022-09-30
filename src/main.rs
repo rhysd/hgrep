@@ -19,7 +19,7 @@ use hgrep::bat::BatPrinter;
 #[cfg(feature = "syntect-printer")]
 use hgrep::syntect::SyntectPrinter;
 
-fn command<'a>() -> Command<'a> {
+fn command() -> Command {
     #[cfg(feature = "syntect-printer")]
     const DEFAULT_PRINTER: &str = "syntect";
 
@@ -38,7 +38,7 @@ fn command<'a>() -> Command<'a> {
             Arg::new("min-context")
                 .short('c')
                 .long("min-context")
-                .takes_value(true)
+                .num_args(1)
                 .value_name("NUM")
                 .default_value("3")
                 .help("Minimum lines of leading and trailing context surrounding each match"),
@@ -47,7 +47,7 @@ fn command<'a>() -> Command<'a> {
             Arg::new("max-context")
                 .short('C')
                 .long("max-context")
-                .takes_value(true)
+                .num_args(1)
                 .value_name("NUM")
                 .default_value("6")
                 .help("Maximum lines of leading and trailing context surrounding each match"),
@@ -66,7 +66,7 @@ fn command<'a>() -> Command<'a> {
         .arg(
             Arg::new("tab")
                 .long("tab")
-                .takes_value(true)
+                .num_args(1)
                 .value_name("NUM")
                 .default_value("4")
                 .help("Number of spaces for tab character. Set 0 to pass tabs through directly"),
@@ -74,7 +74,7 @@ fn command<'a>() -> Command<'a> {
         .arg(
             Arg::new("theme")
                 .long("theme")
-                .takes_value(true)
+                .num_args(1)
                 .value_name("THEME")
                 .help("Theme for syntax highlighting. Use --list-themes flag to print the theme list"),
         )
@@ -94,13 +94,13 @@ fn command<'a>() -> Command<'a> {
         .arg(
             Arg::new("term-width")
                 .long("term-width")
-                .takes_value(true)
+                .num_args(1)
                 .value_name("NUM")
                 .help("Width (number of characters) of terminal window"),
         ).arg(
             Arg::new("wrap")
                 .long("wrap")
-                .takes_value(true)
+                .num_args(1)
                 .value_name("MODE")
                 .default_value("char")
                 .value_parser(["char", "never"])
@@ -115,7 +115,7 @@ fn command<'a>() -> Command<'a> {
         .arg(
             Arg::new("generate-completion-script")
                 .long("generate-completion-script")
-                .takes_value(true)
+                .num_args(1)
                 .value_name("SHELL")
                 .value_parser(["bash", "zsh", "powershell", "fish", "elvish"])
                 .ignore_case(true)
@@ -180,9 +180,9 @@ fn command<'a>() -> Command<'a> {
                 Arg::new("glob")
                     .short('g')
                     .long("glob")
-                    .takes_value(true)
+                    .num_args(1)
                     .value_name("GLOB")
-                    .multiple_values(true)
+                    .num_args(1..)
                     .allow_hyphen_values(true)
                     .help("Include or exclude files and directories for searching that match the given glob"),
             )
@@ -234,14 +234,14 @@ fn command<'a>() -> Command<'a> {
                 Arg::new("max-count")
                     .short('m')
                     .long("max-count")
-                    .takes_value(true)
+                    .num_args(1)
                     .value_name("NUM")
                     .help("Limit the number of matching lines per file searched to NUM"),
             )
             .arg(
                 Arg::new("max-depth")
                     .long("max-depth")
-                    .takes_value(true)
+                    .num_args(1)
                     .value_name("NUM")
                     .help("Limit the depth of directory traversal to NUM levels beyond the paths given"),
             )
@@ -261,7 +261,7 @@ fn command<'a>() -> Command<'a> {
                 Arg::new("type")
                     .short('t')
                     .long("type")
-                    .takes_value(true)
+                    .num_args(1)
                     .value_name("TYPE")
                     .action(clap::ArgAction::Append)
                     .help("Only search files matching TYPE. This option is repeatable. --type-list can print the list of types"),
@@ -270,7 +270,7 @@ fn command<'a>() -> Command<'a> {
                 Arg::new("type-not")
                     .short('T')
                     .long("type-not")
-                    .takes_value(true)
+                    .num_args(1)
                     .value_name("TYPE")
                     .action(clap::ArgAction::Append)
                     .help("Do not search files matching TYPE. Inverse of --type. This option is repeatable. --type-list can print the list of types"),
@@ -283,7 +283,7 @@ fn command<'a>() -> Command<'a> {
             .arg(
                 Arg::new("max-filesize")
                     .long("max-filesize")
-                    .takes_value(true)
+                    .num_args(1)
                     .value_name("NUM+SUFFIX?")
                     .help("Ignore files larger than NUM in size. This does not apply to directories.The input format accepts suffixes of K, M or G which correspond to kilobytes, megabytes and gigabytes, respectively. If no suffix is provided the input is treated as bytes"),
             )
@@ -306,14 +306,14 @@ fn command<'a>() -> Command<'a> {
             .arg(
                 Arg::new("regex-size-limit")
                     .long("regex-size-limit")
-                    .takes_value(true)
+                    .num_args(1)
                     .value_name("NUM+SUFFIX?")
                     .help("The upper size limit of the compiled regex. The default limit is 10M. For the size suffixes, see --max-filesize"),
             )
             .arg(
                 Arg::new("dfa-size-limit")
                     .long("dfa-size-limit")
-                    .takes_value(true)
+                    .num_args(1)
                     .value_name("NUM+SUFFIX?")
                     .help("The upper size limit of the regex DFA. The default limit is 10M. For the size suffixes, see --max-filesize"),
             )
@@ -324,7 +324,7 @@ fn command<'a>() -> Command<'a> {
             .arg(
                 Arg::new("PATH")
                     .help("Paths to search")
-                    .multiple_values(true)
+                    .num_args(0..)
                     .value_hint(clap::ValueHint::AnyPath)
                     .value_parser(clap::builder::ValueParser::path_buf()),
             );

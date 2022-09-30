@@ -66,8 +66,8 @@ bat-printer = [
 
 [dependencies]
 anyhow = "1"
-clap = { version = "3", default-features = false, features = ["std", "color", "suggestions"] } # Add "deprecated" feature to show deprecations
-clap_complete = "3"
+clap = { version = "4", default-features = false, features = ["std", "color", "help", "usage", "suggestions"] } # Add "deprecated" feature to show deprecations
+clap_complete = "4"
 memchr = "2"
 pathdiff = "0.2"
 term = "0.7"
