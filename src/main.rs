@@ -403,19 +403,19 @@ fn build_ripgrep_config(
     if let Some(size) = matches.get_one::<String>("max-filesize") {
         config
             .max_filesize(size)
-            .context("coult not parse --max-filesize option value as file size string")?;
+            .context("could not parse --max-filesize option value as file size string")?;
     }
 
     if let Some(limit) = matches.get_one::<String>("regex-size-limit") {
         config
             .regex_size_limit(limit)
-            .context("coult not parse --regex-size-limit option value as size string")?;
+            .context("could not parse --regex-size-limit option value as size string")?;
     }
 
     if let Some(limit) = matches.get_one::<String>("dfa-size-limit") {
         config
             .dfa_size_limit(limit)
-            .context("coult not parse --dfa-size-limit option value as size string")?;
+            .context("could not parse --dfa-size-limit option value as size string")?;
     }
 
     let types = matches.get_many::<String>("type");

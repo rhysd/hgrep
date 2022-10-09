@@ -189,7 +189,7 @@ impl<'a, 'line: 'a> DrawEvents<'a, 'line> {
         match self.regions.first().copied() {
             Some((s, e)) if o == s && o < e => RegionBoundary::Start,
             Some((_, e)) if o == e => {
-                // When the next region is adjcent, skip changing highlight
+                // When the next region is adjacent, skip changing highlight
                 match self.regions.get(1) {
                     Some((s, _)) if o == *s => RegionBoundary::NotFound,
                     _ => RegionBoundary::End,
