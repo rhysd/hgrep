@@ -221,7 +221,7 @@ line of a file is a much heavier task than printing a match at the first line of
 Since `syntect` printer is designed for calculating syntax highlights per file in parallel, its performance is much better. It's
 2x~4x faster than `bat` printer in some experiments. More match results get better performance.
 
-In contrast, bat is not designed for multi-threads. It's not possible to share `bat::PrettyPrinter` instance accross threads. It
+In contrast, bat is not designed for multi-threads. It's not possible to share `bat::PrettyPrinter` instance across threads. It
 means that printing match results including syntax highlighting must be done in a single thread.
 
 | `syntect` printer sequence | `bat` printer sequence |
@@ -237,7 +237,7 @@ option. To know names of themes, try `--list-themes` flag.
 hgrep --theme Nord ...
 ```
 
-The default layout is 'grid'. To reduce borderlines to use space more efficiantly, `--no-grid` option is available.
+The default layout is 'grid'. To reduce borderlines to use space more efficiently, `--no-grid` option is available.
 
 ```sh
 hgrep --no-grid ...
