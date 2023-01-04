@@ -1,22 +1,33 @@
-<a name="v0.2.6"></a>
-# [v0.2.6](https://github.com/rhysd/batgrep/releases/tag/v0.2.6) - 27 May 2022
+<a name="v0.2.7"></a>
+# [v0.2.7](https://github.com/rhysd/hgrep/releases/tag/v0.2.7) - 04 Jan 2023
 
-- `x86_64-unknown-linux-musl` release binary now links libc statically ([#10](https://github.com/rhysd/batgrep/issues/10))
+- Fix crash when reading from `rg --vimgrep`. Note that `--vimgrep` flag is not assumed by hgrep. Please use `rg -nH`. ([#13](https://github.com/rhysd/hgrep/issues/13))
+- Fix errors are not reported when they are caused by the second match or later.
+- Update dependencies to the latest. Especially migrating to clap v4 improved the `--help` output.
+- Migrate to Rust 2021 edition.
+
+[Changes][v0.2.7]
+
+
+<a name="v0.2.6"></a>
+# [v0.2.6](https://github.com/rhysd/hgrep/releases/tag/v0.2.6) - 27 May 2022
+
+- `x86_64-unknown-linux-musl` release binary now links libc statically ([#10](https://github.com/rhysd/hgrep/issues/10))
 - Replace `rgb2ansi256` crate with `ansi_colors` crate
 
 [Changes][v0.2.6]
 
 
 <a name="v0.2.5"></a>
-# [v0.2.5](https://github.com/rhysd/batgrep/releases/tag/v0.2.5) - 23 Apr 2022
+# [v0.2.5](https://github.com/rhysd/hgrep/releases/tag/v0.2.5) - 23 Apr 2022
 
-- Add pre-built binary for AArch64 Linux. ([#9](https://github.com/rhysd/batgrep/issues/9))
+- Add pre-built binary for AArch64 Linux. ([#9](https://github.com/rhysd/hgrep/issues/9))
 
 [Changes][v0.2.5]
 
 
 <a name="v0.2.4"></a>
-# [v0.2.4](https://github.com/rhysd/batgrep/releases/tag/v0.2.4) - 17 Apr 2022
+# [v0.2.4](https://github.com/rhysd/hgrep/releases/tag/v0.2.4) - 17 Apr 2022
 
 - Update `bat` crate dependency to v0.20.0.
 - Highlight clang-format configuration file.
@@ -25,7 +36,7 @@
 
 
 <a name="v0.2.3"></a>
-# [v0.2.3](https://github.com/rhysd/batgrep/releases/tag/v0.2.3) - 02 Feb 2022
+# [v0.2.3](https://github.com/rhysd/hgrep/releases/tag/v0.2.3) - 02 Feb 2022
 
 - Update dependencies including `bat` v0.19 and `clap` v3
 - Build binaries with the latest Rust compiler v1.58.1
@@ -34,10 +45,10 @@
 
 
 <a name="v0.2.2"></a>
-# [v0.2.2](https://github.com/rhysd/batgrep/releases/tag/v0.2.2) - 11 Dec 2021
+# [v0.2.2](https://github.com/rhysd/hgrep/releases/tag/v0.2.2) - 11 Dec 2021
 
 - Fix a build failure since new RC version of `clap` crate was released.
-- Fix a dynamic link error of pcre2 library by linking the library statically. The error could happen when you installed Homebrew to non-default location on macOS ([#6](https://github.com/rhysd/batgrep/issues/6)).
+- Fix a dynamic link error of pcre2 library by linking the library statically. The error could happen when you installed Homebrew to non-default location on macOS ([#6](https://github.com/rhysd/hgrep/issues/6)).
 - Add `--regex-size-limit` option for built-in grep feature.
 - Add `--dfa-size-limit` option for built-in grep feature.
 - Use Rust compiler v1.57 to build binaries.
@@ -46,7 +57,7 @@
 
 
 <a name="v0.2.1"></a>
-# [v0.2.1](https://github.com/rhysd/batgrep/releases/tag/v0.2.1) - 13 Nov 2021
+# [v0.2.1](https://github.com/rhysd/hgrep/releases/tag/v0.2.1) - 13 Nov 2021
 
 - Heuristic algorithm to choose the foreground color of matched regions was improved. Now hgrep generates multiple candidates for the foreground color, and chooses one of them looking at the color distances from the background color.
   - Example with `Coldark-Dark` theme. Please find the 'let' matched regions in the following screenshots. The foreground color is easier to see in v0.2.1 than v0.2.0.
@@ -80,7 +91,7 @@
 
 
 <a name="v0.2.0"></a>
-# [v0.2.0](https://github.com/rhysd/batgrep/releases/tag/v0.2.0) - 06 Nov 2021
+# [v0.2.0](https://github.com/rhysd/hgrep/releases/tag/v0.2.0) - 06 Nov 2021
 
 - **BREAKING** The default printer is now `syntect`. It has the following benefits. I tested it for several weeks and it seems stable. See [the section in README](https://github.com/rhysd/hgrep#bat-printer-vs-syntect-printer) to know the difference between `bat` printer and `syntect` printer.
   - Performance is 2x to 4x faster
@@ -105,7 +116,7 @@
     <img width="584" alt="cyanide" src="https://user-images.githubusercontent.com/823277/140618295-496ba46f-8500-44e5-85b2-d4094a049b68.png">
 - Output of `--list-themes` is much improved. It shows sample outputs per theme so that users can know what they look like. Options related to outputs like `--background` and `--no-grid` are reflected to the sample outputs. At v0.1.9, only theme names were printed so users needed to try the themes by themselves.
   <img width="584" alt="list themes output example" src="https://user-images.githubusercontent.com/823277/140618330-37d418be-c7ea-4b98-b57e-a7fabefe5199.png">
-- Linux x86_64 musl target was added to pre-built releases. Find `hgrep-*-x86_64-unknown-linux-musl.zip` in released assets. Note that this binary is not tested. ([#5](https://github.com/rhysd/batgrep/issues/5))
+- Linux x86_64 musl target was added to pre-built releases. Find `hgrep-*-x86_64-unknown-linux-musl.zip` in released assets. Note that this binary is not tested. ([#5](https://github.com/rhysd/hgrep/issues/5))
 - Depend on `ansi_term` crate only when targeting Windows. It reduces number of dependencies when `bat-printer` is not enabled.
 - Improve a compile error when both feature `syntect-printer` and `bat-printer` are disabled.
 - Describe the exit status of `hgrep` command and versioning of this project in [the readme document](https://github.com/rhysd/hgrep#readme).
@@ -118,7 +129,7 @@
 
 
 <a name="v0.1.9"></a>
-# [v0.1.9](https://github.com/rhysd/batgrep/releases/tag/v0.1.9) - 01 Nov 2021
+# [v0.1.9](https://github.com/rhysd/hgrep/releases/tag/v0.1.9) - 01 Nov 2021
 
 - Support multiple regions highlighting. In v0.1.8, matched region highlighting was added but it only highlighted the first match in the line. Now all matched regions are highlighted. Note that region highlighting is available when using hgrep in combination of `syntect-printer` and `ripgrep` features
   - v0.1.8:
@@ -138,7 +149,7 @@
 
 
 <a name="v0.1.8"></a>
-# [v0.1.8](https://github.com/rhysd/batgrep/releases/tag/v0.1.8) - 27 Oct 2021
+# [v0.1.8](https://github.com/rhysd/hgrep/releases/tag/v0.1.8) - 27 Oct 2021
 
 - `syntect-printer` supports text-wrapping. Longer lines than terminal width are now wrapped by default. It can handle wide characters including special emojis with zero-width joiner (U+200D) like 👨‍👩‍👧‍👦
   <img width="521" alt="screenshot" src="https://user-images.githubusercontent.com/823277/139065592-8d18f8a0-9b10-49c7-8901-fd892d100792.png">
@@ -154,14 +165,14 @@
 
 
 <a name="v0.1.7"></a>
-# [v0.1.7](https://github.com/rhysd/batgrep/releases/tag/v0.1.7) - 24 Oct 2021
+# [v0.1.7](https://github.com/rhysd/hgrep/releases/tag/v0.1.7) - 24 Oct 2021
 
 - Fix highlighting was broken on 256 colors terminals when using `bat-printer`.
 - `bat-printer` enables text wrapping by default as `bat` command does. `--no-wrap` can disable text wrapping.
 - `bat-printer` now looks at bat's cache directory when `--custom-assets` flag is given. This is useful if you use some custom syntax highlighting or theme. Note that this may not work fine with some versions of `bat` command.
 - `bat-printer` automatically uses 'ansi' theme for terminals which enable only 16 colors since other themes don't work.
 - Add `--terminal-width` option to give the width of terminal explicitly. This is useful when piping the results to other command like `less`.
-- Fix build failure due to lack of assets ([#4](https://github.com/rhysd/batgrep/issues/4)).
+- Fix build failure due to lack of assets ([#4](https://github.com/rhysd/hgrep/issues/4)).
 - Fix some newlines were missing when printing results with `syntect-printer`.
 - Use `terminal_size` crate directly instead of using `console` crate. It removes 3 dependencies when `bat-printer` feature is not enabled.
 - The document has been improved. Especially if you like a pager such as `less`, I recommend to check ['Set default command options'](https://github.com/rhysd/hgrep#set-default-command-options) section.
@@ -171,7 +182,7 @@
 
 
 <a name="v0.1.6"></a>
-# [v0.1.6](https://github.com/rhysd/batgrep/releases/tag/v0.1.6) - 23 Oct 2021
+# [v0.1.6](https://github.com/rhysd/hgrep/releases/tag/v0.1.6) - 23 Oct 2021
 
 - Add new experimental `syntect-printer` feature built with [syntect](https://github.com/trishume/syntect) library.
   - It is much faster than current printer built on bat (2x~4x faster).
@@ -180,13 +191,13 @@
   - See [`bat` printer v.s. `syntect` printer](https://github.com/rhysd/hgrep#bat-printer-vs-syntect-printer) section for comparison of the two printers.
 - Add `--printer` (`-p`) flag to specify printer to use. It takes argument `bat` or `syntect`. `-p syntect` enables the new experimental printer
 - `bat` printer is now optional through `bat-printer` feature gate. Note that at least `bat-printer` or `syntect-printer` must be enabled. Both printers are enabled by default. See [Feature flags](https://github.com/rhysd/hgrep#feature-flags) section for more details.
-- hgrep is now available for NetBSD. See [the instruction](https://github.com/rhysd/hgrep#for-netbsd) (thanks [@0323pin](https://github.com/0323pin), [#3](https://github.com/rhysd/batgrep/issues/3))
+- hgrep is now available for NetBSD. See [the instruction](https://github.com/rhysd/hgrep#for-netbsd) (thanks [@0323pin](https://github.com/0323pin), [#3](https://github.com/rhysd/hgrep/issues/3))
 
 [Changes][v0.1.6]
 
 
 <a name="v0.1.5"></a>
-# [v0.1.5](https://github.com/rhysd/batgrep/releases/tag/v0.1.5) - 20 Oct 2021
+# [v0.1.5](https://github.com/rhysd/hgrep/releases/tag/v0.1.5) - 20 Oct 2021
 
 - Always use a relative path in header of output
 - Fix an output is broken due to ANSI color sequence on Windows
@@ -195,16 +206,16 @@
 
 
 <a name="v0.1.4"></a>
-# [v0.1.4](https://github.com/rhysd/batgrep/releases/tag/v0.1.4) - 19 Oct 2021
+# [v0.1.4](https://github.com/rhysd/hgrep/releases/tag/v0.1.4) - 19 Oct 2021
 
-- Fix compile error on `cargo install` due to new release of `clap` crate v3.0.0-beta.5 ([#2](https://github.com/rhysd/batgrep/issues/2))
-- Add how to install `hgrep` command with [MacPorts](https://www.macports.org/). See [the document](https://github.com/rhysd/hgrep#via-macports) for more details (thanks [@herbygillot](https://github.com/herbygillot), [#1](https://github.com/rhysd/batgrep/issues/1))
+- Fix compile error on `cargo install` due to new release of `clap` crate v3.0.0-beta.5 ([#2](https://github.com/rhysd/hgrep/issues/2))
+- Add how to install `hgrep` command with [MacPorts](https://www.macports.org/). See [the document](https://github.com/rhysd/hgrep#via-macports) for more details (thanks [@herbygillot](https://github.com/herbygillot), [#1](https://github.com/rhysd/hgrep/issues/1))
 
 [Changes][v0.1.4]
 
 
 <a name="v0.1.3"></a>
-# [v0.1.3](https://github.com/rhysd/batgrep/releases/tag/v0.1.3) - 19 Oct 2021
+# [v0.1.3](https://github.com/rhysd/hgrep/releases/tag/v0.1.3) - 19 Oct 2021
 
 - Heuristics on calculating context lines is 1.3x faster by using optimized [memchr](https://docs.rs/memchr/2.4.1/memchr/) implementation when the searched file is large
 - [Homebrew](http://brew.sh/) is now supported for managing `hgrep` command on macOS or Linux. See [the installation instruction](https://github.com/rhysd/hgrep#via-homebrew) for more details
@@ -216,7 +227,7 @@
 
 
 <a name="v0.1.2"></a>
-# [v0.1.2](https://github.com/rhysd/batgrep/releases/tag/v0.1.2) - 17 Oct 2021
+# [v0.1.2](https://github.com/rhysd/hgrep/releases/tag/v0.1.2) - 17 Oct 2021
 
 - Fix printing tab characters. Now default tab width is 4 (can be configured with `--tab` option).
 - Fix exit status is always 0 when no error happens. Grep tool should return non-zero exit status when no match was found.
@@ -227,7 +238,7 @@
 
 
 <a name="v0.1.1"></a>
-# [v0.1.1](https://github.com/rhysd/batgrep/releases/tag/v0.1.1) - 16 Oct 2021
+# [v0.1.1](https://github.com/rhysd/hgrep/releases/tag/v0.1.1) - 16 Oct 2021
 
 First release :tada:
 
@@ -236,21 +247,22 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [Changes][v0.1.1]
 
 
-[v0.2.6]: https://github.com/rhysd/batgrep/compare/v0.2.5...v0.2.6
-[v0.2.5]: https://github.com/rhysd/batgrep/compare/v0.2.4...v0.2.5
-[v0.2.4]: https://github.com/rhysd/batgrep/compare/v0.2.3...v0.2.4
-[v0.2.3]: https://github.com/rhysd/batgrep/compare/v0.2.2...v0.2.3
-[v0.2.2]: https://github.com/rhysd/batgrep/compare/v0.2.1...v0.2.2
-[v0.2.1]: https://github.com/rhysd/batgrep/compare/v0.2.0...v0.2.1
-[v0.2.0]: https://github.com/rhysd/batgrep/compare/v0.1.9...v0.2.0
-[v0.1.9]: https://github.com/rhysd/batgrep/compare/v0.1.8...v0.1.9
-[v0.1.8]: https://github.com/rhysd/batgrep/compare/v0.1.7...v0.1.8
-[v0.1.7]: https://github.com/rhysd/batgrep/compare/v0.1.6...v0.1.7
-[v0.1.6]: https://github.com/rhysd/batgrep/compare/v0.1.5...v0.1.6
-[v0.1.5]: https://github.com/rhysd/batgrep/compare/v0.1.4...v0.1.5
-[v0.1.4]: https://github.com/rhysd/batgrep/compare/v0.1.3...v0.1.4
-[v0.1.3]: https://github.com/rhysd/batgrep/compare/v0.1.2...v0.1.3
-[v0.1.2]: https://github.com/rhysd/batgrep/compare/v0.1.1...v0.1.2
-[v0.1.1]: https://github.com/rhysd/batgrep/tree/v0.1.1
+[v0.2.7]: https://github.com/rhysd/hgrep/compare/v0.2.6...v0.2.7
+[v0.2.6]: https://github.com/rhysd/hgrep/compare/v0.2.5...v0.2.6
+[v0.2.5]: https://github.com/rhysd/hgrep/compare/v0.2.4...v0.2.5
+[v0.2.4]: https://github.com/rhysd/hgrep/compare/v0.2.3...v0.2.4
+[v0.2.3]: https://github.com/rhysd/hgrep/compare/v0.2.2...v0.2.3
+[v0.2.2]: https://github.com/rhysd/hgrep/compare/v0.2.1...v0.2.2
+[v0.2.1]: https://github.com/rhysd/hgrep/compare/v0.2.0...v0.2.1
+[v0.2.0]: https://github.com/rhysd/hgrep/compare/v0.1.9...v0.2.0
+[v0.1.9]: https://github.com/rhysd/hgrep/compare/v0.1.8...v0.1.9
+[v0.1.8]: https://github.com/rhysd/hgrep/compare/v0.1.7...v0.1.8
+[v0.1.7]: https://github.com/rhysd/hgrep/compare/v0.1.6...v0.1.7
+[v0.1.6]: https://github.com/rhysd/hgrep/compare/v0.1.5...v0.1.6
+[v0.1.5]: https://github.com/rhysd/hgrep/compare/v0.1.4...v0.1.5
+[v0.1.4]: https://github.com/rhysd/hgrep/compare/v0.1.3...v0.1.4
+[v0.1.3]: https://github.com/rhysd/hgrep/compare/v0.1.2...v0.1.3
+[v0.1.2]: https://github.com/rhysd/hgrep/compare/v0.1.1...v0.1.2
+[v0.1.1]: https://github.com/rhysd/hgrep/tree/v0.1.1
 
- <!-- Generated by https://github.com/rhysd/changelog-from-release -->
+<!-- Generated by https://github.com/rhysd/changelog-from-release v3.5.1 -->
