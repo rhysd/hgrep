@@ -61,6 +61,7 @@ pub struct GrepMatch {
 
 pub struct GrepLines<R: BufRead> {
     reader: R,
+    prev_lnum: u64,
 }
 
 impl<R: BufRead> GrepLines<R> {
@@ -69,36 +70,42 @@ impl<R: BufRead> GrepLines<R> {
     }
 }
 
-fn parse_line(line: Vec<u8>) -> Result<GrepMatch> {
-    // {path}:{lnum}:{line}...
-    let mut split = line.splitn(3, |&b| b == b':');
-    let (path, lnum) = match (split.next(), split.next(), split.next()) {
-        (Some(p), Some(l), Some(_)) if p.is_empty() || l.is_empty() => {
-            return ParseError::err(line, "Path or line number is empty")
-        }
-        (Some(p), Some(l), Some(_)) => (p, l),
-        _ => return ParseError::err(line, "Path or line number is missing"),
-    };
-    match str::from_utf8(lnum).ok().and_then(|s| s.parse().ok()) {
-        Some(lnum) => Ok(GrepMatch {
-            path: PathBuf::from(bytes_to_os_string(path)),
-            line_number: lnum,
-            ranges: vec![], // Regions are not supported
-        }),
-        None => ParseError::err(line, "Could not parse line number as unsigned integer"),
-    }
-}
-
 impl<R: BufRead> Iterator for GrepLines<R> {
     type Item = Result<GrepMatch>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut buf = Vec::new();
-        self.reader.read_until(b'\n', &mut buf).unwrap();
-        if buf.is_empty() {
+        let mut line = Vec::new();
+        self.reader.read_until(b'\n', &mut line).unwrap();
+        if line.is_empty() {
             return None;
         }
-        Some(parse_line(buf))
+
+        // {path}:{lnum}:{line}...
+        let mut split = line.splitn(3, |&b| b == b':');
+        let (path, lnum) = match (split.next(), split.next(), split.next()) {
+            (Some(p), Some(l), Some(_)) if p.is_empty() || l.is_empty() => {
+                return Some(ParseError::err(line, "Path or line number is empty"));
+            }
+            (Some(p), Some(l), Some(_)) => (p, l),
+            _ => return Some(ParseError::err(line, "Path or line number is missing")),
+        };
+
+        match str::from_utf8(lnum).ok().and_then(|s| s.parse().ok()) {
+            Some(lnum) if lnum <= self.prev_lnum => self.next(), // Ignore same lines are reported. This happens with `rg --vimgrep` (#13)
+            Some(lnum) => {
+                let mat = GrepMatch {
+                    path: PathBuf::from(bytes_to_os_string(path)),
+                    line_number: lnum,
+                    ranges: vec![], // Regions are not supported
+                };
+                self.prev_lnum = lnum;
+                Some(Ok(mat))
+            }
+            None => Some(ParseError::err(
+                line,
+                "Could not parse line number as unsigned integer",
+            )),
+        }
     }
 }
 
@@ -108,7 +115,10 @@ pub trait BufReadExt: BufRead + Sized {
 
 impl<R: BufRead> BufReadExt for R {
     fn grep_lines(self) -> GrepLines<Self> {
-        GrepLines { reader: self }
+        GrepLines {
+            reader: self,
+            prev_lnum: 0,
+        }
     }
 }
 
@@ -182,4 +192,26 @@ fn test_read_error() {
             got
         );
     }
+}
+
+#[test]
+fn test_same_line_is_repeated() {
+    // Regression test for #13. This may happen with `rg --vimgrep`
+    let input = [
+        "/path/to/foo.txt:1:1:bye",
+        "/path/to/foo.txt:1:2:bye",
+        "/path/to/foo.txt:1:3:bye",
+    ]
+    .join("\n")
+    .into_bytes();
+
+    let output: Vec<_> = input.grep_lines().collect::<Result<_>>().unwrap();
+
+    let expected = vec![GrepMatch {
+        path: PathBuf::from("/path/to/foo.txt"),
+        line_number: 1,
+        ranges: vec![],
+    }];
+
+    assert_eq!(output, expected);
 }
