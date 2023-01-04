@@ -146,7 +146,7 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Files<I> {
         &self,
         match_start: u64,
         match_end: u64,
-        lines: &mut impl Iterator<Item = Line<'contents>>,
+        lines: impl Iterator<Item = Line<'contents>>,
     ) -> (u64, u64) {
         let before_start = cmp::max(match_start.saturating_sub(self.max_context), 1);
         let before_end = cmp::max(match_start.saturating_sub(self.min_context), 1);
@@ -245,6 +245,12 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
                     None => State::EndOfFile,
                     Some(Err(_)) => State::Error,
                     Some(Ok(m)) if m.path != path => State::EndOfFile,
+                    Some(Ok(m)) if m.line_number <= line_number => {
+                        // When the same line number is reported mutliple times, ignore the grep line.
+                        // This happens when reading output from `rg --vimgrep` (#13)
+                        self.iter.next();
+                        continue;
+                    }
                     Some(Ok(m)) if m.line_number - line_number >= self.max_context * 2 => {
                         State::EndOfChunk
                     }
@@ -281,7 +287,6 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
         }
 
         if chunks.is_empty() {
-            assert!(lmats.is_empty());
             return None;
         }
 
@@ -405,6 +410,33 @@ mod tests {
 
         assert_eq!(got.len(), 1);
         assert_eq!(got[0], expected);
+    }
+
+    #[test]
+    fn test_same_line_occurs_repeatedly() {
+        // Same line may be reported multiple times when reading output from `rg --vimgrep` (regression test for #17)
+
+        let mat = |lnum| {
+            Result::Ok(GrepMatch {
+                path: "Cargo.toml".into(),
+                line_number: lnum,
+                ranges: vec![],
+            })
+        };
+        let matches = vec![mat(1), mat(1), mat(1), mat(2), mat(2), mat(2)];
+
+        let mut files = Files::new(matches.into_iter(), 0, 0);
+        let File {
+            line_matches,
+            chunks,
+            ..
+        } = files.next().unwrap().unwrap();
+        assert!(files.next().is_none());
+
+        let want = vec![LineMatch::lnum(1), LineMatch::lnum(2)].into_boxed_slice();
+        assert_eq!(line_matches, want);
+        let want = vec![(1, 1), (2, 2)].into_boxed_slice();
+        assert_eq!(chunks, want);
     }
 
     #[test]
