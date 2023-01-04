@@ -109,7 +109,7 @@ fn with_ripgrep(c: &mut Criterion) {
         let printer = SyntectPrinter::new(sink, opts).unwrap();
         let mut config = ripgrep::Config::new(3, 6);
         config.no_ignore(true);
-        ripgrep::grep(printer, pat, Some(iter::once(dir.as_os_str())), config).unwrap()
+        ripgrep::grep(printer, pat, Some(iter::once(dir)), config).unwrap()
     }
 
     let node_modules = node_modules_path();

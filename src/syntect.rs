@@ -424,18 +424,18 @@ impl<W: Write> Canvas<W> {
         Ok(())
     }
 
-    fn set_color(&mut self, code: u8, c: Color) -> io::Result<()> {
-        // In case of c.a == 0 and c.a == 1 are handling for special colorscheme by bat for non true
+    fn set_color(&mut self, code: u8, Color { r, g, b, a }: Color) -> io::Result<()> {
+        // In case of a == 0 and a == 1 are handling for special colorscheme by bat for non true
         // color terminals. Color value is encoded in R. See `to_ansi_color()` in bat/src/terminal.rs
-        match c.a {
-            0 if c.r <= 7 => write!(self.out, "\x1b[{}m", c.r + code)?, // 16 colors; e.g. 3 => 33 (Yellow), 6 => 36 (Cyan) (code=30)
-            0 => write!(self.out, "\x1b[{};5;{}m", code + 8, c.r)?, // 256 colors; code=38 for fg, code=48 for bg
+        match a {
+            0 if r <= 7 => write!(self.out, "\x1b[{}m", r + code)?, // 16 colors; e.g. 3 => 33 (Yellow), 6 => 36 (Cyan) (code=30)
+            0 => write!(self.out, "\x1b[{};5;{}m", code + 8, r)?, // 256 colors; code=38 for fg, code=48 for bg
             1 => write!(self.out, "\x1b[0m")?, // Pass though. Reset color to set default terminal font color
             _ if self.true_color => {
-                write!(self.out, "\x1b[{};2;{};{};{}m", code + 8, c.r, c.g, c.b)?;
+                write!(self.out, "\x1b[{};2;{};{};{}m", code + 8, r, g, b)?;
             }
             _ => {
-                let c = ansi256_from_rgb((c.r, c.g, c.b));
+                let c = ansi256_from_rgb((r, g, b));
                 write!(self.out, "\x1b[{};5;{}m", code + 8, c)?;
             }
         }

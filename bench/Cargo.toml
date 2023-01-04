@@ -13,9 +13,9 @@ hgrep = { path = ".." }
 mimalloc = { version = "0.1", default-features = false }
 
 [dev-dependencies]
-criterion = "0.3"
+criterion = "0.4.0"
 gag = "1"
-rayon = "1.5"
+rayon = "1.6"
 
 [[bench]]
 name = "chunk"

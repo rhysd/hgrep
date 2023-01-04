@@ -27,17 +27,17 @@ cargo bench min_3_max_6
 
 ## Compare benchmarking results
 
-Use [critcmp][].
+Use `--save-baseline` and `--baseline` to compare two results.
 
 ```sh
 git checkout master
 cargo bench -- --save-baseline base
 
 git checkout feature
-cargo bench -- --save-baseline change
-
-critcmp base change
+cargo bench -- --baseline change
 ```
+
+Using [critcmp][] may be more useful.
 
 ## Notes
 

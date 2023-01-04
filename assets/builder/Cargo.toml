@@ -10,4 +10,4 @@ publish = false
 syntect = "4.6"
 bincode = "1.3"
 flate2 = "1"
-path-slash = "0.1"
+path-slash = "0.2"

@@ -19,13 +19,7 @@ impl Printer for DummyPrinter {
 fn run_ripgrep(pat: &str, path: &Path) -> bool {
     let mut config = ripgrep::Config::new(3, 6);
     config.no_ignore(true);
-    ripgrep::grep(
-        DummyPrinter,
-        pat,
-        Some(iter::once(path.as_os_str())),
-        config,
-    )
-    .unwrap()
+    ripgrep::grep(DummyPrinter, pat, Some(iter::once(path)), config).unwrap()
 }
 
 fn bench(c: &mut Criterion) {

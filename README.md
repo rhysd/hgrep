@@ -98,8 +98,6 @@ dramatically reduces the number of dependencies, installation time, and binary s
 cargo install hgrep --no-default-features --features syntect-printer
 ```
 
-To know features provided by `hgrep` crate, please see the following 'Feature flags' section for more details.
-
 ### Feature flags
 
 All features are optional and enabled by default. At least `bat-printer` or `syntect-printer` needs to be enabled.
@@ -343,6 +341,7 @@ This is an example of setup the completion script on Zsh.
 ```sh
 # Let's say we set comps=~/.zsh/site-functions
 hgrep --generate-completion-script zsh > ~/.zsh/site-functions/_hgrep
+chmod +x ~/.zsh/site-functions/_hgrep
 ```
 
 ### Exit status
