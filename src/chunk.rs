@@ -194,6 +194,11 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Files<I> {
         }
         path
     }
+
+    fn error_item(&mut self, e: anyhow::Error) -> Option<Result<File>> {
+        self.saw_error = true;
+        Some(Err(e))
+    }
 }
 
 impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
@@ -210,17 +215,11 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
             ranges,
         } = match self.iter.next()? {
             Ok(m) => m,
-            Err(e) => {
-                self.saw_error = true;
-                return Some(Err(e));
-            }
+            Err(e) => return self.error_item(e),
         };
         let contents = match fs::read(&path) {
             Ok(vec) => vec,
-            Err(err) => {
-                self.saw_error = true;
-                return Some(Err(err.into()));
-            }
+            Err(err) => return self.error_item(err.into()),
         };
         // Assumes that matched lines are sorted by source location
         let mut lines = Lines::new(&contents);
@@ -262,7 +261,10 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
                     State::EndOfFile | State::EndOfChunk => chunks.push(
                         self.calculate_chunk_range(first_match_line, line_number, &mut lines),
                     ),
-                    State::Error => self.saw_error = true,
+                    State::Error => {
+                        let err = self.iter.next().unwrap().unwrap_err();
+                        return self.error_item(err);
+                    }
                     State::NextMatch => {
                         // Next match
                         let m = self.iter.next().unwrap().unwrap();
@@ -450,10 +452,21 @@ mod tests {
         }
         impl std::error::Error for DummyError {}
 
-        let matches: Vec<Result<GrepMatch>> = vec![Err(Error::new(DummyError))];
-        let err = Files::new(matches.into_iter(), 3, 6)
-            .collect::<Result<Vec<_>>>()
-            .unwrap_err();
-        assert_eq!(format!("{}", err), "dummy error!");
+        for matches in [
+            vec![Err(Error::new(DummyError))], // Error at first match
+            vec![
+                Ok(GrepMatch {
+                    path: "Cargo.toml".into(),
+                    line_number: 1,
+                    ranges: vec![],
+                }),
+                Err(Error::new(DummyError)), // Error at second match
+            ],
+        ] {
+            let err = Files::new(matches.into_iter(), 3, 6)
+                .collect::<Result<Vec<_>>>()
+                .unwrap_err();
+            assert_eq!(format!("{}", err), "dummy error!");
+        }
     }
 }
