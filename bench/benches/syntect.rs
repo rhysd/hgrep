@@ -88,14 +88,14 @@ fn print_files(c: &mut Criterion) {
     });
 
     let readme = Path::new("..").join("README.md");
-    let contents = fs::read_to_string(&readme).unwrap();
+    let contents = fs::read_to_string(readme).unwrap();
     let files = create_files_for_contents(contents, path, 10);
     c.bench_function("syntect::print-small", |b| {
         b.iter(|| run(files.clone(), assets.clone()))
     });
 
     let readme = Path::new("..").join("LICENSE.txt");
-    let contents = fs::read_to_string(&readme).unwrap();
+    let contents = fs::read_to_string(readme).unwrap();
     let files = create_files_for_contents(contents, path, 1);
     c.bench_function("syntect::print-tiny", |b| {
         b.iter(|| run(files.clone(), assets.clone()))

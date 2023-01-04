@@ -124,7 +124,7 @@ fn test_read_ok() {
 
     let output: Vec<_> = input.grep_lines().collect::<Result<_>>().unwrap();
 
-    let expected = vec![
+    let expected = &[
         GrepMatch {
             path: PathBuf::from("/path/to/foo.txt"),
             line_number: 1,
@@ -142,7 +142,7 @@ fn test_read_ok() {
         },
     ];
 
-    assert_eq!(output, expected);
+    assert_eq!(&output, expected);
 }
 
 #[test]

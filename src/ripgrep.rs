@@ -984,11 +984,12 @@ mod tests {
 
         for (input, want) in tests.iter().copied() {
             let mut c = Config::default();
-            let mut errs = vec![];
-            errs.push(("max-filesize", c.max_filesize(input).err()));
-            errs.push(("regex-size-limit", c.regex_size_limit(input).err()));
-            errs.push(("dfa-size-limit", c.dfa_size_limit(input).err()));
-            for (opt, err) in errs.into_iter() {
+            let errs = [
+                ("max-filesize", c.max_filesize(input).err()),
+                ("regex-size-limit", c.regex_size_limit(input).err()),
+                ("dfa-size-limit", c.dfa_size_limit(input).err()),
+            ];
+            for (opt, err) in errs {
                 match want {
                     Ok(want) => assert_eq!(
                         c.max_filesize,

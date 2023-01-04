@@ -1,7 +1,7 @@
 [package]
 name = "hgrep"
 version = "0.2.6"
-edition = "2018"
+edition = "2021"
 authors = ["rhysd <lin90162@yahoo.co.jp>"]
 description = """
 hgrep is a grep tool with human-friendly search output. This is similar to `-C`

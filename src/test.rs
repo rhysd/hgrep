@@ -33,7 +33,7 @@ pub(crate) fn read_all_matches<S: AsRef<str>>(dir: &Path, inputs: &[S]) -> Vec<R
 pub(crate) fn read_expected_chunks<S: AsRef<str>>(dir: &Path, input: S) -> Option<File> {
     let input = input.as_ref();
     let outfile = dir.join(format!("{}.out", input));
-    let (chunks, lmats) = fs::read_to_string(&outfile)
+    let (chunks, lmats) = fs::read_to_string(outfile)
         .unwrap()
         .lines()
         .filter(|s| !s.is_empty())

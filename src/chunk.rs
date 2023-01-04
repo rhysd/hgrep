@@ -425,7 +425,7 @@ mod tests {
                 ranges: vec![],
             })
         };
-        let matches = vec![mat(1), mat(1), mat(1), mat(2), mat(2), mat(2)];
+        let matches = [mat(1), mat(1), mat(1), mat(2), mat(2), mat(2)];
 
         let mut files = Files::new(matches.into_iter(), 0, 0);
         let File {

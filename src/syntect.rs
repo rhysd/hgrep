@@ -1447,7 +1447,7 @@ mod tests {
             }
             let file = format!("list_themes_{}.out", input);
             let expected = Path::new("testdata").join("syntect").join(file);
-            let expected = fs::read(&expected).unwrap();
+            let expected = fs::read(expected).unwrap();
 
             let mut opts = PrinterOptions {
                 term_width: 80,
