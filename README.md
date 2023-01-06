@@ -116,6 +116,8 @@ For the differences of `bat-printer` and `syntect-printer`, see ['`bat` printer 
 
 Optionally hgrep provides built-in grep implementation thanks to [ripgrep][] as a library. It is a subset of `rg` command.
 
+Built-in ripgrep is a recommended way to use hgrep because it is optimized for the use case.
+
 When a pattern is given, `hgrep` command search files in given paths with it. When a directory is included in paths, hgrep
 searches it recursively. When no path is given, hgrep searches the current directory.
 
@@ -141,7 +143,7 @@ hgrep --term-width "$COLUMNS" [options...] pattern paths... | less -R
 ```
 
 It's faster when there are so many matches because everything is done in the same process. In combination with `syntect-printer`
-feature, matched regions can be highilghted in a searched text color. The built-in grep feature is enabled by default and can be
+feature, matched regions can be highlighted in a searched text color. The built-in grep feature is enabled by default and can be
 omitted by feature flags.
 
 Though almost all useful options are implemented, the built-in grep implementation is a subset of ripgrep. If you need full
@@ -241,9 +243,9 @@ The default layout is 'grid'. To reduce borderlines to use space more efficientl
 hgrep --no-grid ...
 ```
 
-When you use `bat` printer is used, hgrep respects `BAT_THEME` and `BAT_STYLE` environment variable. Theme set to `BAT_THEME`
-is used by default. And the grid layout is used when `plain` or `header` or `numbers` is set to `BAT_STYLE`. `syntect` printer
-does not look at these variables. To set default theme, please use a command alias in your shell (See
+When you use `bat` printer, hgrep respects `BAT_THEME` and `BAT_STYLE` environment variable. Theme set to `BAT_THEME`
+is used by default. And the grid layout is used when `plain` or `header` or `numbers` is set to `BAT_STYLE`. `syntect`
+printer does not look at these variables. To set default theme, please use a command alias in your shell (See
 ['Set default command options'](#set-default-command-options) for details).
 
 ```sh
