@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use clap::{Arg, Command};
+use clap::{Arg, ArgAction, Command};
 use hgrep::grep::BufReadExt;
 use hgrep::printer::{PrinterOptions, TextWrapMode};
 use std::cmp;
@@ -56,11 +56,13 @@ fn command() -> Command {
             Arg::new("no-grid")
                 .short('G')
                 .long("no-grid")
+                .action(ArgAction::SetTrue)
                 .help("Remove borderlines for more compact output"),
         )
         .arg(
             Arg::new("grid")
                 .long("grid")
+                .action(ArgAction::SetTrue)
                 .help("Add borderlines to output. This flag is an opposite of --no-grid"),
         )
         .arg(
@@ -81,6 +83,7 @@ fn command() -> Command {
         .arg(
             Arg::new("list-themes")
                 .long("list-themes")
+                .action(ArgAction::SetTrue)
                 .help("List all available theme names and their samples. Samples show the output where 'let' is searched. The names can be used at --theme option"),
         )
         .arg(
@@ -110,6 +113,7 @@ fn command() -> Command {
             Arg::new("first-only")
                 .short('f')
                 .long("first-only")
+                .action(ArgAction::SetTrue)
                 .help("Show only the first code snippet per file")
         )
         .arg(
@@ -156,24 +160,28 @@ fn command() -> Command {
             .arg(
                 Arg::new("no-ignore")
                     .long("no-ignore")
+                    .action(ArgAction::SetTrue)
                     .help("Don't respect ignore files (.gitignore, .ignore, etc.)"),
             )
             .arg(
                 Arg::new("ignore-case")
                     .short('i')
                     .long("ignore-case")
+                    .action(ArgAction::SetTrue)
                     .help("When this flag is provided, the given pattern will be searched case insensitively"),
             )
             .arg(
                 Arg::new("smart-case")
                     .short('S')
                     .long("smart-case")
+                    .action(ArgAction::SetTrue)
                     .help("Search case insensitively if the pattern is all lowercase. Search case sensitively otherwise"),
             )
             .arg(
                 Arg::new("hidden")
                     .short('.')
                     .long("hidden")
+                    .action(ArgAction::SetTrue)
                     .help("Search hidden files and directories. By default, hidden files and directories are skipped"),
             )
             .arg(
@@ -189,30 +197,35 @@ fn command() -> Command {
             .arg(
                 Arg::new("glob-case-insensitive")
                     .long("glob-case-insensitive")
+                    .action(ArgAction::SetTrue)
                     .help("Process glob patterns given with the -g/--glob flag case insensitively"),
             )
             .arg(
                 Arg::new("fixed-strings")
                     .short('F')
                     .long("fixed-strings")
+                    .action(ArgAction::SetTrue)
                     .help("Treat the pattern as a literal string instead of a regular expression"),
             )
             .arg(
                 Arg::new("word-regexp")
                     .short('w')
                     .long("word-regexp")
+                    .action(ArgAction::SetTrue)
                     .help("Only show matches surrounded by word boundaries"),
             )
             .arg(
                 Arg::new("follow-symlink")
                     .short('L')
                     .long("follow")
+                    .action(ArgAction::SetTrue)
                     .help("When this flag is enabled, hgrep will follow symbolic links while traversing directories"),
             )
             .arg(
                 Arg::new("multiline")
                     .short('U')
                     .long("multiline")
+                    .action(ArgAction::SetTrue)
                     .help("Enable matching across multiple lines"),
             )
             .arg(
@@ -223,11 +236,13 @@ fn command() -> Command {
             .arg(
                 Arg::new("crlf")
                     .long("crlf")
+                    .action(ArgAction::SetTrue)
                     .help(r"When enabled, hgrep will treat CRLF ('\r\n') as a line terminator instead of just '\n'. This flag is useful on Windows"),
             )
             .arg(
                 Arg::new("mmap")
                     .long("mmap")
+                    .action(ArgAction::SetTrue)
                     .help("Search using memory maps when possible. mmap is disabled by default unlike ripgrep"),
             )
             .arg(
@@ -249,12 +264,14 @@ fn command() -> Command {
                 Arg::new("line-regexp")
                     .short('x')
                     .long("line-regexp")
+                    .action(ArgAction::SetTrue)
                     .help("Only show matches surrounded by line boundaries. This is equivalent to putting ^...$ around the search pattern"),
             )
             .arg(
                 Arg::new("pcre2")
                     .short('P')
                     .long("pcre2")
+                    .action(ArgAction::SetTrue)
                     .help("When this flag is present, hgrep will use the PCRE2 regex engine instead of its default regex engine"),
             )
             .arg(
@@ -278,6 +295,7 @@ fn command() -> Command {
             .arg(
                 Arg::new("type-list")
                     .long("type-list")
+                    .action(ArgAction::SetTrue)
                     .help("Show all supported file types and their corresponding globs"),
             )
             .arg(
@@ -291,16 +309,19 @@ fn command() -> Command {
                 Arg::new("invert-match")
                     .short('v')
                     .long("invert-match")
+                    .action(ArgAction::SetTrue)
                     .help("Invert matching. Show lines that do not match the given pattern"),
             )
             .arg(
                 Arg::new("one-file-system")
                     .long("one-file-system")
+                    .action(ArgAction::SetTrue)
                     .help("When enabled, the search will not cross file system boundaries relative to where it started from"),
             )
             .arg(
                 Arg::new("no-unicode")
                     .long("no-unicode")
+                    .action(ArgAction::SetTrue)
                     .help("Disable unicode-aware regular expression matching"),
             )
             .arg(
