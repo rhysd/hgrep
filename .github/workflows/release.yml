@@ -49,12 +49,9 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          target: ${{ matrix.target }}
+          targets: ${{ matrix.target }}
       - name: Prepare cross compilation for M1 Mac
         run: |
           # /usr/local/lib/libpcre2-8.dylib is built for x86_64. Link error happens on `cargo build` for dynamic linking.

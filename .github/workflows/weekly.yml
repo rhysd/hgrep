@@ -9,10 +9,6 @@ jobs:
   cargo-install:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+      - uses: dtolnay/rust-toolchain@stable
       - run: cargo install --color always hgrep
       - run: hgrep --version
