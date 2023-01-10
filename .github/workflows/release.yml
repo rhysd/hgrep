@@ -42,13 +42,13 @@ jobs:
           else
             ver="${GITHUB_REF##refs/tags/}"
           fi
-          echo "::set-output name=version::${ver}"
-          echo "::set-output name=asset_dir::hgrep-${ver}-${TARGET}"
-          echo "::set-output name=zip::hgrep-${ver}-${TARGET}.zip"
+          echo "version=${ver}" >> "$GITHUB_OUTPUT"
+          echo "asset_dir=hgrep-${ver}-${TARGET}" >> "$GITHUB_OUTPUT"
+          echo "zip=hgrep-${ver}-${TARGET}.zip" >> "$GITHUB_OUTPUT"
         shell: bash
         env:
           TARGET: ${{ matrix.target }}
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -94,7 +94,7 @@ jobs:
           files: ${{ steps.info.outputs.zip }}
         if: ${{ github.event_name != 'workflow_dispatch' }}
       - name: Upload release artifact for dry-run
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ steps.info.outputs.asset_dir }}
           path: ${{ steps.info.outputs.asset_dir }}
@@ -116,15 +116,15 @@ jobs:
           else
             ver="${GITHUB_REF##refs/tags/}"
           fi
-          echo "::set-output name=version::${ver}"
-          echo "::set-output name=asset_dir::hgrep-${ver}-x86_64-unknown-linux-musl"
-          echo "::set-output name=zip::hgrep-${ver}-x86_64-unknown-linux-musl.zip"
+          echo "version=${ver}" >> "$GITHUB_OUTPUT"
+          echo "asset_dir=hgrep-${ver}-x86_64-unknown-linux-musl" >> "$GITHUB_OUTPUT"
+          echo "zip=hgrep-${ver}-x86_64-unknown-linux-musl.zip" >> "$GITHUB_OUTPUT"
       - name: Install dependencies
         run: |
           apk add --no-cache clang lld musl-dev zip
           clang --version
           zip --version
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - run: cargo build --release --color always --target=x86_64-unknown-linux-musl
       - name: Archive files
         run: |
@@ -140,7 +140,7 @@ jobs:
           files: ${{ steps.info.outputs.zip }}
         if: ${{ github.event_name != 'workflow_dispatch' }}
       - name: Upload release artifact for dry-run
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ steps.info.outputs.asset_dir }}
           path: ${{ steps.info.outputs.asset_dir }}
@@ -151,7 +151,7 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: main
           fetch-depth: 0

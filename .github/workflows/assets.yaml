@@ -17,7 +17,7 @@ jobs:
       RUSTFLAGS: -D warnings
       RUST_BACKTRACE: 1
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: recursive
       - uses: actions-rs/toolchain@v1
@@ -25,7 +25,7 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - run: cd ./assets/builder && cargo run --color always
       - name: Check themes.bin was not changed
         run: |
