@@ -1,3 +1,11 @@
+<a name="v0.2.8"></a>
+# [v0.2.8](https://github.com/rhysd/hgrep/releases/tag/v0.2.8) - 10 Jan 2023
+
+- Fix some command line boolean flags wrongly took an argument. (thanks [@Ryooooooga](https://github.com/Ryooooooga), [#15](https://github.com/rhysd/hgrep/issues/15))
+
+[Changes][v0.2.8]
+
+
 <a name="v0.2.7"></a>
 # [v0.2.7](https://github.com/rhysd/hgrep/releases/tag/v0.2.7) - 04 Jan 2023
 
@@ -247,6 +255,7 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [Changes][v0.1.1]
 
 
+[v0.2.8]: https://github.com/rhysd/hgrep/compare/v0.2.7...v0.2.8
 [v0.2.7]: https://github.com/rhysd/hgrep/compare/v0.2.6...v0.2.7
 [v0.2.6]: https://github.com/rhysd/hgrep/compare/v0.2.5...v0.2.6
 [v0.2.5]: https://github.com/rhysd/hgrep/compare/v0.2.4...v0.2.5
