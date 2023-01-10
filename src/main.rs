@@ -130,6 +130,7 @@ fn command() -> Command {
     let cmd = cmd.arg(
         Arg::new("custom-assets")
             .long("custom-assets")
+            .action(ArgAction::SetTrue)
             .help("Load bat's custom assets. Note that this flag may not work with some version of `bat` command. This flag is only for bat printer"),
     );
 
@@ -138,12 +139,16 @@ fn command() -> Command {
         .arg(
             Arg::new("background")
                 .long("background")
+                .action(ArgAction::SetTrue)
                 .help("Paint background colors. This flag is only for syntect printer"),
         )
         .arg(
-            Arg::new("ascii-lines").long("ascii-lines").help(
-                "Use ASCII characters for drawing border lines instead of Unicode characters",
-            ),
+            Arg::new("ascii-lines")
+                .long("ascii-lines")
+                .action(ArgAction::SetTrue)
+                .help(
+                    "Use ASCII characters for drawing border lines instead of Unicode characters",
+                ),
         );
 
     #[cfg(feature = "ripgrep")]
@@ -231,6 +236,7 @@ fn command() -> Command {
             .arg(
                 Arg::new("multiline-dotall")
                     .long("multiline-dotall")
+                    .action(ArgAction::SetTrue)
                     .help("Enable \"dot all\" in your regex pattern, which causes '.' to match newlines when multiline searching is enabled"),
             )
             .arg(
@@ -385,23 +391,23 @@ fn build_ripgrep_config(
     config
         .min_context(min_context)
         .max_context(max_context)
-        .no_ignore(matches.contains_id("no-ignore"))
-        .hidden(matches.contains_id("hidden"))
-        .case_insensitive(matches.contains_id("ignore-case"))
-        .smart_case(matches.contains_id("smart-case"))
-        .glob_case_insensitive(matches.contains_id("glob-case-insensitive"))
-        .pcre2(matches.contains_id("pcre2")) // must be before fixed_string
-        .fixed_strings(matches.contains_id("fixed-strings"))
-        .word_regexp(matches.contains_id("word-regexp"))
-        .follow_symlink(matches.contains_id("follow-symlink"))
-        .multiline(matches.contains_id("multiline"))
-        .crlf(matches.contains_id("crlf"))
-        .multiline_dotall(matches.contains_id("multiline-dotall"))
-        .mmap(matches.contains_id("mmap"))
-        .line_regexp(matches.contains_id("line-regexp"))
-        .invert_match(matches.contains_id("invert-match"))
-        .one_file_system(matches.contains_id("one-file-system"))
-        .no_unicode(matches.contains_id("no-unicode"));
+        .no_ignore(matches.get_flag("no-ignore"))
+        .hidden(matches.get_flag("hidden"))
+        .case_insensitive(matches.get_flag("ignore-case"))
+        .smart_case(matches.get_flag("smart-case"))
+        .glob_case_insensitive(matches.get_flag("glob-case-insensitive"))
+        .pcre2(matches.get_flag("pcre2")) // must be before fixed_string
+        .fixed_strings(matches.get_flag("fixed-strings"))
+        .word_regexp(matches.get_flag("word-regexp"))
+        .follow_symlink(matches.get_flag("follow-symlink"))
+        .multiline(matches.get_flag("multiline"))
+        .crlf(matches.get_flag("crlf"))
+        .multiline_dotall(matches.get_flag("multiline-dotall"))
+        .mmap(matches.get_flag("mmap"))
+        .line_regexp(matches.get_flag("line-regexp"))
+        .invert_match(matches.get_flag("invert-match"))
+        .one_file_system(matches.get_flag("one-file-system"))
+        .no_unicode(matches.get_flag("no-unicode"));
 
     if let Some(globs) = matches.get_many::<String>("glob") {
         config.globs(globs.map(String::as_str));
@@ -511,7 +517,7 @@ fn app() -> Result<bool> {
         printer_opts.theme = Some(theme);
     }
 
-    let is_grid = matches.contains_id("grid");
+    let is_grid = matches.get_flag("grid");
     #[cfg(feature = "bat-printer")]
     if printer_kind == PrinterKind::Bat {
         if let Ok("plain" | "header" | "numbers") =
@@ -522,7 +528,7 @@ fn app() -> Result<bool> {
             }
         }
     }
-    if matches.contains_id("no-grid") && !is_grid {
+    if matches.get_flag("no-grid") && !is_grid {
         printer_opts.grid = false;
     }
 
@@ -546,13 +552,13 @@ fn app() -> Result<bool> {
         }
     }
 
-    if matches.contains_id("first-only") {
+    if matches.get_flag("first-only") {
         printer_opts.first_only = true;
     }
 
     #[cfg(feature = "syntect-printer")]
     {
-        if matches.contains_id("background") {
+        if matches.get_flag("background") {
             printer_opts.background_color = true;
             #[cfg(feature = "bat-printer")]
             if printer_kind == PrinterKind::Bat {
@@ -560,7 +566,7 @@ fn app() -> Result<bool> {
             }
         }
 
-        if matches.contains_id("ascii-lines") {
+        if matches.get_flag("ascii-lines") {
             printer_opts.ascii_lines = true;
             #[cfg(feature = "bat-printer")]
             if printer_kind == PrinterKind::Bat {
@@ -570,7 +576,7 @@ fn app() -> Result<bool> {
     }
 
     #[cfg(feature = "bat-printer")]
-    if matches.contains_id("custom-assets") {
+    if matches.get_flag("custom-assets") {
         printer_opts.custom_assets = true;
         #[cfg(feature = "syntect-printer")]
         if printer_kind == PrinterKind::Syntect {
@@ -578,7 +584,7 @@ fn app() -> Result<bool> {
         }
     }
 
-    if matches.contains_id("list-themes") {
+    if matches.get_flag("list-themes") {
         #[cfg(feature = "syntect-printer")]
         if printer_kind == PrinterKind::Syntect {
             hgrep::syntect::list_themes(io::stdout().lock(), &printer_opts)?;
@@ -595,7 +601,7 @@ fn app() -> Result<bool> {
     }
 
     #[cfg(feature = "ripgrep")]
-    if matches.contains_id("type-list") {
+    if matches.get_flag("type-list") {
         let config = build_ripgrep_config(min_context, max_context, &matches)?;
         config.print_types(io::stdout().lock())?;
         return Ok(true);
