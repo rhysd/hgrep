@@ -247,6 +247,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap_mangen"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "904eb24d05ad587557e0f484ddce5c737c30cf81372badb16d13e41c4b8340b1"
+dependencies = [
+ "clap 4.0.32",
+ "roff",
+]
+
+[[package]]
 name = "clircle"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -680,6 +690,7 @@ dependencies = [
  "bincode",
  "clap 4.0.32",
  "clap_complete",
+ "clap_mangen",
  "dirs-next",
  "flate2",
  "grep-matcher",
@@ -1185,6 +1196,12 @@ checksum = "3603b7d71ca82644f79b5a06d1220e9a58ede60bd32255f698cb1af8838b8db3"
 dependencies = [
  "bytemuck",
 ]
+
+[[package]]
+name = "roff"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b833d8d034ea094b1ea68aa6d5c740e0d04bad9d16568d08ba6f76823a114316"
 
 [[package]]
 name = "rustix"

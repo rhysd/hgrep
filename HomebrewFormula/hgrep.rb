@@ -28,6 +28,8 @@ class Hgrep < Formula
       (bash_completion/'hgrep').write output
       output = Utils.safe_popen_read(hgrep, '--generate-completion-script', 'fish')
       (fish_completion/'hgrep.fish').write output
+      output = Utils.safe_popen_read(hgrep, '--generate-man-page')
+      (man1/'hgrep.1').write output
     end
   end
 

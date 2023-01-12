@@ -124,6 +124,12 @@ fn command() -> Command {
                 .value_parser(["bash", "zsh", "powershell", "fish", "elvish"])
                 .ignore_case(true)
                 .help("Print completion script for SHELL to stdout"),
+        )
+        .arg(
+            Arg::new("generate-man-page")
+                .long("generate-man-page")
+                .action(ArgAction::SetTrue)
+                .help("Print man page to stdout"),
         );
 
     #[cfg(feature = "bat-printer")]
@@ -468,8 +474,16 @@ enum PrinterKind {
 
 fn app() -> Result<bool> {
     let matches = command().get_matches();
+
     if let Some(shell) = matches.get_one::<String>("generate-completion-script") {
         generate_completion_script(shell);
+        return Ok(true);
+    }
+
+    if matches.get_flag("generate-man-page") {
+        let man = clap_mangen::Man::new(command());
+        let stdout = io::stdout();
+        man.render(&mut stdout.lock())?;
         return Ok(true);
     }
 

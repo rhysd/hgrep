@@ -346,6 +346,19 @@ hgrep --generate-completion-script zsh > ~/.zsh/site-functions/_hgrep
 chmod +x ~/.zsh/site-functions/_hgrep
 ```
 
+### Generate man page
+
+Manual page for `hgrep` command is available. `--generate-man-page` flag generates the man page and prints it to stdout.
+
+This is an example to generate man page in `/usr/local/share`.
+
+```sh
+hgrep --generate-man-page > /usr/local/share/man/man1/hgrep.1
+
+# See manual page
+man hgrep
+```
+
 ### Exit status
 
 `hgrep` command returns exit statuses as follows.
