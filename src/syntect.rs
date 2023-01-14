@@ -54,7 +54,7 @@ fn list_themes_with_syntaxes<W: Write>(
     opts: &PrinterOptions<'_>,
     syntaxes: &SyntaxSet,
 ) -> Result<()> {
-    use crate::io::IgnoreBrokenPipe;
+    use crate::broken_pipe::IgnoreBrokenPipe;
 
     let themes = {
         let mut m = load_bat_themes()?.themes;
@@ -1104,7 +1104,7 @@ where
     for<'a> W: LockableWrite<'a>,
 {
     fn print(&self, file: File) -> Result<()> {
-        use crate::io::IgnoreBrokenPipe;
+        use crate::broken_pipe::IgnoreBrokenPipe;
 
         if file.chunks.is_empty() || file.line_matches.is_empty() {
             return Ok(());

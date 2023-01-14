@@ -383,7 +383,7 @@ impl<'main> Config<'main> {
             Ok(())
         }
 
-        use crate::io::IgnoreBrokenPipe;
+        use crate::broken_pipe::IgnoreBrokenPipe;
         let types = self.build_types()?;
         print(out, &types).ignore_broken_pipe()?;
         Ok(())

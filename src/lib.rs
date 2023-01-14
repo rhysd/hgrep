@@ -5,7 +5,7 @@ pub mod chunk;
 pub mod grep;
 pub mod printer;
 
-mod io;
+mod broken_pipe;
 
 #[cfg(feature = "bat-printer")]
 pub mod bat;
