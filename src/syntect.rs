@@ -29,7 +29,7 @@ fn load_bat_themes() -> Result<ThemeSet> {
 }
 
 fn load_syntax_set() -> Result<SyntaxSet> {
-    Ok(bincode::deserialize_from(ZlibDecoder::new(SYNTAX_SET_BIN))?)
+    Ok(bincode::deserialize_from(SYNTAX_SET_BIN)?)
 }
 
 pub trait LockableWrite<'a> {
@@ -69,7 +69,7 @@ fn list_themes_with_syntaxes<W: Write>(
 
     themes
         .iter()
-        .try_for_each(|(name, theme)| {
+        .try_for_each(|(name, theme)| -> Result<()> {
             let mut drawer = Drawer::new(&mut out, opts, theme, &sample_file.chunks);
             drawer.canvas.set_bold()?;
             write!(drawer.canvas, "{:?}", name)?;
@@ -79,7 +79,7 @@ fn list_themes_with_syntaxes<W: Write>(
 
             let hl = LineHighlighter::new(syntax, theme, syntaxes);
             drawer.draw_file(&sample_file, hl)?;
-            writeln!(drawer.canvas)
+            Ok(writeln!(drawer.canvas)?)
         })
         .ignore_broken_pipe()?;
 
@@ -624,19 +624,21 @@ impl<'a> LineHighlighter<'a> {
         }
     }
 
-    fn skip_line(&mut self, line: &str) {
-        let ops = self.parse_state.parse_line(line, self.syntaxes);
+    fn skip_line(&mut self, line: &str) -> Result<()> {
+        let ops = self.parse_state.parse_line(line, self.syntaxes)?;
         for _ in HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl) {}
+        Ok(())
     }
 
-    fn highlight<'line>(&mut self, line: &'line str) -> Vec<Token<'line>> {
-        let ops = self.parse_state.parse_line(line, self.syntaxes);
-        HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl)
+    fn highlight<'line>(&mut self, line: &'line str) -> Result<Vec<Token<'line>>> {
+        let ops = self.parse_state.parse_line(line, self.syntaxes)?;
+        let tokens = HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl)
             .map(|(mut style, text)| {
                 style.foreground = blend_fg_color(style.foreground, style.background);
                 Token { style, text }
             })
-            .collect()
+            .collect();
+        Ok(tokens)
     }
 }
 
@@ -903,7 +905,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         self.canvas.draw_newline()
     }
 
-    fn draw_body(&mut self, file: &File, mut hl: LineHighlighter<'_>) -> io::Result<()> {
+    fn draw_body(&mut self, file: &File, mut hl: LineHighlighter<'_>) -> Result<()> {
         assert!(!file.chunks.is_empty());
 
         let mut matched = file.line_matches.as_ref();
@@ -913,7 +915,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         for Line(bytes, lnum) in LinesInclusive::new(&file.contents) {
             let (start, end) = *chunk;
             if lnum < start {
-                hl.skip_line(String::from_utf8_lossy(bytes).as_ref()); // Discard parsed result
+                hl.skip_line(String::from_utf8_lossy(bytes).as_ref())?; // Discard parsed result
                 continue;
             }
             if start <= lnum && lnum <= end {
@@ -927,7 +929,7 @@ impl<'file, W: Write> Drawer<'file, W> {
                 let line = String::from_utf8_lossy(bytes);
                 // Collect to `Vec` rather than handing HighlightIterator as-is. HighlightIterator takes ownership of Highlighter
                 // while the iteration. When the highlighter is stored in `self`, it means the iterator takes ownership of `self`.
-                self.draw_line(hl.highlight(line.as_ref()), lnum, regions)?;
+                self.draw_line(hl.highlight(line.as_ref())?, lnum, regions)?;
 
                 if lnum == end {
                     if self.first_only {
@@ -971,10 +973,11 @@ impl<'file, W: Write> Drawer<'file, W> {
         Ok(())
     }
 
-    fn draw_file(&mut self, file: &File, hl: LineHighlighter) -> io::Result<()> {
+    fn draw_file(&mut self, file: &File, hl: LineHighlighter) -> Result<()> {
         self.draw_header(&file.path)?;
         self.draw_body(file, hl)?;
-        self.draw_footer()
+        self.draw_footer()?;
+        Ok(())
     }
 }
 
