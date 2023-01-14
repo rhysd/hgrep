@@ -1071,23 +1071,79 @@ where
             if self.opts.color_support == TermColorSupport::Ansi16 {
                 "ansi"
             } else {
-                "Monokai Extended" // Our 25bit -> 8bit color conversion works really well with this colorscheme
+                "Monokai Extended" // 25bit -> 8bit color conversion works really well with this colorscheme
             }
         });
         &self.themes.themes[name]
     }
 
     fn find_syntax(&self, path: &Path) -> Result<&SyntaxReference> {
+        // Find from file extension
         let name = match path.extension().and_then(OsStr::to_str) {
             Some("fs") => Some("F#"),
             Some("h") => Some("C++"),
             Some("pac") => Some("JavaScript (Babel)"),
+            Some("nse") => Some("Lua"),
+            Some(
+                "automount" | "device" | "dnssd" | "link" | "mount" | "netdev" | "network"
+                | "nspawn" | "path" | "service" | "scope" | "slice" | "socket" | "swap" | "target"
+                | "timer",
+            ) => Some("INI"),
             _ => None,
         };
+
+        // Find from file name
         let name = name.or_else(|| match path.file_name().and_then(OsStr::to_str) {
-            Some(".clang-format") => Some("YAML"),
+            Some(".clang-format" | "fish_history") => Some("YAML"),
+            Some("nginx.conf" | "mime.types") => Some("nginx"),
+            Some("httpd.conf") => Some("Apache Conf"),
             _ => None,
         });
+
+        // Find from file path
+        let name = name.or_else(|| {
+            #[cfg(not(windows))]
+            const GIT_CONFIG: &str = "/git/config";
+            #[cfg(windows)]
+            const GIT_CONFIG: &str = "\\git\\config";
+            #[cfg(not(windows))]
+            const GIT_IGNORE: &str = "/git/ignore";
+            #[cfg(windows)]
+            const GIT_IGNORE: &str = "\\git\\ignore";
+            #[cfg(not(windows))]
+            const GIT_ATTRIBUTES: &str = "/git/attributes";
+            #[cfg(windows)]
+            const GIT_ATTRIBUTES: &str = "\\git\\attributes";
+            #[cfg(not(windows))]
+            const SSH_CONFIG: &str = "/.ssh/config";
+            #[cfg(windows)]
+            const SSH_CONFIG: &str = "\\.ssh\\config";
+
+            let path = path.to_str()?;
+            if path.ends_with(GIT_CONFIG) {
+                return Some("Git Config");
+            }
+            if path.ends_with(GIT_IGNORE) {
+                return Some("Git Ignore");
+            }
+            if path.ends_with(GIT_ATTRIBUTES) {
+                return Some("Git Attributes");
+            }
+            if path.ends_with(SSH_CONFIG) {
+                return Some("SSH Config");
+            }
+            #[cfg(not(windows))]
+            if path == "/etc/profile" {
+                return Some("Bourne Again Shell (bash)");
+            }
+            #[cfg(not(windows))]
+            if path.starts_with("/var/spool/mail/") || path.starts_with("/var/mail/") {
+                return Some("Email");
+            }
+
+            None
+        });
+
         if let Some(syntax) = name.and_then(|n| self.syntaxes.find_syntax_by_name(n)) {
             return Ok(syntax);
         }
