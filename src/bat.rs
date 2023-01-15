@@ -34,21 +34,20 @@ impl fmt::Display for BatPrintError {
 // Brought from bat/src/bin/bat/directories.rs dde770aa210ab9eeb5469e152cec6fcaab374d84
 fn get_cache_dir() -> Option<PathBuf> {
     // on all OS prefer BAT_CACHE_PATH if set
-    let cache_dir_op = env::var_os("BAT_CACHE_PATH").map(PathBuf::from);
-    if cache_dir_op.is_some() {
-        return cache_dir_op;
+    if let Some(path) = env::var_os("BAT_CACHE_PATH") {
+        return Some(PathBuf::from(path));
     }
 
     #[cfg(target_os = "macos")]
-    let cache_dir_op = env::var_os("XDG_CACHE_HOME")
+    let dir = env::var_os("XDG_CACHE_HOME")
         .map(PathBuf::from)
         .filter(|p| p.is_absolute())
         .or_else(|| dirs_next::home_dir().map(|d| d.join(".cache")));
 
     #[cfg(not(target_os = "macos"))]
-    let cache_dir_op = dirs_next::cache_dir();
+    let dir = dirs_next::cache_dir();
 
-    cache_dir_op.map(|d| d.join("bat"))
+    dir.map(|d| d.join("bat"))
 }
 
 pub struct BatPrinter<'main> {

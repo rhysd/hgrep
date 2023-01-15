@@ -498,7 +498,7 @@ fn app() -> Result<bool> {
         "syntect" => PrinterKind::Syntect,
         #[cfg(not(feature = "syntect-printer"))]
         "syntect" => anyhow::bail!("--printer syntect is not available because 'syntect-printer' feature was disabled at compilation"),
-        p => anyhow::bail!("Unknown printer '{}', at --printer option. It must be one of 'bat' or 'syntect'", p),
+        p => anyhow::bail!("Unknown printer '{}' at --printer option. It must be one of 'bat' or 'syntect'", p),
     };
 
     let min_context = matches
@@ -666,10 +666,7 @@ fn app() -> Result<bool> {
     if printer_kind == PrinterKind::Bat {
         let mut found = false;
         let printer = BatPrinter::new(printer_opts);
-        // XXX: io::stdin().lock() is not available since bat's implementation internally takes lock of stdin
-        // *even if* it does not use stdin.
-        // https://github.com/sharkdp/bat/issues/1902
-        for f in io::BufReader::new(io::stdin())
+        for f in io::BufReader::new(io::stdin().lock())
             .grep_lines()
             .chunks_per_file(min_context, max_context)
         {

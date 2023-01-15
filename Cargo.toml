@@ -54,7 +54,7 @@ memchr = "2.5.0"
 pathdiff = "0.2.1"
 term = "0.7.0"
 terminal_size = "0.2.3"
-bat = { version = "^0.20.0", default-features = false, features = ["regex-onig"], optional = true }
+bat = { version = "^0.22.1", default-features = false, features = ["regex-onig"], optional = true }
 grep-regex = { version = "0.1.11", optional = true }
 grep-searcher = { version = "0.1.11", optional = true }
 ignore = { version = "0.4", optional = true }
@@ -67,7 +67,7 @@ unicode-width = { version = "0.1.10", optional = true }
 bincode = { version = "1.3.3", optional = true }
 flate2 = { version = "1.0.25", optional = true }
 ansi_colours = { version = "1.2.1", default-features = false, optional = true }
-dirs-next = { version = "2.0.0", optional = true }
+dirs-next = { version = "2.0.0", optional = true } # Using dirs-next because bat uses it
 mimalloc = { version = "0.1.34", default-features = false }
 clap_mangen = "0.2.7"
 
