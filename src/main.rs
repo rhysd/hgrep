@@ -681,8 +681,12 @@ fn app() -> Result<bool> {
 
 fn main() {
     #[cfg(windows)]
-    {
-        ansi_term::enable_ansi_support().unwrap();
+    if let Err(code) = ansi_term::enable_ansi_support() {
+        eprintln!(
+            "ANSI color support could not be enabled with error code {}",
+            code
+        );
+        process::exit(2);
     }
 
     let status = match app() {
@@ -696,6 +700,7 @@ fn main() {
             2
         }
     };
+
     process::exit(status);
 }
 
