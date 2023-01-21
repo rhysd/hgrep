@@ -705,11 +705,60 @@ fn main() {
 }
 
 #[cfg(test)]
-mod tests {
+mod main_tests {
     use super::*;
+    use clap::ArgMatches;
 
     #[test]
     fn cli_parser() {
         command().debug_assert();
     }
+
+    #[cfg(not(windows))]
+    const SNAPSHOT_DIR: &str = "../testdata/snapshots";
+    #[cfg(windows)]
+    const SNAPSHOT_DIR: &str = r#"..\testdata\snapshots"#;
+
+    fn get_raw_matched_arguments(mat: &ArgMatches) -> Vec<(String, Vec<String>)> {
+        let mut v = mat
+            .ids()
+            .map(|id| {
+                let id = id.as_str().to_string();
+                let args = mat
+                    .get_raw(&id)
+                    .map(|values| values.map(|v| v.to_string_lossy().to_string()).collect())
+                    .unwrap_or_default();
+                (id, args)
+            })
+            .collect::<Vec<_>>();
+        for arg in ["PATH", "PATTERN"] {
+            v.push((
+                arg.into(),
+                mat.get_many::<String>("PATH")
+                    .map(|v| v.cloned().collect())
+                    .unwrap_or_default(),
+            ));
+        }
+        v.sort();
+        v
+    }
+
+    macro_rules! test_arg_matches {
+        ($name:ident, $args:expr) => {
+            #[test]
+            fn $name() {
+                let mut settings = insta::Settings::clone_current();
+                settings.set_snapshot_path(SNAPSHOT_DIR);
+                settings.bind(|| {
+                    let cmd = command();
+                    let args: &[&str] = &$args;
+                    let mat = cmd.get_matches_from(args);
+                    let raw = get_raw_matched_arguments(&mat);
+                    insta::assert_debug_snapshot!(raw);
+                });
+            }
+        };
+    }
+
+    test_arg_matches!(no_arg, []);
 }

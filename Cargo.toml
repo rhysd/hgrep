@@ -75,5 +75,6 @@ clap_mangen = "0.2.7"
 ansi_term = "0.12"
 
 [dev-dependencies]
+insta = "1.26.0"
 lazy_static = "1.4"
 pretty_assertions = "1"
