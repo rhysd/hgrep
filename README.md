@@ -295,13 +295,14 @@ Author's Zsh configuration for `hgrep` is [here][rhysd-config].
   - `--theme THEME`: Theme for syntax highlighting. Default value is the same as `bat` command
   - `--list-themes`: List all available theme names and their samples for --theme option
   - `--printer`: Printer to print the match results. 'bat' or 'syntect' is available. Default value is 'bat'
-  - `--term-width`: Width (number of characters) of terminal window
+  - `--term-width NUM`: Width (number of characters) of terminal window
   - `--wrap MODE`: Text-wrapping mode. 'char' enables character-wise text-wrapping. 'never' disables text-wrapping. Default value is 'char'
   - `--first-only` (`-f`): Show only the first code snippet per file
 - Only for `ripgrep` feature
   - `--no-ignore`: Don't respect ignore files (.gitignore, .ignore, etc.)
   - `--ignore-case` (`-i`): When this flag is provided, the given pattern will be searched case insensitively
   - `--smart-case` (`-S`): Search case insensitively if the pattern is all lowercase. Search case sensitively otherwise
+  - `--hidden` (`-.`): Search hidden files and directories. By default, hidden files and directories are skipped
   - `--glob GLOB...` (`-g`): Include or exclude files and directories for searching that match the given glob
   - `--glob-case-insensitive`: Process glob patterns given with the -g/--glob flag case insensitively
   - `--fixed-strings` (`-F`): Treat the pattern as a literal string instead of a regular expression

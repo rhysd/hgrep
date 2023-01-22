@@ -39,7 +39,7 @@ fn parse_size(input: &str) -> Result<u64> {
     Ok(u * mag)
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Config<'main> {
     min_context: u64,
     max_context: u64,

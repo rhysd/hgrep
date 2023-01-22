@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use clap::{Arg, ArgAction, Command};
+use clap::{Arg, ArgAction, ArgMatches, Command};
 use hgrep::grep::BufReadExt;
 use hgrep::printer::{PrinterOptions, TextWrapMode};
 use std::cmp;
@@ -92,7 +92,13 @@ fn command() -> Command {
                 .long("printer")
                 .value_name("PRINTER")
                 .default_value(DEFAULT_PRINTER)
-                .help("Printer to print the match results. 'bat' or 'syntect' is available"),
+                .value_parser([
+                    #[cfg(feature = "syntect-printer")]
+                    "syntect",
+                    #[cfg(feature = "bat-printer")]
+                    "bat",
+                ])
+                .help("Printer to print the match results"),
         )
         .arg(
             Arg::new("term-width")
@@ -180,14 +186,16 @@ fn command() -> Command {
                     .short('i')
                     .long("ignore-case")
                     .action(ArgAction::SetTrue)
-                    .help("When this flag is provided, the given pattern will be searched case insensitively"),
+                    .overrides_with("smart-case")
+                    .help("When this flag is provided, the given pattern will be searched case insensitively. This flag overrides --smart-case"),
             )
             .arg(
                 Arg::new("smart-case")
                     .short('S')
                     .long("smart-case")
                     .action(ArgAction::SetTrue)
-                    .help("Search case insensitively if the pattern is all lowercase. Search case sensitively otherwise"),
+                    .overrides_with("ignore-case")
+                    .help("Search case insensitively if the pattern is all lowercase. Search case sensitively otherwise. This flag overrides --ignore-case"),
             )
             .arg(
                 Arg::new("hidden")
@@ -200,9 +208,9 @@ fn command() -> Command {
                 Arg::new("glob")
                     .short('g')
                     .long("glob")
+                    .action(ArgAction::Append)
                     .num_args(1)
                     .value_name("GLOB")
-                    .num_args(1..)
                     .allow_hyphen_values(true)
                     .help("Include or exclude files and directories for searching that match the given glob"),
             )
@@ -224,7 +232,8 @@ fn command() -> Command {
                     .short('w')
                     .long("word-regexp")
                     .action(ArgAction::SetTrue)
-                    .help("Only show matches surrounded by word boundaries"),
+                    .overrides_with("line-regexp")
+                    .help("Only show matches surrounded by word boundaries. This flag overrides --line-regexp"),
             )
             .arg(
                 Arg::new("follow-symlink")
@@ -278,7 +287,8 @@ fn command() -> Command {
                     .short('x')
                     .long("line-regexp")
                     .action(ArgAction::SetTrue)
-                    .help("Only show matches surrounded by line boundaries. This is equivalent to putting ^...$ around the search pattern"),
+                    .overrides_with("word-regexp")
+                    .help("Only show matches surrounded by line boundaries. This is equivalent to putting ^...$ around the search pattern. This flag overrides --word-regexp"),
             )
             .arg(
                 Arg::new("pcre2")
@@ -392,7 +402,7 @@ fn generate_completion_script(shell: &str) {
 fn build_ripgrep_config(
     min_context: u64,
     max_context: u64,
-    matches: &clap::ArgMatches,
+    matches: &ArgMatches,
 ) -> Result<ripgrep::Config<'_>> {
     let mut config = ripgrep::Config::default();
     config
@@ -473,9 +483,7 @@ enum PrinterKind {
     Syntect,
 }
 
-fn app() -> Result<bool> {
-    let matches = command().get_matches();
-
+fn run(matches: ArgMatches) -> Result<bool> {
     if let Some(shell) = matches.get_one::<String>("generate-completion-script") {
         generate_completion_script(shell);
         return Ok(true);
@@ -498,7 +506,7 @@ fn app() -> Result<bool> {
         "syntect" => PrinterKind::Syntect,
         #[cfg(not(feature = "syntect-printer"))]
         "syntect" => anyhow::bail!("--printer syntect is not available because 'syntect-printer' feature was disabled at compilation"),
-        p => anyhow::bail!("Unknown printer '{}' at --printer option. It must be one of 'bat' or 'syntect'", p),
+        p => unreachable!(), // Argument paraser already checked this case
     };
 
     let min_context = matches
@@ -666,7 +674,8 @@ fn app() -> Result<bool> {
     if printer_kind == PrinterKind::Bat {
         let mut found = false;
         let printer = BatPrinter::new(printer_opts);
-        for f in io::BufReader::new(io::stdin().lock())
+        let stdin = io::stdin();
+        for f in io::BufReader::new(stdin.lock())
             .grep_lines()
             .chunks_per_file(min_context, max_context)
         {
@@ -689,7 +698,7 @@ fn main() {
         process::exit(2);
     }
 
-    let status = match app() {
+    let status = match run(command().get_matches()) {
         Ok(true) => 0,
         Ok(false) => 1,
         Err(err) => {
@@ -708,8 +717,259 @@ fn main() {
 mod tests {
     use super::*;
 
-    #[test]
-    fn cli_parser() {
-        command().debug_assert();
+    #[cfg(not(windows))]
+    const SNAPSHOT_DIR: &str = "../testdata/snapshots";
+    #[cfg(windows)]
+    const SNAPSHOT_DIR: &str = r#"..\testdata\snapshots"#;
+
+    fn cmdline<'a>(args: &[&'a str]) -> Vec<&'a str> {
+        let mut v = vec!["hgrep"];
+        v.extend(args);
+        v
+    }
+
+    mod arg_matches {
+        use super::*;
+
+        fn get_raw_matched_arguments(mat: &ArgMatches) -> Vec<(String, Vec<String>)> {
+            let mut v = mat
+                .ids()
+                .map(|id| {
+                    let id = id.as_str().to_string();
+                    let args = mat
+                        .get_raw(&id)
+                        .map(|values| values.map(|v| v.to_string_lossy().to_string()).collect())
+                        .unwrap_or_default();
+                    (id, args)
+                })
+                .collect::<Vec<_>>();
+            v.sort();
+            v
+        }
+
+        macro_rules! snapshot_test {
+            ($name:ident, $args:expr) => {
+                #[test]
+                fn $name() {
+                    let mut settings = insta::Settings::clone_current();
+                    settings.set_snapshot_path(SNAPSHOT_DIR);
+                    settings.bind(|| {
+                        let cmd = command();
+                        let mat = cmd.get_matches_from(cmdline(&$args));
+                        let raw = get_raw_matched_arguments(&mat);
+                        insta::assert_debug_snapshot!(raw);
+                    });
+                }
+            };
+        }
+
+        snapshot_test!(no_arg, []);
+        snapshot_test!(pat_only, ["pat"]);
+        snapshot_test!(pat_and_dir, ["pat", "dir1"]);
+        snapshot_test!(pat_and_dirs, ["pat", "dir1", "dir2", "dir3"]);
+        snapshot_test!(min_max_long, ["--min-context", "2", "--max-context", "4"]);
+        snapshot_test!(min_max_short, ["-c", "2", "-C", "4"]);
+        snapshot_test!(grid, ["--grid"]);
+        snapshot_test!(no_grid, ["--no-grid"]);
+        snapshot_test!(theme, ["--theme", "Nord"]);
+        snapshot_test!(tab, ["--tab", "8"]);
+        snapshot_test!(bat_printer_long, ["--printer", "bat"]);
+        snapshot_test!(bat_printer_short, ["-p", "bat"]);
+        snapshot_test!(term_width, ["--term-width", "200"]);
+        snapshot_test!(wrap_mode, ["--wrap", "never"]);
+        snapshot_test!(first_only, ["--first-only"]);
+        snapshot_test!(background, ["--background"]);
+        snapshot_test!(ascii_lines, ["--ascii-lines"]);
+        snapshot_test!(custom_assets, ["--printer", "bat", "--custom-assets"]);
+        snapshot_test!(list_themes, ["--list-themes"]);
+        snapshot_test!(type_list, ["--type-list"]);
+        snapshot_test!(
+            generate_completion_script,
+            ["--generate-completion-script", "bash"]
+        );
+        snapshot_test!(generate_man_page, ["--generate-man-page"]);
+        snapshot_test!(
+            all_printer_opts_before_args,
+            [
+                "--min-context",
+                "5",
+                "--max-context",
+                "10",
+                "--grid",
+                "--no-grid",
+                "--theme",
+                "Nord",
+                "--tab",
+                "2",
+                "--printer",
+                "syntect",
+                "--term-width",
+                "120",
+                "--wrap",
+                "never",
+                "--first-only",
+                "--background",
+                "--ascii-lines",
+                "--custom-assets",
+                "--list-themes",
+                "some pattern",
+                "dir1",
+                "dir2",
+            ]
+        );
+        snapshot_test!(
+            all_printer_opts_after_args,
+            [
+                "some pattern",
+                "dir1",
+                "dir2",
+                "--min-context",
+                "5",
+                "--max-context",
+                "10",
+                "--grid",
+                "--no-grid",
+                "--theme",
+                "Nord",
+                "--tab",
+                "2",
+                "--printer",
+                "syntect",
+                "--term-width",
+                "120",
+                "--wrap",
+                "never",
+                "--first-only",
+                "--background",
+                "--ascii-lines",
+                "--custom-assets",
+                "--list-themes",
+            ]
+        );
+
+        #[test]
+        fn invalid_option() {
+            for args in [
+                &["--min-context", "foo"][..],
+                &["--max-context", "foo"][..],
+                &["--term-width", "foo"][..],
+                &["--term-width", "1"][..],
+                &["--tab", "foo"][..],
+                &["--printer", "syntect", "--custom-assets"][..],
+                &["--printer", "bat", "--background"][..],
+                &["--printer", "bat", "--ascii-lines"][..],
+            ] {
+                let mat = command().get_matches_from(cmdline(args));
+                assert!(run(mat).is_err(), "args: {:?}", args);
+            }
+        }
+
+        #[test]
+        fn arg_parser_debug_assert() {
+            command().debug_assert();
+        }
+
+        #[test]
+        fn arg_parse_error() {
+            for args in [
+                &["--unknown-arg"][..],
+                &["--printer", "foo"][..],
+                &["--wrap", "foo"][..],
+                &["--generate-completion-script", "unknown-shell"][..],
+            ] {
+                let parsed = command().try_get_matches_from(cmdline(args));
+                assert!(parsed.is_err(), "args: {:?}", args);
+            }
+        }
+    }
+
+    mod ripgrep_config {
+        use super::*;
+
+        macro_rules! snapshot_test {
+            ($name:ident, $args:expr) => {
+                #[test]
+                fn $name() {
+                    let mut settings = insta::Settings::clone_current();
+                    settings.set_snapshot_path(SNAPSHOT_DIR);
+                    settings.bind(|| {
+                        let mat = command().get_matches_from(cmdline(&$args));
+                        let min_ctx = mat
+                            .get_one::<String>("min-context")
+                            .unwrap()
+                            .parse()
+                            .unwrap();
+                        let max_ctx = mat
+                            .get_one::<String>("max-context")
+                            .unwrap()
+                            .parse()
+                            .unwrap();
+
+                        let cfg = build_ripgrep_config(min_ctx, max_ctx, &mat).unwrap();
+                        insta::assert_debug_snapshot!(cfg);
+                    });
+                }
+            };
+        }
+
+        snapshot_test!(no_arg, []);
+        snapshot_test!(pat_only, ["pat"]);
+        snapshot_test!(pat_and_dirs, ["pat", "dir1", "dir2"]);
+        snapshot_test!(glob_one, ["--glob", "*.txt", "pat", "dir"]);
+        snapshot_test!(
+            glob_many,
+            ["-g", "*.txt", "-g", "*.rs", "-g", "*.md", "pat", "dir"]
+        );
+        snapshot_test!(glob_before_opt, ["-g", "*.txt", "-i", "pat", "dir"]);
+        snapshot_test!(glob_arg_with_hyphen, ["-g", "-foo_*.txt", "pat", "dir"]);
+        snapshot_test!(ignore_case_smart_case, ["-i", "-S", "pat", "dir"]);
+        snapshot_test!(smart_case_ignore_case, ["-S", "-i", "pat", "dir"]);
+        snapshot_test!(max_count, ["--max-count", "100", "pat", "dir"]);
+        snapshot_test!(max_count_short, ["-m", "100", "pat", "dir"]);
+        snapshot_test!(max_depth, ["--max-depth", "10", "pat", "dir"]);
+        snapshot_test!(line_regexp_word_regexp, ["-x", "-w", "pat", "dir"]);
+        snapshot_test!(word_regexp_line_regexp, ["-w", "-x", "pat", "dir"]);
+        snapshot_test!(pcre2, ["-P", "pat", "dir"]);
+        snapshot_test!(fixed_string_override_pcre2, ["-F", "-P", "pat", "dir"]);
+        snapshot_test!(type_one, ["--type", "rust", "pat", "dir"]);
+        snapshot_test!(type_many, ["-t", "rust", "-t", "go", "pat", "dir"]);
+        snapshot_test!(type_not_one, ["--type-not", "rust", "pat", "dir"]);
+        snapshot_test!(type_not_many, ["-T", "rust", "-T", "go", "pat", "dir"]);
+        snapshot_test!(
+            type_and_type_not_many,
+            ["-t", "rust", "-T", "rust", "-T", "go", "-t", "go", "pat", "dir"]
+        );
+        snapshot_test!(
+            regex_size_limit,
+            ["--regex-size-limit", "20M", "pat", "dir"]
+        );
+        snapshot_test!(dfa_size_limit, ["--dfa-size-limit", "20M", "pat", "dir"]);
+        snapshot_test!(
+            bool_long_flags,
+            [
+                "--no-ignore",
+                "--ignore-case",
+                "--smart-case",
+                "--glob-case-insensitive",
+                "--fixed-strings",
+                "--word-regexp",
+                "--follow",
+                "--multiline",
+                "--multiline-dotall",
+                "--crlf",
+                "--mmap",
+                "--hidden",
+                "--line-regexp",
+                "--pcre2",
+                "--one-file-system",
+                "--no-unicode",
+                "pat",
+                "dir",
+            ]
+        );
+        snapshot_test!(
+            bool_short_flags,
+            ["-i", "-S", "-F", "-w", "-L", "-U", "-.", "-x", "-P", "pat", "dir"]
+        );
     }
 }
