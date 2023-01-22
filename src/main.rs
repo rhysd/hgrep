@@ -202,9 +202,9 @@ fn command() -> Command {
                 Arg::new("glob")
                     .short('g')
                     .long("glob")
+                    .action(ArgAction::Append)
                     .num_args(1)
                     .value_name("GLOB")
-                    .num_args(1..)
                     .allow_hyphen_values(true)
                     .help("Include or exclude files and directories for searching that match the given glob"),
             )
