@@ -226,7 +226,8 @@ fn command() -> Command {
                     .short('w')
                     .long("word-regexp")
                     .action(ArgAction::SetTrue)
-                    .help("Only show matches surrounded by word boundaries"),
+                    .overrides_with("line-regexp")
+                    .help("Only show matches surrounded by word boundaries. This flag overrides --line-regexp"),
             )
             .arg(
                 Arg::new("follow-symlink")
@@ -280,7 +281,8 @@ fn command() -> Command {
                     .short('x')
                     .long("line-regexp")
                     .action(ArgAction::SetTrue)
-                    .help("Only show matches surrounded by line boundaries. This is equivalent to putting ^...$ around the search pattern"),
+                    .overrides_with("word-regexp")
+                    .help("Only show matches surrounded by line boundaries. This is equivalent to putting ^...$ around the search pattern. This flag overrides --word-regexp"),
             )
             .arg(
                 Arg::new("pcre2")
