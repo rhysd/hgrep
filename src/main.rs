@@ -180,14 +180,16 @@ fn command() -> Command {
                     .short('i')
                     .long("ignore-case")
                     .action(ArgAction::SetTrue)
-                    .help("When this flag is provided, the given pattern will be searched case insensitively"),
+                    .overrides_with("smart-case")
+                    .help("When this flag is provided, the given pattern will be searched case insensitively. This flag overrides --smart-case"),
             )
             .arg(
                 Arg::new("smart-case")
                     .short('S')
                     .long("smart-case")
                     .action(ArgAction::SetTrue)
-                    .help("Search case insensitively if the pattern is all lowercase. Search case sensitively otherwise"),
+                    .overrides_with("ignore-case")
+                    .help("Search case insensitively if the pattern is all lowercase. Search case sensitively otherwise. This flag overrides --ignore-case"),
             )
             .arg(
                 Arg::new("hidden")
