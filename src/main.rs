@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use clap::{Arg, ArgAction, Command};
+use clap::{Arg, ArgAction, ArgMatches, Command};
 use hgrep::grep::BufReadExt;
 use hgrep::printer::{PrinterOptions, TextWrapMode};
 use std::cmp;
@@ -396,7 +396,7 @@ fn generate_completion_script(shell: &str) {
 fn build_ripgrep_config(
     min_context: u64,
     max_context: u64,
-    matches: &clap::ArgMatches,
+    matches: &ArgMatches,
 ) -> Result<ripgrep::Config<'_>> {
     let mut config = ripgrep::Config::default();
     config
@@ -477,9 +477,7 @@ enum PrinterKind {
     Syntect,
 }
 
-fn app() -> Result<bool> {
-    let matches = command().get_matches();
-
+fn run(matches: ArgMatches) -> Result<bool> {
     if let Some(shell) = matches.get_one::<String>("generate-completion-script") {
         generate_completion_script(shell);
         return Ok(true);
@@ -670,7 +668,8 @@ fn app() -> Result<bool> {
     if printer_kind == PrinterKind::Bat {
         let mut found = false;
         let printer = BatPrinter::new(printer_opts);
-        for f in io::BufReader::new(io::stdin().lock())
+        let stdin = io::stdin();
+        for f in io::BufReader::new(stdin.lock())
             .grep_lines()
             .chunks_per_file(min_context, max_context)
         {
@@ -693,7 +692,7 @@ fn main() {
         process::exit(2);
     }
 
-    let status = match app() {
+    let status = match run(command().get_matches()) {
         Ok(true) => 0,
         Ok(false) => 1,
         Err(err) => {
@@ -712,19 +711,19 @@ fn main() {
 mod tests {
     use super::*;
 
-    #[test]
-    fn cli_parser() {
-        command().debug_assert();
-    }
-
     #[cfg(not(windows))]
     const SNAPSHOT_DIR: &str = "../testdata/snapshots";
     #[cfg(windows)]
     const SNAPSHOT_DIR: &str = r#"..\testdata\snapshots"#;
 
+    fn cmdline<'a>(args: &[&'a str]) -> Vec<&'a str> {
+        let mut v = vec!["hgrep"];
+        v.extend(args);
+        v
+    }
+
     mod arg_matches {
         use super::*;
-        use clap::ArgMatches;
 
         fn get_raw_matched_arguments(mat: &ArgMatches) -> Vec<(String, Vec<String>)> {
             let mut v = mat
@@ -750,10 +749,7 @@ mod tests {
                     settings.set_snapshot_path(SNAPSHOT_DIR);
                     settings.bind(|| {
                         let cmd = command();
-                        let mut cmdline = vec!["hgrep"];
-                        let args: &[&str] = &$args;
-                        cmdline.extend(args);
-                        let mat = cmd.get_matches_from(cmdline);
+                        let mat = cmd.get_matches_from(cmdline(&$args));
                         let raw = get_raw_matched_arguments(&mat);
                         insta::assert_debug_snapshot!(raw);
                     });
@@ -781,6 +777,11 @@ mod tests {
         snapshot_test!(custom_assets, ["--printer", "bat", "--custom-assets"]);
         snapshot_test!(list_themes, ["--list-themes"]);
         snapshot_test!(type_list, ["--type-list"]);
+        snapshot_test!(
+            generate_completion_script,
+            ["--generate-completion-script", "bash"]
+        );
+        snapshot_test!(generate_man_page, ["--generate-man-page"]);
         snapshot_test!(
             all_printer_opts_before_args,
             [
@@ -839,6 +840,41 @@ mod tests {
                 "--list-themes",
             ]
         );
+
+        #[test]
+        fn invalid_option() {
+            for args in [
+                &["--min-context", "foo"][..],
+                &["--max-context", "foo"][..],
+                &["--term-width", "foo"][..],
+                &["--term-width", "1"][..],
+                &["--tab", "foo"][..],
+                &["--printer", "syntect", "--custom-assets"][..],
+                &["--printer", "bat", "--background"][..],
+                &["--printer", "bat", "--ascii-lines"][..],
+            ] {
+                let mat = command().get_matches_from(cmdline(args));
+                assert!(run(mat).is_err(), "args: {:?}", args);
+            }
+        }
+
+        #[test]
+        fn arg_parser_debug_assert() {
+            command().debug_assert();
+        }
+
+        #[test]
+        fn arg_parse_error() {
+            for args in [
+                &["--unknown-arg"][..],
+                &["--printer", "foo"][..],
+                &["--wrap", "foo"][..],
+                &["--generate-completion-script", "unknown-shell"][..],
+            ] {
+                let parsed = command().try_get_matches_from(cmdline(args));
+                assert!(parsed.is_err(), "args: {:?}", args);
+            }
+        }
     }
 
     mod ripgrep_config {
@@ -851,13 +887,7 @@ mod tests {
                     let mut settings = insta::Settings::clone_current();
                     settings.set_snapshot_path(SNAPSHOT_DIR);
                     settings.bind(|| {
-                        let cmd = command();
-
-                        let mut cmdline = vec!["hgrep"];
-                        let args: &[&str] = &$args;
-                        cmdline.extend(args);
-
-                        let mat = cmd.get_matches_from(cmdline);
+                        let mat = command().get_matches_from(cmdline(&$args));
                         let min_ctx = mat
                             .get_one::<String>("min-context")
                             .unwrap()
