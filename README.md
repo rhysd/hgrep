@@ -295,7 +295,7 @@ Author's Zsh configuration for `hgrep` is [here][rhysd-config].
   - `--theme THEME`: Theme for syntax highlighting. Default value is the same as `bat` command
   - `--list-themes`: List all available theme names and their samples for --theme option
   - `--printer`: Printer to print the match results. 'bat' or 'syntect' is available. Default value is 'bat'
-  - `--term-width`: Width (number of characters) of terminal window
+  - `--term-width NUM`: Width (number of characters) of terminal window
   - `--wrap MODE`: Text-wrapping mode. 'char' enables character-wise text-wrapping. 'never' disables text-wrapping. Default value is 'char'
   - `--first-only` (`-f`): Show only the first code snippet per file
 - Only for `ripgrep` feature

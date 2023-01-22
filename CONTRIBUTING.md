@@ -55,9 +55,16 @@ The snapshot data is stored in `testdata/snapshots` which are automatically gene
 Once some of them fail, the error messages contain the differences. You need to review the diffs.
 
 ```sh
-$ cargo insta review
-$ git add testdata/snapshots
+# Run snapshot tests
+cargo test
+# Review snapshot diffs
+cargo insta review
+# After accepting the diffs, remember to add the changes
+git add testdata/snapshots
 ```
+
+These snapshot tests were added because some regressions were caused by following the `clap`'s major changes. `clap`'s major
+version bump caused breaking changes frequently and it was hard to follow them without tests.
 
 ## Make a new release
 

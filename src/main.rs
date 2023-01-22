@@ -705,9 +705,8 @@ fn main() {
 }
 
 #[cfg(test)]
-mod main_tests {
+mod tests {
     use super::*;
-    use clap::ArgMatches;
 
     #[test]
     fn cli_parser() {
@@ -719,46 +718,121 @@ mod main_tests {
     #[cfg(windows)]
     const SNAPSHOT_DIR: &str = r#"..\testdata\snapshots"#;
 
-    fn get_raw_matched_arguments(mat: &ArgMatches) -> Vec<(String, Vec<String>)> {
-        let mut v = mat
-            .ids()
-            .map(|id| {
-                let id = id.as_str().to_string();
-                let args = mat
-                    .get_raw(&id)
-                    .map(|values| values.map(|v| v.to_string_lossy().to_string()).collect())
-                    .unwrap_or_default();
-                (id, args)
-            })
-            .collect::<Vec<_>>();
-        for arg in ["PATH", "PATTERN"] {
-            v.push((
-                arg.into(),
-                mat.get_many::<String>("PATH")
-                    .map(|v| v.cloned().collect())
-                    .unwrap_or_default(),
-            ));
+    mod arg_matches {
+        use super::*;
+        use clap::ArgMatches;
+
+        fn get_raw_matched_arguments(mat: &ArgMatches) -> Vec<(String, Vec<String>)> {
+            let mut v = mat
+                .ids()
+                .map(|id| {
+                    let id = id.as_str().to_string();
+                    let args = mat
+                        .get_raw(&id)
+                        .map(|values| values.map(|v| v.to_string_lossy().to_string()).collect())
+                        .unwrap_or_default();
+                    (id, args)
+                })
+                .collect::<Vec<_>>();
+            v.sort();
+            v
         }
-        v.sort();
-        v
-    }
 
-    macro_rules! test_arg_matches {
-        ($name:ident, $args:expr) => {
-            #[test]
-            fn $name() {
-                let mut settings = insta::Settings::clone_current();
-                settings.set_snapshot_path(SNAPSHOT_DIR);
-                settings.bind(|| {
-                    let cmd = command();
-                    let args: &[&str] = &$args;
-                    let mat = cmd.get_matches_from(args);
-                    let raw = get_raw_matched_arguments(&mat);
-                    insta::assert_debug_snapshot!(raw);
-                });
-            }
-        };
-    }
+        macro_rules! snapshot_test {
+            ($name:ident, $args:expr) => {
+                #[test]
+                fn $name() {
+                    let mut settings = insta::Settings::clone_current();
+                    settings.set_snapshot_path(SNAPSHOT_DIR);
+                    settings.bind(|| {
+                        let cmd = command();
+                        let mut cmdline = vec!["hgrep"];
+                        let args: &[&str] = &$args;
+                        cmdline.extend(args);
+                        let mat = cmd.get_matches_from(cmdline);
+                        let raw = get_raw_matched_arguments(&mat);
+                        insta::assert_debug_snapshot!(raw);
+                    });
+                }
+            };
+        }
 
-    test_arg_matches!(no_arg, []);
+        snapshot_test!(no_arg, []);
+        snapshot_test!(pat_only, ["pat"]);
+        snapshot_test!(pat_and_dir, ["pat", "dir1"]);
+        snapshot_test!(pat_and_dirs, ["pat", "dir1", "dir2", "dir3"]);
+        snapshot_test!(min_max_long, ["--min-context", "2", "--max-context", "4"]);
+        snapshot_test!(min_max_short, ["-c", "2", "-C", "4"]);
+        snapshot_test!(grid, ["--grid"]);
+        snapshot_test!(no_grid, ["--no-grid"]);
+        snapshot_test!(theme, ["--theme", "Nord"]);
+        snapshot_test!(tab, ["--tab", "8"]);
+        snapshot_test!(bat_printer_long, ["--printer", "bat"]);
+        snapshot_test!(bat_printer_short, ["-p", "bat"]);
+        snapshot_test!(term_width, ["--term-width", "200"]);
+        snapshot_test!(wrap_mode, ["--wrap", "never"]);
+        snapshot_test!(first_only, ["--first-only"]);
+        snapshot_test!(background, ["--background"]);
+        snapshot_test!(ascii_lines, ["--ascii-lines"]);
+        snapshot_test!(custom_assets, ["--printer", "bat", "--custom-assets"]);
+        snapshot_test!(list_themes, ["--list-themes"]);
+        snapshot_test!(
+            all_printer_opts_before_args,
+            [
+                "--min-context",
+                "5",
+                "--max-context",
+                "10",
+                "--grid",
+                "--no-grid",
+                "--theme",
+                "Nord",
+                "--tab",
+                "2",
+                "--printer",
+                "syntect",
+                "--term-width",
+                "120",
+                "--wrap",
+                "never",
+                "--first-only",
+                "--background",
+                "--ascii-lines",
+                "--custom-assets",
+                "--list-themes",
+                "some pattern",
+                "dir1",
+                "dir2",
+            ]
+        );
+        snapshot_test!(
+            all_printer_opts_after_args,
+            [
+                "some pattern",
+                "dir1",
+                "dir2",
+                "--min-context",
+                "5",
+                "--max-context",
+                "10",
+                "--grid",
+                "--no-grid",
+                "--theme",
+                "Nord",
+                "--tab",
+                "2",
+                "--printer",
+                "syntect",
+                "--term-width",
+                "120",
+                "--wrap",
+                "never",
+                "--first-only",
+                "--background",
+                "--ascii-lines",
+                "--custom-assets",
+                "--list-themes",
+            ]
+        );
+    }
 }

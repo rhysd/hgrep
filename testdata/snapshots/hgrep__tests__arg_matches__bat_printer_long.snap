@@ -4,14 +4,6 @@ expression: raw
 ---
 [
     (
-        "PATH",
-        [],
-    ),
-    (
-        "PATTERN",
-        [],
-    ),
-    (
         "ascii-lines",
         [
             "false",
@@ -164,7 +156,7 @@ expression: raw
     (
         "printer",
         [
-            "syntect",
+            "bat",
         ],
     ),
     (
