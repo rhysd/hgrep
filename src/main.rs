@@ -92,7 +92,13 @@ fn command() -> Command {
                 .long("printer")
                 .value_name("PRINTER")
                 .default_value(DEFAULT_PRINTER)
-                .help("Printer to print the match results. 'bat' or 'syntect' is available"),
+                .value_parser([
+                    #[cfg(feature = "syntect-printer")]
+                    "syntect",
+                    #[cfg(feature = "bat-printer")]
+                    "bat",
+                ])
+                .help("Printer to print the match results"),
         )
         .arg(
             Arg::new("term-width")
@@ -500,7 +506,7 @@ fn run(matches: ArgMatches) -> Result<bool> {
         "syntect" => PrinterKind::Syntect,
         #[cfg(not(feature = "syntect-printer"))]
         "syntect" => anyhow::bail!("--printer syntect is not available because 'syntect-printer' feature was disabled at compilation"),
-        p => anyhow::bail!("Unknown printer '{}' at --printer option. It must be one of 'bat' or 'syntect'", p),
+        p => unreachable!(), // Argument paraser already checked this case
     };
 
     let min_context = matches
