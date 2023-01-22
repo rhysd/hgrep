@@ -776,6 +776,7 @@ mod tests {
         snapshot_test!(ascii_lines, ["--ascii-lines"]);
         snapshot_test!(custom_assets, ["--printer", "bat", "--custom-assets"]);
         snapshot_test!(list_themes, ["--list-themes"]);
+        snapshot_test!(type_list, ["--type-list"]);
         snapshot_test!(
             all_printer_opts_before_args,
             [
@@ -833,6 +834,102 @@ mod tests {
                 "--custom-assets",
                 "--list-themes",
             ]
+        );
+    }
+
+    mod ripgrep_config {
+        use super::*;
+
+        macro_rules! snapshot_test {
+            ($name:ident, $args:expr) => {
+                #[test]
+                fn $name() {
+                    let mut settings = insta::Settings::clone_current();
+                    settings.set_snapshot_path(SNAPSHOT_DIR);
+                    settings.bind(|| {
+                        let cmd = command();
+
+                        let mut cmdline = vec!["hgrep"];
+                        let args: &[&str] = &$args;
+                        cmdline.extend(args);
+
+                        let mat = cmd.get_matches_from(cmdline);
+                        let min_ctx = mat
+                            .get_one::<String>("min-context")
+                            .unwrap()
+                            .parse()
+                            .unwrap();
+                        let max_ctx = mat
+                            .get_one::<String>("max-context")
+                            .unwrap()
+                            .parse()
+                            .unwrap();
+
+                        let cfg = build_ripgrep_config(min_ctx, max_ctx, &mat).unwrap();
+                        insta::assert_debug_snapshot!(cfg);
+                    });
+                }
+            };
+        }
+
+        snapshot_test!(no_arg, []);
+        snapshot_test!(pat_only, ["pat"]);
+        snapshot_test!(pat_and_dirs, ["pat", "dir1", "dir2"]);
+        snapshot_test!(glob_one, ["--glob", "*.txt", "pat", "dir"]);
+        snapshot_test!(
+            glob_many,
+            ["-g", "*.txt", "-g", "*.rs", "-g", "*.md", "pat", "dir"]
+        );
+        snapshot_test!(glob_before_opt, ["-g", "*.txt", "-i", "pat", "dir"]);
+        snapshot_test!(glob_arg_with_hyphen, ["-g", "-foo_*.txt", "pat", "dir"]);
+        snapshot_test!(ignore_case_smart_case, ["-i", "-S", "pat", "dir"]);
+        snapshot_test!(smart_case_ignore_case, ["-S", "-i", "pat", "dir"]);
+        snapshot_test!(max_count, ["--max-count", "100", "pat", "dir"]);
+        snapshot_test!(max_count_short, ["-m", "100", "pat", "dir"]);
+        snapshot_test!(max_depth, ["--max-depth", "10", "pat", "dir"]);
+        snapshot_test!(line_regexp_word_regexp, ["-x", "-w", "pat", "dir"]);
+        snapshot_test!(word_regexp_line_regexp, ["-w", "-x", "pat", "dir"]);
+        snapshot_test!(pcre2, ["-P", "pat", "dir"]);
+        snapshot_test!(fixed_string_override_pcre2, ["-F", "-P", "pat", "dir"]);
+        snapshot_test!(type_one, ["--type", "rust", "pat", "dir"]);
+        snapshot_test!(type_many, ["-t", "rust", "-t", "go", "pat", "dir"]);
+        snapshot_test!(type_not_one, ["--type-not", "rust", "pat", "dir"]);
+        snapshot_test!(type_not_many, ["-T", "rust", "-T", "go", "pat", "dir"]);
+        snapshot_test!(
+            type_and_type_not_many,
+            ["-t", "rust", "-T", "rust", "-T", "go", "-t", "go", "pat", "dir"]
+        );
+        snapshot_test!(
+            regex_size_limit,
+            ["--regex-size-limit", "20M", "pat", "dir"]
+        );
+        snapshot_test!(dfa_size_limit, ["--dfa-size-limit", "20M", "pat", "dir"]);
+        snapshot_test!(
+            bool_long_flags,
+            [
+                "--no-ignore",
+                "--ignore-case",
+                "--smart-case",
+                "--glob-case-insensitive",
+                "--fixed-strings",
+                "--word-regexp",
+                "--follow",
+                "--multiline",
+                "--multiline-dotall",
+                "--crlf",
+                "--mmap",
+                "--hidden",
+                "--line-regexp",
+                "--pcre2",
+                "--one-file-system",
+                "--no-unicode",
+                "pat",
+                "dir",
+            ]
+        );
+        snapshot_test!(
+            bool_short_flags,
+            ["-i", "-S", "-F", "-w", "-L", "-U", "-.", "-x", "-P", "pat", "dir"]
         );
     }
 }

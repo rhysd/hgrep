@@ -1,0 +1,33 @@
+---
+source: src/main.rs
+expression: cfg
+---
+Config {
+    min_context: 3,
+    max_context: 6,
+    no_ignore: false,
+    hidden: false,
+    case_insensitive: false,
+    smart_case: false,
+    globs: [],
+    glob_case_insensitive: false,
+    fixed_strings: true,
+    word_regexp: false,
+    follow_symlink: false,
+    multiline: false,
+    crlf: false,
+    multiline_dotall: false,
+    mmap: false,
+    max_count: None,
+    max_depth: None,
+    max_filesize: None,
+    line_regexp: false,
+    pcre2: false,
+    types: [],
+    types_not: [],
+    invert_match: false,
+    one_file_system: false,
+    no_unicode: false,
+    regex_size_limit: None,
+    dfa_size_limit: None,
+}

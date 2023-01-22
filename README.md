@@ -302,6 +302,7 @@ Author's Zsh configuration for `hgrep` is [here][rhysd-config].
   - `--no-ignore`: Don't respect ignore files (.gitignore, .ignore, etc.)
   - `--ignore-case` (`-i`): When this flag is provided, the given pattern will be searched case insensitively
   - `--smart-case` (`-S`): Search case insensitively if the pattern is all lowercase. Search case sensitively otherwise
+  - `--hidden` (`-.`): Search hidden files and directories. By default, hidden files and directories are skipped
   - `--glob GLOB...` (`-g`): Include or exclude files and directories for searching that match the given glob
   - `--glob-case-insensitive`: Process glob patterns given with the -g/--glob flag case insensitively
   - `--fixed-strings` (`-F`): Treat the pattern as a literal string instead of a regular expression
