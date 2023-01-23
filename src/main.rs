@@ -19,6 +19,8 @@ use hgrep::bat::BatPrinter;
 #[cfg(feature = "syntect-printer")]
 use hgrep::syntect::SyntectPrinter;
 
+const COMPLETION_SHELLS: [&str; 5] = ["bash", "zsh", "powershell", "fish", "elvish"];
+
 fn command() -> Command {
     #[cfg(feature = "syntect-printer")]
     const DEFAULT_PRINTER: &str = "syntect";
@@ -127,7 +129,7 @@ fn command() -> Command {
                 .long("generate-completion-script")
                 .num_args(1)
                 .value_name("SHELL")
-                .value_parser(["bash", "zsh", "powershell", "fish", "elvish"])
+                .value_parser(COMPLETION_SHELLS)
                 .ignore_case(true)
                 .help("Print completion script for SHELL to stdout"),
         )
@@ -376,23 +378,21 @@ fn command() -> Command {
     cmd
 }
 
-fn generate_completion_script(shell: &str) {
+fn generate_completion_script<W: io::Write>(shell: &str, out: &mut W) {
     use clap_complete::generate;
     use clap_complete::shells::*;
 
     let mut cmd = command();
-    let stdout = io::stdout();
-    let mut stdout = stdout.lock();
     if shell.eq_ignore_ascii_case("bash") {
-        generate(Bash, &mut cmd, "hgrep", &mut stdout)
+        generate(Bash, &mut cmd, "hgrep", out)
     } else if shell.eq_ignore_ascii_case("zsh") {
-        generate(Zsh, &mut cmd, "hgrep", &mut stdout)
+        generate(Zsh, &mut cmd, "hgrep", out)
     } else if shell.eq_ignore_ascii_case("powershell") {
-        generate(PowerShell, &mut cmd, "hgrep", &mut stdout)
+        generate(PowerShell, &mut cmd, "hgrep", out)
     } else if shell.eq_ignore_ascii_case("fish") {
-        generate(Fish, &mut cmd, "hgrep", &mut stdout)
+        generate(Fish, &mut cmd, "hgrep", out)
     } else if shell.eq_ignore_ascii_case("elvish") {
-        generate(Elvish, &mut cmd, "hgrep", &mut stdout)
+        generate(Elvish, &mut cmd, "hgrep", out)
     } else {
         unreachable!() // SHELL argument was validated by clap
     }
@@ -485,7 +485,8 @@ enum PrinterKind {
 
 fn run(matches: ArgMatches) -> Result<bool> {
     if let Some(shell) = matches.get_one::<String>("generate-completion-script") {
-        generate_completion_script(shell);
+        let stdout = io::stdout();
+        generate_completion_script(shell, &mut stdout.lock());
         return Ok(true);
     }
 
@@ -971,5 +972,14 @@ mod tests {
             bool_short_flags,
             ["-i", "-S", "-F", "-w", "-L", "-U", "-.", "-x", "-P", "pat", "dir"]
         );
+    }
+
+    #[test]
+    fn generate_completion() {
+        for shell in COMPLETION_SHELLS {
+            let mut v = vec![];
+            generate_completion_script(shell, &mut v);
+            assert!(!v.is_empty(), "shell: {}", shell);
+        }
     }
 }
