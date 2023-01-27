@@ -1,3 +1,5 @@
+#![allow(clippy::uninlined_format_args)]
+
 #[cfg(not(any(feature = "bat-printer", feature = "syntect-printer")))]
 compile_error!("Either feature \"bat-printer\" or \"syntect-printer\" must be enabled");
 
