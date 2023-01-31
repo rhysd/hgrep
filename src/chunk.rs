@@ -245,7 +245,7 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
                     Some(Err(_)) => State::Error,
                     Some(Ok(m)) if m.path != path => State::EndOfFile,
                     Some(Ok(m)) if m.line_number <= line_number => {
-                        // When the same line number is reported mutliple times, ignore the grep line.
+                        // When the same line number is reported multiple times, ignore the grep line.
                         // This happens when reading output from `rg --vimgrep` (#13)
                         self.iter.next();
                         continue;

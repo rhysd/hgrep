@@ -1,6 +1,6 @@
 [package]
 name = "hgrep"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 authors = ["rhysd <lin90162@yahoo.co.jp>"]
 description = """
@@ -48,8 +48,8 @@ bat-printer = ["bat", "dirs-next"]
 
 [dependencies]
 anyhow = "1"
-clap = { version = "4.1.1", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "wrap_help"] } # Add "deprecated" feature to show deprecations
-clap_complete = "4.1.0"
+clap = { version = "4.1.4", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "wrap_help"] } # Add "deprecated" feature to show deprecations
+clap_complete = "4.1.1"
 memchr = "2.5.0"
 pathdiff = "0.2.1"
 term = "0.7.0"
