@@ -1,20 +1,20 @@
 class Hgrep < Formula
-  version '0.3.0'
+  version '0.3.1'
   desc 'hgrep is grep with human-friendly search output'
   homepage 'https://github.com/rhysd/hgrep'
 
   if OS.mac?
     if Hardware::CPU.intel?
       url "https://github.com/rhysd/hgrep/releases/download/v#{version}/hgrep-v#{version}-x86_64-apple-darwin.zip"
-      sha256 '2358d367511afade36e00b0c72ad5d73402350bd0b992edc21e367c78026c505' # x86_64-apple-darwin
+      sha256 '2b8742e0f0093a641e00006073c1014bf85d2df0c0d46ae378ed05d7d28bd0e5' # x86_64-apple-darwin
     end
     if Hardware::CPU.arm?
       url "https://github.com/rhysd/hgrep/releases/download/v#{version}/hgrep-v#{version}-aarch64-apple-darwin.zip"
-      sha256 '698b31591abaa72f032f535863c1e5b30f9b2ce4cc778feee6f2bc48c334437e' # aarch64-apple-darwin
+      sha256 'd53c0a35c0da62dccc8a9cc06660ff92511fc475e985f9809260b8c7db2b7daa' # aarch64-apple-darwin
     end
   elsif OS.linux?
     url "https://github.com/rhysd/hgrep/releases/download/v#{version}/hgrep-v#{version}-x86_64-unknown-linux-gnu.zip"
-    sha256 '4a822e5522f26a72204362a888302fd81f3b5d6d7569bc3283d3e8761754dd93' # x86_64-unknown-linux-gnu
+    sha256 '93535e98b9a767e0d6d015b3b3994f6c100a8127d1fba2237cb4c8a6a41d283f' # x86_64-unknown-linux-gnu
   end
 
   def install
