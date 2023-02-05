@@ -3,8 +3,7 @@ use hgrep::chunk::{File, LineMatch};
 use hgrep::printer::{Printer, PrinterOptions, TermColorSupport, TextWrapMode};
 use hgrep::ripgrep;
 use hgrep::syntect::{LockableWrite, SyntectAssets, SyntectPrinter};
-use hgrep_bench::node_modules_path;
-use hgrep_bench::read_package_lock_json;
+use hgrep_bench::{read_package_lock_json, rust_releases_path};
 use rayon::prelude::*;
 use std::io;
 use std::io::Write;
@@ -112,9 +111,9 @@ fn with_ripgrep(c: &mut Criterion) {
         ripgrep::grep(printer, pat, Some(iter::once(dir)), config).unwrap()
     }
 
-    let node_modules = node_modules_path();
-    c.bench_function("syntect::ripgrep-large", |b| {
-        b.iter(|| assert!(run_ripgrep(r"\bparcel\b", node_modules, get_opts())))
+    let rust_releases = rust_releases_path();
+    c.bench_function("syntect::ripgrep-large-file", |b| {
+        b.iter(|| assert!(run_ripgrep(r"\brustc\b", rust_releases, get_opts())))
     });
 
     let project_src = Path::new("..").join("src");

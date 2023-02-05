@@ -8,7 +8,7 @@ pub fn package_lock_json_path() -> &'static Path {
     let path = Path::new("package-lock.json");
     assert!(
         path.is_file(),
-        "put \"package-lock.json\" file in bench/ directory by `npm install`",
+        "run prepare.bash at hgrep/bench/ directory before running benches",
     );
     path
 }
@@ -22,7 +22,16 @@ pub fn node_modules_path() -> &'static Path {
     let path = Path::new("node_modules");
     assert!(
         path.is_dir(),
-        "put \"node_modules\" directory in bench/ directory by `npm install`",
+        "run prepare.bash at hgrep/bench/ directory before running benches",
+    );
+    path
+}
+
+pub fn rust_releases_path() -> &'static Path {
+    let path = Path::new("rust_releases.md");
+    assert!(
+        path.is_dir(),
+        "run prepare.bash at hgrep/bench/ directory before running benches",
     );
     path
 }

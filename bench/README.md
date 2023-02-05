@@ -8,7 +8,12 @@ Benchmarks
 - `package-lock.json` as example of large file
 - `node_modules` black hole as example of large directory
 
-Create them by running `npm install`.
+Run `prepare.bash` in this directory before running benchmarks to generate input data.
+
+```sh
+cd /path/to/hgrep/bench/
+bash ./prepare.bash
+```
 
 ## Run benchmarks
 
