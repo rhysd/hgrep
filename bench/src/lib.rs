@@ -30,7 +30,7 @@ pub fn node_modules_path() -> &'static Path {
 pub fn rust_releases_path() -> &'static Path {
     let path = Path::new("rust_releases.md");
     assert!(
-        path.is_dir(),
+        path.is_file(),
         "run prepare.bash at hgrep/bench/ directory before running benches",
     );
     path
