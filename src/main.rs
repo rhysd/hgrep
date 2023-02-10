@@ -1,5 +1,3 @@
-#![allow(clippy::uninlined_format_args)]
-
 use anyhow::{Context, Result};
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use hgrep::grep::BufReadExt;
