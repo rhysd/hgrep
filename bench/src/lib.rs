@@ -1,3 +1,4 @@
+use hgrep::printer::{PrinterOptions, TermColorSupport};
 use std::fs;
 use std::path::Path;
 
@@ -34,4 +35,12 @@ pub fn rust_releases_path() -> &'static Path {
         "run prepare.bash at hgrep/bench/ directory before running benches",
     );
     path
+}
+
+pub fn printer_opts() -> PrinterOptions<'static> {
+    PrinterOptions {
+        color_support: TermColorSupport::True,
+        term_width: 80,
+        ..Default::default()
+    }
 }

@@ -50,4 +50,4 @@ jobs:
       - name: clippy
         run: cargo clippy --color always -- -D warnings
       - name: check tests and benches
-        run: cargo check --benches --tests --all
+        run: cargo clippy --benches --tests --all

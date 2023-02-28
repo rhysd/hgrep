@@ -2,9 +2,9 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use gag::Gag;
 use hgrep::bat::BatPrinter;
 use hgrep::chunk::{File, LineMatch};
-use hgrep::printer::{Printer, PrinterOptions, TermColorSupport};
+use hgrep::printer::Printer;
 use hgrep::syntect::SyntectPrinter;
-use hgrep_bench::read_package_lock_json;
+use hgrep_bench::{printer_opts, read_package_lock_json};
 use rayon::prelude::*;
 
 fn large_file(c: &mut Criterion) {
@@ -28,10 +28,7 @@ fn large_file(c: &mut Criterion) {
     c.bench_function("printer::bat", |b| {
         b.iter(|| {
             let _gag = Gag::stdout().unwrap();
-            let mut opts = PrinterOptions::default();
-            opts.color_support = TermColorSupport::True;
-            opts.term_width = 80;
-            let printer = BatPrinter::new(opts);
+            let printer = BatPrinter::new(printer_opts());
             for file in files.clone().into_iter() {
                 printer.print(file).unwrap();
             }
@@ -41,10 +38,7 @@ fn large_file(c: &mut Criterion) {
     c.bench_function("printer::syntect", |b| {
         b.iter(|| {
             let _gag = Gag::stdout().unwrap();
-            let mut opts = PrinterOptions::default();
-            opts.color_support = TermColorSupport::True;
-            opts.term_width = 80;
-            let printer = SyntectPrinter::with_stdout(opts).unwrap();
+            let printer = SyntectPrinter::with_stdout(printer_opts()).unwrap();
             files
                 .clone()
                 .into_par_iter()

@@ -1,9 +1,9 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use hgrep::chunk::{File, LineMatch};
-use hgrep::printer::{Printer, PrinterOptions, TermColorSupport, TextWrapMode};
+use hgrep::printer::{Printer, PrinterOptions, TextWrapMode};
 use hgrep::ripgrep;
 use hgrep::syntect::{LockableWrite, SyntectAssets, SyntectPrinter};
-use hgrep_bench::{read_package_lock_json, rust_releases_path};
+use hgrep_bench::{printer_opts, read_package_lock_json, rust_releases_path};
 use rayon::prelude::*;
 use std::io;
 use std::io::Write;
@@ -30,13 +30,6 @@ impl<'a> LockableWrite<'a> for Sink {
     fn lock(&'a self) -> Self::Locked {
         SinkLock(self.0.lock().unwrap())
     }
-}
-
-fn get_opts() -> PrinterOptions<'static> {
-    let mut opts = PrinterOptions::default();
-    opts.color_support = TermColorSupport::True;
-    opts.term_width = 80;
-    opts
 }
 
 fn create_files_for_contents(contents: String, path: &Path, per_lines: usize) -> Vec<File> {
@@ -68,7 +61,7 @@ fn print_files(c: &mut Criterion) {
     #[inline]
     fn run(files: Vec<File>, assets: SyntectAssets) {
         let sink = Sink(Mutex::new(vec![]));
-        let opts = get_opts();
+        let opts = printer_opts();
         let mut printer = SyntectPrinter::with_assets(assets, sink, opts);
         files
             .into_par_iter()
@@ -113,22 +106,22 @@ fn with_ripgrep(c: &mut Criterion) {
 
     let rust_releases = rust_releases_path();
     c.bench_function("syntect::ripgrep-large-file", |b| {
-        b.iter(|| assert!(run_ripgrep(r"\brustc\b", rust_releases, get_opts())))
+        b.iter(|| assert!(run_ripgrep(r"\brustc\b", rust_releases, printer_opts())))
     });
 
     let project_src = Path::new("..").join("src");
     c.bench_function("syntect::ripgrep-small", |b| {
-        b.iter(|| assert!(run_ripgrep("Printer", &project_src, get_opts())))
+        b.iter(|| assert!(run_ripgrep("Printer", &project_src, printer_opts())))
     });
 
     let testdata = Path::new("..").join("testdata").join("chunk");
     c.bench_function("syntect::ripgrep-tiny", |b| {
-        b.iter(|| assert!(run_ripgrep(r"\*$", &testdata, get_opts())))
+        b.iter(|| assert!(run_ripgrep(r"\*$", &testdata, printer_opts())))
     });
 
     c.bench_function("syntect::ripgrep-no-wrap", |b| {
         b.iter(|| {
-            let mut opts = get_opts();
+            let mut opts = printer_opts();
             opts.text_wrap = TextWrapMode::Never;
             assert!(run_ripgrep("Printer", &project_src, opts))
         })
@@ -136,7 +129,7 @@ fn with_ripgrep(c: &mut Criterion) {
 
     c.bench_function("syntect::ripgrep-background", |b| {
         b.iter(|| {
-            let mut opts = get_opts();
+            let mut opts = printer_opts();
             opts.background_color = true;
             assert!(run_ripgrep("Printer", &project_src, opts))
         })
