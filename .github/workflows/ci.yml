@@ -48,6 +48,4 @@ jobs:
       - name: rustfmt
         run: cargo fmt -- --check --color always
       - name: clippy
-        run: cargo clippy --color always -- -D warnings
-      - name: check tests and benches
-        run: cargo clippy --benches --tests --all
+        run: cargo clippy --color always --benches --tests --all -- -D warnings
