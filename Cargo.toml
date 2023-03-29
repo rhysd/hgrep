@@ -54,7 +54,7 @@ memchr = "2.5.0"
 pathdiff = "0.2.1"
 term = "0.7.0"
 terminal_size = "0.2.5"
-bat = { version = "^0.22.1", default-features = false, features = ["regex-onig"], optional = true }
+bat = { version = "^0.23.0", default-features = false, features = ["regex-onig"], optional = true }
 grep-regex = { version = "0.1.11", optional = true }
 grep-searcher = { version = "0.1.11", optional = true }
 ignore = { version = "0.4", optional = true }
