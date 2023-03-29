@@ -48,8 +48,8 @@ bat-printer = ["bat", "dirs-next"]
 
 [dependencies]
 anyhow = "1"
-clap = { version = "4.1.8", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "wrap_help"] } # Add "deprecated" feature to show deprecations
-clap_complete = "4.1.4"
+clap = { version = "4.2.0", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "wrap_help"] } # Add "deprecated" feature to show deprecations
+clap_complete = "4.2.0"
 memchr = "2.5.0"
 pathdiff = "0.2.1"
 term = "0.7.0"
@@ -58,7 +58,7 @@ bat = { version = "^0.22.1", default-features = false, features = ["regex-onig"]
 grep-regex = { version = "0.1.11", optional = true }
 grep-searcher = { version = "0.1.11", optional = true }
 ignore = { version = "0.4", optional = true }
-regex = { version = "1.7.1", optional = true }
+regex = { version = "1.7.3", optional = true }
 grep-matcher = { version = "0.1.6", optional = true }
 grep-pcre2 = { version = "0.1.6", optional = true }
 syntect = { version = "5.0.0", optional = true }
@@ -69,12 +69,12 @@ flate2 = { version = "1.0.25", optional = true }
 ansi_colours = { version = "1.2.1", default-features = false, optional = true }
 dirs-next = { version = "2.0.0", optional = true } # Using dirs-next because bat uses it
 mimalloc = { version = "0.1.34", default-features = false }
-clap_mangen = "0.2.9"
+clap_mangen = "0.2.10"
 
 [target."cfg(windows)".dependencies]
 ansi_term = "0.12"
 
 [dev-dependencies]
-insta = "1.28.0"
+insta = "1.29.0"
 lazy_static = "1.4"
 pretty_assertions = "1"
