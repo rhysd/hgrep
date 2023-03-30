@@ -72,7 +72,7 @@ mimalloc = { version = "0.1.34", default-features = false }
 clap_mangen = "0.2.10"
 
 [target."cfg(windows)".dependencies]
-ansi_term = "0.12"
+nu-ansi-term = { version = "0.47.0", default-features = false }
 
 [dev-dependencies]
 insta = "1.29.0"
