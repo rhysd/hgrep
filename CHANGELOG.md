@@ -1,3 +1,16 @@
+<a name="v0.3.2"></a>
+# [v0.3.2](https://github.com/rhysd/hgrep/releases/tag/v0.3.2) - 31 Mar 2023
+
+- Update `bat` from 0.22 to [0.23](https://github.com/sharkdp/bat/releases/tag/v0.23.0). This improves performance on macOS when using `-p bat`.
+- Add support for Ada syntax highlighting
+- Update dependencies
+  - Remove `remove_dir_all` crate to avoid CVE-2022-21658
+  - Replace unmaintained `ansi_term` crate with `nu-ansi-term` crate
+  - Update clap crates to generate better completion scripts and man page
+
+[Changes][v0.3.2]
+
+
 <a name="v0.3.1"></a>
 # [v0.3.1](https://github.com/rhysd/hgrep/releases/tag/v0.3.1) - 31 Jan 2023
 
@@ -283,6 +296,7 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [Changes][v0.1.1]
 
 
+[v0.3.2]: https://github.com/rhysd/hgrep/compare/v0.3.1...v0.3.2
 [v0.3.1]: https://github.com/rhysd/hgrep/compare/v0.3.0...v0.3.1
 [v0.3.0]: https://github.com/rhysd/hgrep/compare/v0.2.8...v0.3.0
 [v0.2.8]: https://github.com/rhysd/hgrep/compare/v0.2.7...v0.2.8
