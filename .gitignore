@@ -1,3 +1,4 @@
 /target
 /cov
 /testdata/snapshots/*.snap.new
+/assets/bat

@@ -1,7 +1,8 @@
 use crate::chunk::File;
 use anyhow::Result;
 use std::env;
-use term::terminfo::TermInfo;
+use terminfo::capability::MaxColors;
+use terminfo::Database;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum TextWrapMode {
@@ -26,9 +27,9 @@ impl TermColorSupport {
             return TermColorSupport::True;
         }
 
-        if let Ok(info) = TermInfo::from_env() {
-            if let Some(colors) = info.numbers.get("colors") {
-                if *colors < 256 {
+        if let Ok(info) = Database::from_env() {
+            if let Some(MaxColors(colors)) = info.get() {
+                if colors < 256 {
                     return TermColorSupport::Ansi16;
                 }
             }

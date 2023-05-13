@@ -52,7 +52,6 @@ clap = { version = "4.2.7", default-features = false, features = ["std", "color"
 clap_complete = "4.2.1"
 memchr = "2.5.0"
 pathdiff = "0.2.1"
-term = "0.7.0"
 terminal_size = "0.2.6"
 bat = { version = "^0.23.0", default-features = false, features = ["regex-onig"], optional = true }
 grep-regex = { version = "0.1.11", optional = true }
@@ -70,6 +69,7 @@ ansi_colours = { version = "1.2.1", default-features = false, optional = true }
 dirs-next = { version = "2.0.0", optional = true } # Using dirs-next because bat uses it
 mimalloc = { version = "0.1.37", default-features = false }
 clap_mangen = "0.2.10"
+terminfo = "0.8.0"
 
 [target."cfg(windows)".dependencies]
 nu-ansi-term = { version = "0.47.0", default-features = false }
