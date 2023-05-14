@@ -1,8 +1,6 @@
 use crate::chunk::File;
 use anyhow::Result;
 use std::env;
-use terminfo::capability::MaxColors;
-use terminfo::Database;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum TextWrapMode {
@@ -10,7 +8,7 @@ pub enum TextWrapMode {
     Never,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum TermColorSupport {
     True,
     Ansi256,
@@ -19,6 +17,9 @@ pub enum TermColorSupport {
 
 impl TermColorSupport {
     fn detect() -> Self {
+        use terminfo::capability::MaxColors;
+        use terminfo::Database;
+
         if env::var("COLORTERM")
             .ok()
             .map(|v| v.eq_ignore_ascii_case("truecolor") || v.eq_ignore_ascii_case("24bit"))
@@ -74,4 +75,37 @@ impl<'main> Default for PrinterOptions<'main> {
 // Trait to replace printer implementation for unit tests
 pub trait Printer {
     fn print(&self, file: File) -> Result<()>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test::EnvGuard;
+
+    #[test]
+    fn test_detect_true_color_from_env() {
+        {
+            let _guard = EnvGuard::set_env("COLORTERM", Some("truecolor"));
+            let detected = TermColorSupport::detect();
+            assert_eq!(detected, TermColorSupport::True);
+        }
+
+        {
+            let _guard = EnvGuard::set_env("COLORTERM", Some("24bit"));
+            let detected = TermColorSupport::detect();
+            assert_eq!(detected, TermColorSupport::True);
+        }
+
+        {
+            let _guard = EnvGuard::set_env("COLORTERM", Some("falsecolor"));
+            let detected = TermColorSupport::detect();
+            assert_ne!(detected, TermColorSupport::True);
+        }
+
+        {
+            let _guard = EnvGuard::set_env("COLORTERM", None);
+            let detected = TermColorSupport::detect();
+            assert_ne!(detected, TermColorSupport::True);
+        }
+    }
 }

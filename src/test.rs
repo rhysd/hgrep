@@ -1,6 +1,7 @@
 use crate::chunk::{File, LineMatch};
 use crate::grep::GrepMatch;
 use anyhow::Result;
+use std::env;
 use std::fs;
 use std::path::Path;
 
@@ -74,4 +75,36 @@ pub(crate) fn read_all_expected_chunks<S: AsRef<str>>(dir: &Path, inputs: &[S]) 
         .iter()
         .filter_map(|input| read_expected_chunks(dir, input))
         .collect()
+}
+
+pub(crate) struct EnvGuard {
+    name: String,
+    saved: Option<String>,
+}
+
+impl EnvGuard {
+    pub(crate) fn set_env(name: &str, new_value: Option<&str>) -> Self {
+        let saved = match env::var(name) {
+            Ok(v) => Some(v),
+            Err(env::VarError::NotPresent) => None,
+            Err(err) => panic!("coult not set env var {:?}: {}", name, err),
+        };
+        if let Some(v) = new_value {
+            env::set_var(name, v);
+        } else {
+            env::remove_var(name);
+        }
+        let name = name.to_string();
+        Self { name, saved }
+    }
+}
+
+impl Drop for EnvGuard {
+    fn drop(&mut self) {
+        if let Some(saved) = &self.saved {
+            env::set_var(&self.name, saved);
+        } else {
+            env::remove_var(&self.name);
+        }
+    }
 }
