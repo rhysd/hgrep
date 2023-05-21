@@ -49,8 +49,8 @@ bat-printer = ["bat", "dirs-next"]
 
 [dependencies]
 anyhow = "1"
-clap = { version = "4.2.7", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "wrap_help"] } # Add "deprecated" feature to show deprecations
-clap_complete = "4.2.1"
+clap = { version = "4.3.0", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "wrap_help"] } # Add "deprecated" feature to show deprecations
+clap_complete = "4.3.0"
 memchr = "2.5.0"
 pathdiff = "0.2.1"
 terminal_size = "0.2.6"
@@ -69,7 +69,7 @@ flate2 = { version = "1.0.26", optional = true }
 ansi_colours = { version = "1.2.1", default-features = false, optional = true }
 dirs-next = { version = "2.0.0", optional = true } # Using dirs-next because bat uses it
 mimalloc = { version = "0.1.37", default-features = false }
-clap_mangen = "0.2.10"
+clap_mangen = "0.2.11"
 terminfo = "0.8.0"
 
 [target."cfg(windows)".dependencies]
