@@ -370,6 +370,20 @@ man hgrep
 |   1    | No match was found                  |
 |   2    | Some error happened (e.g. IO error) |
 
+### Terminal color support detection
+
+hgrep automatically detects 24-bit or 256 or 16 colors support of your terminal application by the following logic.
+
+At first, hgrep checks [`COLORTERM` environment variable][term-caps] on all platforms. When `truecolor` or `24bit` is set, 24-bit
+colors are enabled. When other values are set, only 16 colors are enabled.
+
+On Linux or macOS or FreeBSD or NetBSD, hgrep tries to detect your terminal's color support from [terminfo][]. It eventually falls
+back to 256 colors, which are most widely supported by popular terminals.
+
+On Windows, 24-bit colors are enabled. [OS version 10.0.15063 (Windows 10 1703) started to support 24-bit colors][rich-issue-140].
+Since Windows 10 1703 is pretty old (released on April 5, 2017), it should work fine for almost every users. Even if you're using
+older version of Windows due to some reason, setting `ansi` theme by `--theme` option should still work for you.
+
 ## Versioning
 
 At this point the major version is fixed to 0. The minor version is bumped when some breaking changes are added. The patch
@@ -452,3 +466,6 @@ hgrep is distributed under [the MIT license](./LICENSE.txt).
 [rhysd-config]: https://github.com/rhysd/dogfiles/blob/4aeccbc98ced7fbd9cf590003adb7217810f8b24/zshrc#L124-L127
 [formula]: ./HomebrewFormula/hgrep.rb
 [issue-6]: https://github.com/rhysd/hgrep/issues/6
+[term-caps]: http://jdebp.uk/Softwares/nosh/guide/TerminalCapabilities.html
+[terminfo]: https://en.wikipedia.org/wiki/Terminfo
+[rich-issue-140]: https://github.com/Textualize/rich/issues/140
