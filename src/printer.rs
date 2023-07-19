@@ -16,11 +16,20 @@ pub enum TermColorSupport {
 }
 
 impl TermColorSupport {
-    fn detect_from_colorterm() -> Option<TermColorSupport> {
-        env::var("COLORTERM")
-            .map(|v| v.eq_ignore_ascii_case("truecolor") || v.eq_ignore_ascii_case("24bit"))
-            .unwrap_or(false)
-            .then_some(TermColorSupport::True)
+    fn detect_from_colorterm() -> Option<Self> {
+        // > The existence of this variable signifies extra colour capabilities of some sort. If it has the value “truecolor”
+        // > or the value “24bit” then the terminal is taken to understand ISO 8613-6/ITU T.416 Direct colour SGR 38 and SGR
+        // > 48 control sequences. Otherwise it indicates that the terminal understands the additional 8 (de facto) standard
+        // > colours (from AIXTerm) set by SGR 90–97 and SGR 100–107.
+        //
+        // http://jdebp.uk/Softwares/nosh/guide/TerminalCapabilities.html
+        env::var("COLORTERM").ok().map(|v| {
+            if v.eq_ignore_ascii_case("truecolor") || v.eq_ignore_ascii_case("24bit") {
+                Self::True
+            } else {
+                Self::Ansi16
+            }
+        })
     }
 
     #[cfg(not(windows))]
@@ -35,38 +44,30 @@ impl TermColorSupport {
         if let Ok(info) = Database::from_env() {
             if let Some(MaxColors(colors)) = info.get() {
                 if colors < 256 {
-                    return TermColorSupport::Ansi16;
+                    return Self::Ansi16;
                 }
             }
         }
 
         // Assume 256 colors by default (I'm not sure this is correct)
-        TermColorSupport::Ansi256
+        Self::Ansi256
     }
 
     #[cfg(windows)]
     fn detect() -> Self {
-        if let Some(support) = Self::detect_from_colorterm() {
-            return support;
-        }
-
-        #[link(name = "ntdll")]
-        extern "system" {
-            pub fn RtlGetNtVersionNumbers(major: *mut u32, minor: *mut u32, build: *mut u32);
-        }
-        let (mut major, mut minor, mut build) = (0u32, 0u32, 0u32);
-        unsafe {
-            RtlGetNtVersionNumbers(&mut major as _, &mut minor as _, &mut build as _);
-        }
-        build = build & 0xffff;
-
-        // Windows beyond 10.0.15063 supports 24bit colors.
+        // Windows 10.0.15063 or later supports 24-bit colors (true colors).
         // https://github.com/Textualize/rich/issues/140
-        if major > 10 || major == 10 && (minor > 0 || build >= 15063) {
-            TermColorSupport::True
-        } else {
-            TermColorSupport::Ansi16
-        }
+        //
+        // hgrep doesn't detect it because it is very messy to get Windows OS version. WIN32's official sysinfoapi.h APIs such
+        // as `GetVersion`, `GetVersionEx`, `VerifyVersionInfo`, ... don't return OS version of the current system. Please read
+        // the 'Remarks' section in the following document. `RtlGetNtVersionNumbers` works but ntdll.dll does not always exist
+        // and can cause a link error.
+        //
+        // https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-verifyversioninfoa
+        //
+        // Windows 10.0.15063 is Windows 10 1703, which was released on April 5, 2017 so it is pretty old.
+        // Setting 'ansi' theme manually should still work for those who are using older Windows due to some reason.
+        Self::detect_from_colorterm().unwrap_or(Self::True)
     }
 }
 
@@ -125,18 +126,20 @@ mod tests {
             assert_eq!(detected, TermColorSupport::True);
         }
 
-        #[cfg(not(windows))]
         {
-            let _guard = EnvGuard::set_env("COLORTERM", Some("falsecolor"));
+            let _guard = EnvGuard::set_env("COLORTERM", Some("someothervalue"));
             let detected = TermColorSupport::detect();
-            assert_ne!(detected, TermColorSupport::True);
+            assert_eq!(detected, TermColorSupport::Ansi16);
         }
 
-        #[cfg(not(windows))]
         {
             let _guard = EnvGuard::set_env("COLORTERM", None);
             let detected = TermColorSupport::detect();
-            assert_ne!(detected, TermColorSupport::True);
+            if cfg!(windows) {
+                assert_eq!(detected, TermColorSupport::True);
+            } else {
+                assert_ne!(detected, TermColorSupport::True);
+            }
         }
     }
 }
