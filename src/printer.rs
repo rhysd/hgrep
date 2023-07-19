@@ -21,8 +21,17 @@ impl TermColorSupport {
         use terminfo::Database;
 
         if env::var("COLORTERM")
-            .ok()
             .map(|v| v.eq_ignore_ascii_case("truecolor") || v.eq_ignore_ascii_case("24bit"))
+            .unwrap_or(false)
+        {
+            return TermColorSupport::True;
+        }
+
+        // Detect Windows Terminal on Windows. WT supports 24bit colors.
+        // XXX: `WT_SESSION` should not be used for detecting WT: https://github.com/Textualize/rich/issues/140
+        #[cfg(windows)]
+        if env::var("WT_SESSION")
+            .map(|v| !v.is_empty())
             .unwrap_or(false)
         {
             return TermColorSupport::True;
@@ -106,6 +115,17 @@ mod tests {
             let _guard = EnvGuard::set_env("COLORTERM", None);
             let detected = TermColorSupport::detect();
             assert_ne!(detected, TermColorSupport::True);
+        }
+
+        // Check detecting Windows Terminal. This cannot be separate test case because it tweaks environment variables.
+        // Note that cargo runs tests in parallel.
+        #[cfg(windows)]
+        {
+            let _guard_colorterm = EnvGuard::set_env("COLORTERM", None);
+            let _guard_wt_session =
+                EnvGuard::set_env("WT_SESSION", Some("13045d8c-6d2d-4d92-b0e9-dfd7bc8bc8f2"));
+            let detected = TermColorSupport::detect();
+            assert_eq!(detected, TermColorSupport::True);
         }
     }
 }
