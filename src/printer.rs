@@ -16,27 +16,24 @@ pub enum TermColorSupport {
 }
 
 impl TermColorSupport {
-    fn detect() -> Self {
-        if env::var("COLORTERM")
+    fn detect_from_colorterm() -> Option<TermColorSupport> {
+        env::var("COLORTERM")
             .map(|v| v.eq_ignore_ascii_case("truecolor") || v.eq_ignore_ascii_case("24bit"))
             .unwrap_or(false)
-        {
-            return TermColorSupport::True;
+            .then_some(TermColorSupport::True)
+    }
+
+    #[cfg(not(windows))]
+    fn detect() -> Self {
+        use terminfo::capability::MaxColors;
+        use terminfo::Database;
+
+        if let Some(support) = Self::detect_from_colorterm() {
+            return support;
         }
 
-        // Detect Windows Terminal on Windows. WT supports 24bit colors.
-        // XXX: `WT_SESSION` should not be used for detecting WT: https://github.com/Textualize/rich/issues/140
-        #[cfg(windows)]
-        if env::var("WT_SESSION")
-            .map(|v| !v.is_empty())
-            .unwrap_or(false)
-        {
-            return TermColorSupport::True;
-        }
-
-        #[cfg(not(windows))]
-        if let Ok(info) = terminfo::Database::from_env() {
-            if let Some(terminfo::capability::MaxColors(colors)) = info.get() {
+        if let Ok(info) = Database::from_env() {
+            if let Some(MaxColors(colors)) = info.get() {
                 if colors < 256 {
                     return TermColorSupport::Ansi16;
                 }
@@ -45,6 +42,31 @@ impl TermColorSupport {
 
         // Assume 256 colors by default (I'm not sure this is correct)
         TermColorSupport::Ansi256
+    }
+
+    #[cfg(windows)]
+    fn detect() -> Self {
+        if let Some(support) = Self::detect_from_colorterm() {
+            return support;
+        }
+
+        #[link(name = "ntdll")]
+        extern "system" {
+            pub fn RtlGetNtVersionNumbers(major: *mut u32, minor: *mut u32, build: *mut u32);
+        }
+        let (mut major, mut minor, mut build) = (0u32, 0u32, 0u32);
+        unsafe {
+            RtlGetNtVersionNumbers(&mut major as _, &mut minor as _, &mut build as _);
+        }
+        build = build & 0xffff;
+
+        // Windows beyond 10.0.15063 supports 24bit colors.
+        // https://github.com/Textualize/rich/issues/140
+        if major > 10 || major == 10 && (minor > 0 || build >= 15063) {
+            TermColorSupport::True
+        } else {
+            TermColorSupport::Ansi16
+        }
     }
 }
 
@@ -103,27 +125,18 @@ mod tests {
             assert_eq!(detected, TermColorSupport::True);
         }
 
+        #[cfg(not(windows))]
         {
             let _guard = EnvGuard::set_env("COLORTERM", Some("falsecolor"));
             let detected = TermColorSupport::detect();
             assert_ne!(detected, TermColorSupport::True);
         }
 
+        #[cfg(not(windows))]
         {
             let _guard = EnvGuard::set_env("COLORTERM", None);
             let detected = TermColorSupport::detect();
             assert_ne!(detected, TermColorSupport::True);
-        }
-
-        // Check detecting Windows Terminal. This cannot be separate test case because it tweaks environment variables.
-        // Note that cargo runs tests in parallel.
-        #[cfg(windows)]
-        {
-            let _guard_colorterm = EnvGuard::set_env("COLORTERM", None);
-            let _guard_wt_session =
-                EnvGuard::set_env("WT_SESSION", Some("13045d8c-6d2d-4d92-b0e9-dfd7bc8bc8f2"));
-            let detected = TermColorSupport::detect();
-            assert_eq!(detected, TermColorSupport::True);
         }
     }
 }
