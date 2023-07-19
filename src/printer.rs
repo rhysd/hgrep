@@ -17,9 +17,6 @@ pub enum TermColorSupport {
 
 impl TermColorSupport {
     fn detect() -> Self {
-        use terminfo::capability::MaxColors;
-        use terminfo::Database;
-
         if env::var("COLORTERM")
             .map(|v| v.eq_ignore_ascii_case("truecolor") || v.eq_ignore_ascii_case("24bit"))
             .unwrap_or(false)
@@ -37,8 +34,9 @@ impl TermColorSupport {
             return TermColorSupport::True;
         }
 
-        if let Ok(info) = Database::from_env() {
-            if let Some(MaxColors(colors)) = info.get() {
+        #[cfg(not(windows))]
+        if let Ok(info) = terminfo::Database::from_env() {
+            if let Some(terminfo::capability::MaxColors(colors)) = info.get() {
                 if colors < 256 {
                     return TermColorSupport::Ansi16;
                 }

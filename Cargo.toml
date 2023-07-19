@@ -70,10 +70,12 @@ ansi_colours = { version = "1.2.1", default-features = false, optional = true }
 dirs-next = { version = "2.0.0", optional = true } # Using dirs-next because bat uses it
 mimalloc = { version = "0.1.37", default-features = false }
 clap_mangen = "0.2.11"
-terminfo = "0.8.0"
 
 [target."cfg(windows)".dependencies]
 nu-ansi-term = { version = "0.47.0", default-features = false }
+
+[target."cfg(not(windows))".dependencies]
+terminfo = "0.8.0"
 
 [dev-dependencies]
 insta = "1.29.0"
