@@ -267,6 +267,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap_complete_nushell"
+version = "4.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6952003ac94cc0ef2f0323f0217348895d5bc0799d06670c92fcbba9f551dfc"
+dependencies = [
+ "clap",
+ "clap_complete",
+]
+
+[[package]]
 name = "clap_lex"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -759,6 +769,7 @@ dependencies = [
  "bincode",
  "clap",
  "clap_complete",
+ "clap_complete_nushell",
  "clap_mangen",
  "dirs-next",
  "flate2",

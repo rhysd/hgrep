@@ -19,7 +19,7 @@ use hgrep::bat::BatPrinter;
 #[cfg(feature = "syntect-printer")]
 use hgrep::syntect::SyntectPrinter;
 
-const COMPLETION_SHELLS: [&str; 5] = ["bash", "zsh", "powershell", "fish", "elvish"];
+const COMPLETION_SHELLS: [&str; 6] = ["bash", "zsh", "powershell", "fish", "elvish", "nushell"];
 
 fn command() -> Command {
     #[cfg(feature = "syntect-printer")]
@@ -381,6 +381,7 @@ fn command() -> Command {
 fn generate_completion_script<W: io::Write>(shell: &str, out: &mut W) {
     use clap_complete::generate;
     use clap_complete::shells::*;
+    use clap_complete_nushell::Nushell;
 
     let mut cmd = command();
     if shell.eq_ignore_ascii_case("bash") {
@@ -393,6 +394,8 @@ fn generate_completion_script<W: io::Write>(shell: &str, out: &mut W) {
         generate(Fish, &mut cmd, "hgrep", out)
     } else if shell.eq_ignore_ascii_case("elvish") {
         generate(Elvish, &mut cmd, "hgrep", out)
+    } else if shell.eq_ignore_ascii_case("nushell") {
+        generate(Nushell, &mut cmd, "hgrep", out)
     } else {
         unreachable!() // SHELL argument was validated by clap
     }
