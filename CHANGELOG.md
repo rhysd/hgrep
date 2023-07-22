@@ -1,3 +1,16 @@
+<a name="v0.3.3"></a>
+# [v0.3.3](https://github.com/rhysd/hgrep/releases/tag/v0.3.3) - 22 Jul 2023
+
+- Always enable 24-bit colors on Windows because 24-bit colors support is [available since Windows 10.0.15063](https://github.com/Textualize/rich/issues/140) (released on April 5, 2019).
+- Add [the document](https://github.com/rhysd/hgrep#terminal-color-support-detection) which explains how hgrep detects terminal color support.
+- Support generating a completion script for [Nushell](https://www.nushell.sh/) by `--generate-completion-script nushell`.
+- Set `codegen-units` to 1 on release build. This made the binary size 1.14x smaller and improved the performance by 1.05x faster.
+- Update dependencies to the latest versions including large update of `regex` crate (v1.9.1).
+- Do not depend on `terminfo` crate on Windows.
+
+[Changes][v0.3.3]
+
+
 <a name="v0.3.2"></a>
 # [v0.3.2](https://github.com/rhysd/hgrep/releases/tag/v0.3.2) - 31 Mar 2023
 
@@ -296,6 +309,7 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [Changes][v0.1.1]
 
 
+[v0.3.3]: https://github.com/rhysd/hgrep/compare/v0.3.2...v0.3.3
 [v0.3.2]: https://github.com/rhysd/hgrep/compare/v0.3.1...v0.3.2
 [v0.3.1]: https://github.com/rhysd/hgrep/compare/v0.3.0...v0.3.1
 [v0.3.0]: https://github.com/rhysd/hgrep/compare/v0.2.8...v0.3.0
