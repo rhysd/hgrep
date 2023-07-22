@@ -126,7 +126,7 @@ impl<'main> Config<'main> {
     pub fn fixed_strings(&mut self, yes: bool) -> &mut Self {
         self.fixed_strings = yes;
         if yes {
-            self.pcre2 = false; // for regex::escape
+            self.pcre2 = false; // for regex_syntax::escape
         }
         self
     }
@@ -294,7 +294,7 @@ impl<'main> Config<'main> {
         }
 
         Ok(if self.fixed_strings {
-            let mut s = regex::escape(pat);
+            let mut s = regex_syntax::escape(pat);
             if self.line_regexp {
                 s = format!("^(?:{})$", s);
             }

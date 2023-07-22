@@ -787,6 +787,7 @@ dependencies = [
  "pretty_assertions",
  "rayon",
  "regex",
+ "regex-syntax 0.7.4",
  "syntect",
  "terminal_size",
  "terminfo",
