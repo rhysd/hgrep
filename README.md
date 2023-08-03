@@ -380,9 +380,8 @@ colors are enabled. When other values are set, only 16 colors are enabled.
 On Linux or macOS or FreeBSD or NetBSD, hgrep tries to detect your terminal's color support from [terminfo][]. It eventually falls
 back to 256 colors, which are most widely supported by popular terminals.
 
-On Windows, 24-bit colors are enabled. [OS version 10.0.15063 (Windows 10 1703) started to support 24-bit colors][rich-issue-140].
-Since Windows 10 1703 is pretty old (released on April 5, 2017), it should work fine for almost every users. Even if you're using
-older version of Windows due to some reason, setting `ansi` theme by `--theme` option should still work for you.
+On Windows, hgrep enables 24-bit colors if the Windows version is 10.0.15063 or later becuase
+[OS version 10.0.15063 (Windows 10 1703) started to support 24-bit colors][rich-issue-140]. Otherwise it enables only 16-colors.
 
 ## Versioning
 

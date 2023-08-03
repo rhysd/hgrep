@@ -55,19 +55,20 @@ impl TermColorSupport {
 
     #[cfg(windows)]
     fn detect() -> Self {
+        use winver::WindowsVersion;
+
+        if let Some(term) = Self::detect_from_colorterm() {
+            return term;
+        }
+
         // Windows 10.0.15063 or later supports 24-bit colors (true colors).
         // https://github.com/Textualize/rich/issues/140
         //
-        // hgrep doesn't detect it because it is very messy to get Windows OS version. WIN32's official sysinfoapi.h APIs such
-        // as `GetVersion`, `GetVersionEx`, `VerifyVersionInfo`, ... don't return OS version of the current system. Please read
-        // the 'Remarks' section in the following document. `RtlGetNtVersionNumbers` works but ntdll.dll does not always exist
-        // and can cause a link error.
-        //
-        // https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-verifyversioninfoa
-        //
-        // Windows 10.0.15063 is Windows 10 1703, which was released on April 5, 2017 so it is pretty old.
-        // Setting 'ansi' theme manually should still work for those who are using older Windows due to some reason.
-        Self::detect_from_colorterm().unwrap_or(Self::True)
+        // Note that Windows 10.0.15063 is Windows 10 1703, which was released on April 5, 2017 so it is pretty old.
+        match WindowsVersion::from_ntdll_dll().or_else(|_| WindowsVersion::from_wmi_os_provider()) {
+            Ok(v) if v < WindowsVersion::new(10, 0, 15063) => Self::Ansi16,
+            _ => Self::True,
+        }
     }
 }
 
