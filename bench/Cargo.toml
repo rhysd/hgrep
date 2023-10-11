@@ -15,7 +15,7 @@ mimalloc = { version = "0.1", default-features = false }
 [dev-dependencies]
 criterion = "0.5.1"
 gag = "1"
-rayon = "1.7"
+rayon = "1.8"
 
 [[bench]]
 name = "chunk"
