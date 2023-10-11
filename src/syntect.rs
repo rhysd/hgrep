@@ -58,7 +58,7 @@ fn list_themes_with_syntaxes<W: Write>(
 
     let themes = {
         let mut m = load_bat_themes()?.themes;
-        m.extend(ThemeSet::load_defaults().themes.into_iter());
+        m.extend(ThemeSet::load_defaults().themes);
         let mut v: Vec<_> = m.into_iter().collect();
         v.sort_by(|l, r| l.0.cmp(&r.0));
         v

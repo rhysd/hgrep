@@ -12,13 +12,12 @@ pub(crate) fn read_matches<S: AsRef<str>>(dir: &Path, input: S) -> Vec<Result<Gr
         .unwrap()
         .lines()
         .enumerate()
-        .filter_map(|(idx, line)| {
-            line.ends_with('*').then(|| {
-                Ok(GrepMatch {
-                    path: path.into(),
-                    line_number: idx as u64 + 1,
-                    ranges: vec![],
-                })
+        .filter(|&(_, l)| l.ends_with('*'))
+        .map(|(idx, _)| {
+            Ok(GrepMatch {
+                path: path.into(),
+                line_number: idx as u64 + 1,
+                ranges: vec![],
             })
         })
         .collect::<Vec<Result<GrepMatch>>>()
