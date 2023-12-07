@@ -55,7 +55,7 @@ impl TermColorSupport {
 
     #[cfg(windows)]
     fn detect() -> Self {
-        use winver::WindowsVersion;
+        use windows_version::OsVersion;
 
         if let Some(term) = Self::detect_from_colorterm() {
             return term;
@@ -65,9 +65,10 @@ impl TermColorSupport {
         // https://github.com/Textualize/rich/issues/140
         //
         // Note that Windows 10.0.15063 is Windows 10 1703, which was released on April 5, 2017 so it is pretty old.
-        match WindowsVersion::from_ntdll_dll().or_else(|_| WindowsVersion::from_wmi_os_provider()) {
-            Ok(v) if v < WindowsVersion::new(10, 0, 15063) => Self::Ansi16,
-            _ => Self::True,
+        if OsVersion::current() >= OsVersion::new(10, 0, 0, 15063) {
+            Self::True
+        } else {
+            Self::Ansi16
         }
     }
 }

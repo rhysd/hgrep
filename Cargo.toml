@@ -74,7 +74,7 @@ clap_complete_nushell = "4.4.2"
 
 [target."cfg(windows)".dependencies]
 nu-ansi-term = { version = "0.49.0", default-features = false }
-winver = "1"
+windows-version = "0.1.0"
 
 [target."cfg(not(windows))".dependencies]
 terminfo = "0.8.0"
