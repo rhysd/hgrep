@@ -42,10 +42,10 @@ fn get_cache_dir() -> Option<PathBuf> {
     let dir = env::var_os("XDG_CACHE_HOME")
         .map(PathBuf::from)
         .filter(|p| p.is_absolute())
-        .or_else(|| dirs_next::home_dir().map(|d| d.join(".cache")));
+        .or_else(|| dirs::home_dir().map(|d| d.join(".cache")));
 
     #[cfg(not(target_os = "macos"))]
-    let dir = dirs_next::cache_dir();
+    let dir = dirs::cache_dir();
 
     dir.map(|d| d.join("bat"))
 }
