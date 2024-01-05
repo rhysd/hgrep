@@ -14,20 +14,13 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 #[derive(Debug)]
-pub struct BatPrintError {
-    path: PathBuf,
-    cause: Option<String>,
-}
+pub struct BatPrintError(PathBuf);
 
 impl std::error::Error for BatPrintError {}
 
 impl fmt::Display for BatPrintError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Could not print file {:?}", &self.path)?;
-        if let Some(cause) = &self.cause {
-            write!(f, ". Caused by: {}", cause)?;
-        }
-        Ok(())
+        write!(f, "Could not print file {:?} by bat printer", &self.0)
     }
 }
 
@@ -182,17 +175,11 @@ impl<'main> BatPrinter<'main> {
         let controller = Controller::new(&config, &self.assets);
 
         // Note: controller.run() returns true when no error
-        // XXX: bat's Error type cannot be converted to anyhow::Error since it does not implement Sync
-        match controller.run(vec![input], None) {
-            Ok(true) => Ok(()),
-            Ok(false) => Err(Error::new(BatPrintError {
-                path: file.path,
-                cause: None,
-            })),
-            Err(err) => Err(Error::new(BatPrintError {
-                path: file.path,
-                cause: Some(format!("{}", err)),
-            })),
+        // Note: `Controller::run_with_error_handler` because it requires `Fn` (not `FnMut`) for the handler type.
+        if controller.run(vec![input], None)? {
+            Ok(())
+        } else {
+            Err(Error::new(BatPrintError(file.path)))
         }
     }
 }
