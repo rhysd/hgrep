@@ -54,7 +54,7 @@ clap_complete = "4.4.6"
 memchr = "2.7.1"
 pathdiff = "0.2.1"
 terminal_size = "0.3.0"
-bat = { version = "^0.23.0", default-features = false, features = ["regex-onig"], optional = true }
+bat = { version = "^0.24.0", default-features = false, features = ["regex-onig"], optional = true }
 grep-regex = { version = "0.1.12", optional = true }
 grep-searcher = { version = "0.1.13", optional = true }
 ignore = { version = "0.4", optional = true }

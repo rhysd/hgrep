@@ -183,7 +183,7 @@ impl<'main> BatPrinter<'main> {
 
         // Note: controller.run() returns true when no error
         // XXX: bat's Error type cannot be converted to anyhow::Error since it does not implement Sync
-        match controller.run(vec![input]) {
+        match controller.run(vec![input], None) {
             Ok(true) => Ok(()),
             Ok(false) => Err(Error::new(BatPrintError {
                 path: file.path,
