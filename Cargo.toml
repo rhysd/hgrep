@@ -49,9 +49,9 @@ bat-printer = ["bat", "dirs"]
 
 [dependencies]
 anyhow = "1"
-clap = { version = "4.4.11", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "wrap_help"] } # Add "deprecated" feature to show deprecations
-clap_complete = "4.4.4"
-memchr = "2.6.4"
+clap = { version = "4.4.13", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "wrap_help"] } # Add "deprecated" feature to show deprecations
+clap_complete = "4.4.6"
+memchr = "2.7.1"
 pathdiff = "0.2.1"
 terminal_size = "0.3.0"
 bat = { version = "^0.23.0", default-features = false, features = ["regex-onig"], optional = true }
@@ -69,7 +69,7 @@ flate2 = { version = "1.0.28", optional = true }
 ansi_colours = { version = "1.2.2", default-features = false, optional = true }
 dirs = { version = "5.0.1", optional = true }
 mimalloc = { version = "0.1.39", default-features = false }
-clap_mangen = "0.2.15"
+clap_mangen = "0.2.16"
 clap_complete_nushell = "4.4.2"
 
 [target."cfg(windows)".dependencies]
