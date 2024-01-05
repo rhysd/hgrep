@@ -1089,6 +1089,8 @@ where
                 | "nspawn" | "path" | "service" | "scope" | "slice" | "socket" | "swap" | "target"
                 | "timer",
             ) => Some("INI"),
+            Some("sarif" | "jsonl") => Some("JSON"),
+            Some("ron") => Some("Rust"),
             _ => None,
         };
 
@@ -1097,6 +1099,7 @@ where
             Some(".clang-format" | "fish_history") => Some("YAML"),
             Some("nginx.conf" | "mime.types") => Some("nginx"),
             Some("httpd.conf") => Some("Apache Conf"),
+            Some("Containerfile") => Some("Dockerfile"),
             _ => None,
         });
 
