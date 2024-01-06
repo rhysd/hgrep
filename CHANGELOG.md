@@ -1,3 +1,18 @@
+<a name="v0.3.4"></a>
+# [v0.3.4](https://github.com/rhysd/hgrep/releases/tag/v0.3.4) - 06 Jan 2024
+
+- Update crates related to ripgrep. This contains the big internal change of `regex` crate and changes for ripgrep v14.
+- Update bat to [v0.24](https://github.com/sharkdp/bat/releases/tag/v0.24.0).
+- Update the assets for syntax highlighting. This adds support for [WGSL](https://www.w3.org/TR/WGSL/) and some other improvements such as more file extensions support.
+- Improve error handling of `bat` printer.
+- Detect true color support using `windows-version` crate on Windows. True color is supported by Windows 10.0.15063 or later.
+- Update other dependencies to the latest.
+  - Replace unmaintained `dirs-next` crate with `dirs` crate.
+  - Update `syntect` crate to v5.1.0.
+
+[Changes][v0.3.4]
+
+
 <a name="v0.3.3"></a>
 # [v0.3.3](https://github.com/rhysd/hgrep/releases/tag/v0.3.3) - 22 Jul 2023
 
@@ -309,6 +324,7 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [Changes][v0.1.1]
 
 
+[v0.3.4]: https://github.com/rhysd/hgrep/compare/v0.3.3...v0.3.4
 [v0.3.3]: https://github.com/rhysd/hgrep/compare/v0.3.2...v0.3.3
 [v0.3.2]: https://github.com/rhysd/hgrep/compare/v0.3.1...v0.3.2
 [v0.3.1]: https://github.com/rhysd/hgrep/compare/v0.3.0...v0.3.1
