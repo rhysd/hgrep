@@ -6,7 +6,6 @@ use flate2::read::ZlibDecoder;
 use memchr::{memchr_iter, Memchr};
 use std::cmp;
 use std::ffi::OsStr;
-use std::fmt;
 use std::io::{self, Stdout, StdoutLock, Write};
 use std::ops::{Deref, DerefMut};
 use std::path::Path;
@@ -90,31 +89,6 @@ fn list_themes_with_syntaxes<W: Write>(
 #[inline]
 fn num_digits(n: u64) -> u16 {
     (n as f64).log10() as u16 + 1
-}
-
-#[derive(Debug)]
-pub struct PrintError {
-    message: String,
-}
-
-impl PrintError {
-    fn new<S: Into<String>>(msg: S) -> Self {
-        Self {
-            message: msg.into(),
-        }
-    }
-}
-
-impl std::error::Error for PrintError {}
-
-impl fmt::Display for PrintError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Error while printing output with syntect: {}",
-            &self.message
-        )
-    }
 }
 
 #[derive(Debug)]
@@ -991,8 +965,7 @@ fn load_themes(name: Option<&str>) -> Result<ThemeSet> {
             if defaults.themes.contains_key(name) {
                 Ok(defaults)
             } else {
-                let msg = format!("Unknown theme '{}'. See --list-themes output", name);
-                Err(PrintError::new(msg).into())
+                anyhow::bail!("Unknown theme '{}'. See --list-themes output", name)
             }
         }
     }

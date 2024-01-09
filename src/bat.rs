@@ -1,6 +1,6 @@
 use crate::chunk::File;
 use crate::printer::{Printer, PrinterOptions, TermColorSupport, TextWrapMode};
-use anyhow::{Error, Result};
+use anyhow::Result;
 use bat::assets::HighlightingAssets;
 use bat::config::{Config, VisibleLines};
 use bat::controller::Controller;
@@ -9,20 +9,8 @@ use bat::line_range::{HighlightedLineRanges, LineRange, LineRanges};
 use bat::style::{StyleComponent, StyleComponents};
 use bat::WrappingMode;
 use std::env;
-use std::fmt;
 use std::path::PathBuf;
 use std::sync::Mutex;
-
-#[derive(Debug)]
-pub struct BatPrintError(PathBuf);
-
-impl std::error::Error for BatPrintError {}
-
-impl fmt::Display for BatPrintError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Could not print file {:?} by bat printer", &self.0)
-    }
-}
 
 // Brought from bat/src/bin/bat/directories.rs dde770aa210ab9eeb5469e152cec6fcaab374d84
 fn get_cache_dir() -> Option<PathBuf> {
@@ -179,7 +167,7 @@ impl<'main> BatPrinter<'main> {
         if controller.run(vec![input], None)? {
             Ok(())
         } else {
-            Err(Error::new(BatPrintError(file.path)))
+            anyhow::bail!("Could not print file {:?} by bat printer", file.path)
         }
     }
 }
