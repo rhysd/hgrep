@@ -1,3 +1,4 @@
+use crate::broken_pipe::IgnoreBrokenPipe as _;
 use crate::chunk::Files;
 use crate::grep::GrepMatch;
 use crate::printer::Printer;
@@ -383,7 +384,6 @@ impl<'main> Config<'main> {
             Ok(())
         }
 
-        use crate::broken_pipe::IgnoreBrokenPipe;
         let types = self.build_types()?;
         print(out, &types).ignore_broken_pipe()?;
         Ok(())

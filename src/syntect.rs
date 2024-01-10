@@ -1,3 +1,4 @@
+use crate::broken_pipe::IgnoreBrokenPipe as _;
 use crate::chunk::{File, Line};
 use crate::printer::{Printer, PrinterOptions, TermColorSupport, TextWrapMode};
 use ansi_colours::ansi256_from_rgb;
@@ -53,8 +54,6 @@ fn list_themes_with_syntaxes<W: Write>(
     opts: &PrinterOptions<'_>,
     syntaxes: &SyntaxSet,
 ) -> Result<()> {
-    use crate::broken_pipe::IgnoreBrokenPipe;
-
     let themes = {
         let mut m = load_bat_themes()?.themes;
         m.extend(ThemeSet::load_defaults().themes);
@@ -1136,8 +1135,6 @@ where
     for<'a> W: LockableWrite<'a>,
 {
     fn print(&self, file: File) -> Result<()> {
-        use crate::broken_pipe::IgnoreBrokenPipe;
-
         if file.chunks.is_empty() || file.line_matches.is_empty() {
             return Ok(());
         }
