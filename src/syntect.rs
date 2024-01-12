@@ -32,14 +32,16 @@ fn load_syntax_set() -> Result<SyntaxSet> {
     Ok(bincode::deserialize_from(SYNTAX_SET_BIN)?)
 }
 
-pub trait LockableWrite<'a> {
-    type Locked: Write;
-    fn lock(&'a self) -> Self::Locked;
+pub trait WriteOnLocked {
+    type Locked<'a>: Write
+    where
+        Self: 'a;
+    fn lock(&self) -> Self::Locked<'_>;
 }
 
-impl<'a> LockableWrite<'a> for Stdout {
-    type Locked = StdoutLock<'a>;
-    fn lock(&'a self) -> Self::Locked {
+impl WriteOnLocked for Stdout {
+    type Locked<'a> = StdoutLock<'a>;
+    fn lock(&self) -> Self::Locked<'_> {
         self.lock()
     }
 }
@@ -996,10 +998,7 @@ impl Clone for SyntectAssets {
     }
 }
 
-pub struct SyntectPrinter<'main, W>
-where
-    for<'a> W: LockableWrite<'a>,
-{
+pub struct SyntectPrinter<'main, W: WriteOnLocked> {
     writer: W, // Protected with mutex because it should print file by file
     syntaxes: SyntaxSet,
     themes: ThemeSet,
@@ -1012,10 +1011,7 @@ impl<'main> SyntectPrinter<'main, Stdout> {
     }
 }
 
-impl<'main, W> SyntectPrinter<'main, W>
-where
-    for<'a> W: LockableWrite<'a>,
-{
+impl<'main, W: WriteOnLocked> SyntectPrinter<'main, W> {
     pub fn new(writer: W, opts: PrinterOptions<'main>) -> Result<Self> {
         Ok(Self {
             writer,
@@ -1130,10 +1126,7 @@ where
     }
 }
 
-impl<'main, W> Printer for SyntectPrinter<'main, W>
-where
-    for<'a> W: LockableWrite<'a>,
-{
+impl<'main, W: WriteOnLocked> Printer for SyntectPrinter<'main, W> {
     fn print(&self, file: File) -> Result<()> {
         if file.chunks.is_empty() || file.line_matches.is_empty() {
             return Ok(());
@@ -1181,9 +1174,9 @@ mod tests {
 
     #[derive(Default)]
     struct DummyStdout(RefCell<Vec<u8>>);
-    impl<'a> LockableWrite<'a> for DummyStdout {
-        type Locked = DummyStdoutLock<'a>;
-        fn lock(&'a self) -> Self::Locked {
+    impl WriteOnLocked for DummyStdout {
+        type Locked<'a> = DummyStdoutLock<'a>;
+        fn lock(&self) -> Self::Locked<'_> {
             DummyStdoutLock(self.0.borrow_mut())
         }
     }
@@ -1542,9 +1535,9 @@ mod tests {
     }
 
     struct ErrorStdout(io::ErrorKind);
-    impl<'a> LockableWrite<'a> for ErrorStdout {
-        type Locked = ErrorStdoutLock;
-        fn lock(&'a self) -> Self::Locked {
+    impl WriteOnLocked for ErrorStdout {
+        type Locked<'a> = ErrorStdoutLock;
+        fn lock(&self) -> Self::Locked<'_> {
             ErrorStdoutLock(self.0)
         }
     }

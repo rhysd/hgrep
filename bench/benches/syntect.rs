@@ -2,7 +2,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use hgrep::chunk::{File, LineMatch};
 use hgrep::printer::{Printer, PrinterOptions, TextWrapMode};
 use hgrep::ripgrep;
-use hgrep::syntect::{LockableWrite, SyntectAssets, SyntectPrinter};
+use hgrep::syntect::{SyntectAssets, SyntectPrinter, WriteOnLocked};
 use hgrep_bench::{printer_opts, read_package_lock_json, rust_releases_path};
 use rayon::prelude::*;
 use std::io;
@@ -25,9 +25,9 @@ impl<'a> Write for SinkLock<'a> {
 
 #[derive(Default)]
 struct Sink(Mutex<Vec<u8>>);
-impl<'a> LockableWrite<'a> for Sink {
-    type Locked = SinkLock<'a>;
-    fn lock(&'a self) -> Self::Locked {
+impl WriteOnLocked for Sink {
+    type Locked<'a> = SinkLock<'a>;
+    fn lock(&self) -> Self::Locked<'_> {
         SinkLock(self.0.lock().unwrap())
     }
 }
