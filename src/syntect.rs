@@ -245,15 +245,6 @@ fn weak_blend_fg_color(mut fg: Color, bg: Color) -> Color {
     blend_fg_color(fg, bg)
 }
 
-#[inline]
-fn diff_u8(x: u8, y: u8) -> u8 {
-    if x > y {
-        x - y
-    } else {
-        y - x
-    }
-}
-
 #[derive(Debug)]
 struct Palette {
     foreground: Color,
@@ -284,7 +275,7 @@ impl Palette {
         b: 0,
         a: 0,
     };
-    const ANSI16: Palette = Palette {
+    const ANSI16: Self = Self {
         foreground: Self::NO_COLOR,
         background: Self::NO_COLOR,
         match_bg: Self::NO_COLOR,
@@ -318,7 +309,7 @@ impl Palette {
                 let avg_fg = color_average(foreground);
                 let avg_bg = color_average(background);
                 // Choose foreground or background looking at distance
-                if diff_u8(avg_fg, avg) > diff_u8(avg_bg, avg) {
+                if avg_fg.abs_diff(avg) > avg_bg.abs_diff(avg) {
                     foreground
                 } else {
                     background
@@ -998,7 +989,7 @@ impl Clone for SyntectAssets {
     }
 }
 
-pub struct SyntectPrinter<'main, W: WriteOnLocked> {
+pub struct SyntectPrinter<'main, W> {
     writer: W, // Protected with mutex because it should print file by file
     syntaxes: SyntaxSet,
     themes: ThemeSet,
@@ -1011,7 +1002,7 @@ impl<'main> SyntectPrinter<'main, Stdout> {
     }
 }
 
-impl<'main, W: WriteOnLocked> SyntectPrinter<'main, W> {
+impl<'main, W> SyntectPrinter<'main, W> {
     pub fn new(writer: W, opts: PrinterOptions<'main>) -> Result<Self> {
         Ok(Self {
             writer,
