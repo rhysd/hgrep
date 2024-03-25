@@ -180,7 +180,10 @@ mod tests {
             Envs {
                 colorterm: None,
                 term: Some("xterm-unknown"),
+                #[cfg(not(windows))]
                 want: TermColorSupport::Ansi256,
+                #[cfg(windows)]
+                want: TermColorSupport::True,
             },
             Envs {
                 colorterm: Some("truecolor"), // Checking COLORTERM is preceded
@@ -195,7 +198,10 @@ mod tests {
             Envs {
                 colorterm: None,
                 term: None,
+                #[cfg(not(windows))]
                 want: TermColorSupport::Ansi256,
+                #[cfg(windows)]
+                want: TermColorSupport::True,
             },
         ] {
             let mut guard = EnvGuard::default();
