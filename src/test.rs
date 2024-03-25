@@ -76,13 +76,13 @@ pub(crate) fn read_all_expected_chunks<S: AsRef<str>>(dir: &Path, inputs: &[S]) 
         .collect()
 }
 
+#[derive(Default)]
 pub(crate) struct EnvGuard {
-    name: String,
-    saved: Option<String>,
+    saved: Vec<(String, Option<String>)>,
 }
 
 impl EnvGuard {
-    pub(crate) fn set_env(name: &str, new_value: Option<&str>) -> Self {
+    pub(crate) fn set_env(&mut self, name: &str, new_value: Option<&str>) {
         let saved = match env::var(name) {
             Ok(v) => Some(v),
             Err(env::VarError::NotPresent) => None,
@@ -94,16 +94,18 @@ impl EnvGuard {
             env::remove_var(name);
         }
         let name = name.to_string();
-        Self { name, saved }
+        self.saved.push((name, saved));
     }
 }
 
 impl Drop for EnvGuard {
     fn drop(&mut self) {
-        if let Some(saved) = &self.saved {
-            env::set_var(&self.name, saved);
-        } else {
-            env::remove_var(&self.name);
+        for (name, value) in self.saved.iter() {
+            if let Some(value) = value {
+                env::set_var(name, value);
+            } else {
+                env::remove_var(name);
+            }
         }
     }
 }

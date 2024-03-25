@@ -135,32 +135,79 @@ mod tests {
 
     #[test]
     fn test_detect_true_color_from_env() {
-        {
-            let _guard = EnvGuard::set_env("COLORTERM", Some("truecolor"));
-            let detected = TermColorSupport::detect();
-            assert_eq!(detected, TermColorSupport::True);
+        struct Envs {
+            colorterm: Option<&'static str>,
+            term: Option<&'static str>,
+            want: TermColorSupport,
         }
 
-        {
-            let _guard = EnvGuard::set_env("COLORTERM", Some("24bit"));
+        for test in [
+            Envs {
+                colorterm: Some("truecolor"),
+                term: None,
+                want: TermColorSupport::True,
+            },
+            Envs {
+                colorterm: Some("24bit"),
+                term: None,
+                want: TermColorSupport::True,
+            },
+            Envs {
+                colorterm: Some(""), // Setting some other values indicates 16 colors support
+                term: None,
+                want: TermColorSupport::Ansi16,
+            },
+            Envs {
+                colorterm: None,
+                term: Some("xterm-truecolor"),
+                want: TermColorSupport::True,
+            },
+            Envs {
+                colorterm: None,
+                term: Some("xterm-24bit"),
+                want: TermColorSupport::True,
+            },
+            Envs {
+                colorterm: None,
+                term: Some("xterm-256color"),
+                want: TermColorSupport::Ansi256,
+            },
+            Envs {
+                colorterm: None,
+                term: Some("xterm-square"),
+                want: TermColorSupport::Ansi256,
+            },
+            Envs {
+                colorterm: None,
+                term: Some("xterm-unknown"),
+                want: TermColorSupport::Ansi256,
+            },
+            Envs {
+                colorterm: Some("truecolor"), // Checking COLORTERM is preceded
+                term: Some("xterm-256color"),
+                want: TermColorSupport::True,
+            },
+            Envs {
+                colorterm: Some(""),
+                term: Some("xterm-256color"),
+                want: TermColorSupport::Ansi16,
+            },
+            Envs {
+                colorterm: None,
+                term: None,
+                want: TermColorSupport::Ansi256,
+            },
+        ] {
+            let mut guard = EnvGuard::default();
+            let Envs {
+                colorterm,
+                term,
+                want,
+            } = test;
+            guard.set_env("COLORTERM", colorterm);
+            guard.set_env("TERM", term);
             let detected = TermColorSupport::detect();
-            assert_eq!(detected, TermColorSupport::True);
-        }
-
-        {
-            let _guard = EnvGuard::set_env("COLORTERM", Some("someothervalue"));
-            let detected = TermColorSupport::detect();
-            assert_eq!(detected, TermColorSupport::Ansi16);
-        }
-
-        {
-            let _guard = EnvGuard::set_env("COLORTERM", None);
-            let detected = TermColorSupport::detect();
-            if cfg!(windows) {
-                assert_eq!(detected, TermColorSupport::True);
-            } else {
-                assert_ne!(detected, TermColorSupport::True);
-            }
+            assert_eq!(detected, want, "COLORTERM={colorterm:?} and TERM={term:?}",);
         }
     }
 }
