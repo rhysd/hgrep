@@ -32,12 +32,31 @@ impl TermColorSupport {
         })
     }
 
+    // > The TERM environment variable is its primary source of information. Its value is expected to follow the terminfo(5) and
+    // > termcap(5) convention (laid out in term(7)) of a root name followed by zero or more hyphen-separated feature suffixes
+    // > (such as, for example, “teken-256color”). The TerminalCapabilities class only cares about the root name, which it takes
+    // > to denote a family of terminal types (e.g. “putty”), and whether there are “-24bit”, “-truecolor”, “-256color”, or
+    // > “-square” suffixes in the value. Other feature suffixes are ignored.
+    //
+    // https://jdebp.uk/Softwares/nosh/guide/TerminalCapabilities.html
+    fn detect_from_term() -> Option<Self> {
+        env::var("TERM").ok().and_then(|v| {
+            if v.ends_with("-truecolor") || v.ends_with("-24bit") {
+                Some(Self::True)
+            } else if v.ends_with("-256color") || v.ends_with("-square") {
+                Some(Self::Ansi256)
+            } else {
+                None
+            }
+        })
+    }
+
     #[cfg(not(windows))]
     fn detect() -> Self {
         use terminfo::capability::MaxColors;
         use terminfo::Database;
 
-        if let Some(support) = Self::detect_from_colorterm() {
+        if let Some(support) = Self::detect_from_colorterm().or_else(Self::detect_from_term) {
             return support;
         }
 
@@ -57,8 +76,8 @@ impl TermColorSupport {
     fn detect() -> Self {
         use windows_version::OsVersion;
 
-        if let Some(term) = Self::detect_from_colorterm() {
-            return term;
+        if let Some(support) = Self::detect_from_colorterm().or_else(Self::detect_from_term) {
+            return support;
         }
 
         // Windows 10.0.15063 or later supports 24-bit colors (true colors).

@@ -374,14 +374,27 @@ man hgrep
 
 hgrep automatically detects 24-bit or 256 or 16 colors support of your terminal application by the following logic.
 
-At first, hgrep checks [`COLORTERM` environment variable][term-caps] on all platforms. When `truecolor` or `24bit` is set, 24-bit
-colors are enabled. When other values are set, only 16 colors are enabled.
+#### `COLORTERM`
 
-On Linux or macOS or FreeBSD or NetBSD, hgrep tries to detect your terminal's color support from [terminfo][]. It eventually falls
-back to 256 colors, which are most widely supported by popular terminals.
+At first, hgrep checks [`COLORTERM` environment variable][term-caps]. When `truecolor` or `24bit` is set to the variable, 24-bit
+colors are enabled.
+
+On Linux or macOS or FreeBSD or NetBSD, hgrep tries to detect your terminal's color support from [terminfo][].
 
 On Windows, hgrep enables 24-bit colors if the Windows version is 10.0.15063 or later becuase
 [OS version 10.0.15063 (Windows 10 1703) started to support 24-bit colors][rich-issue-140]. Otherwise it enables only 16-colors.
+
+#### `TERM`
+
+When `COLORTERM` is not set, hgrep checks [`TERM` environment variable][term-caps] where the terminal name is set.
+
+- When it ends with `-truecolor` or `-24bit`, 24-bit colors are enabled.
+- When it ends with `-256color` or `-square`, 256 colors are enabled.
+
+#### Fallback
+
+When no color support was detected from `COLORTERM` nor `TERM`, htrep eventually falls back to 256 colors, which are most widely
+supported by popular terminals.
 
 ## Versioning
 
