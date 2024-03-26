@@ -1,9 +1,12 @@
+#![deny(clippy::dbg_macro)]
+
 use anyhow::{Context, Result};
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use hgrep::grep::BufReadExt;
 use hgrep::printer::{PrinterOptions, TextWrapMode};
 use std::cmp;
 use std::env;
+use std::ffi::OsString;
 use std::io;
 use std::process;
 
@@ -20,6 +23,51 @@ use hgrep::bat::BatPrinter;
 use hgrep::syntect::SyntectPrinter;
 
 const COMPLETION_SHELLS: [&str; 6] = ["bash", "zsh", "powershell", "fish", "elvish", "nushell"];
+const OPTS_ENV_VAR: &str = "HGREP_DEFAULT_OPTS";
+
+struct Args {
+    env_opts: Vec<String>,
+    cmd_args: env::ArgsOs,
+}
+
+impl Args {
+    fn new() -> Result<Self> {
+        let env_opts = match env::var(OPTS_ENV_VAR) {
+            Ok(var) => {
+                let Some(mut opts) = shlex::split(&var) else {
+                    anyhow::bail!("String in `{}` environment variable cannot be parsed as a shell command: {:?}", OPTS_ENV_VAR, var);
+                };
+                opts.reverse();
+                opts
+            }
+            Err(env::VarError::NotPresent) => vec![],
+            Err(env::VarError::NotUnicode(invalid)) => {
+                anyhow::bail!(
+                    "String in `{}` environment variable is not a valid UTF-8 sequence: {:?}",
+                    OPTS_ENV_VAR,
+                    invalid,
+                );
+            }
+        };
+
+        let mut cmd_args = env::args_os();
+        cmd_args.next(); // Skip the executable name at the first item
+
+        Ok(Self { env_opts, cmd_args })
+    }
+}
+
+impl Iterator for Args {
+    type Item = OsString;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(opt) = self.env_opts.pop() {
+            Some(opt.into())
+        } else {
+            self.cmd_args.next()
+        }
+    }
+}
 
 fn command() -> Command {
     #[cfg(feature = "syntect-printer")]
@@ -36,6 +84,7 @@ fn command() -> Command {
             $ grep -nH pattern -R . | hgrep\n\n\
             For more details, visit https://github.com/rhysd/hgrep"
         )
+        .no_binary_name(true)
         .arg(
             Arg::new("min-context")
                 .short('c')
@@ -702,7 +751,7 @@ fn main() {
         process::exit(2);
     }
 
-    let status = match run(command().get_matches()) {
+    let status = match Args::new().and_then(|a| run(command().get_matches_from(a))) {
         Ok(true) => 0,
         Ok(false) => 1,
         Err(err) => {
@@ -721,16 +770,11 @@ fn main() {
 mod tests {
     use super::*;
 
+    const EMPTY: [OsString; 0] = [];
     #[cfg(not(windows))]
     const SNAPSHOT_DIR: &str = "../testdata/snapshots";
     #[cfg(windows)]
     const SNAPSHOT_DIR: &str = r#"..\testdata\snapshots"#;
-
-    fn cmdline<'a>(args: &[&'a str]) -> Vec<&'a str> {
-        let mut v = vec!["hgrep"];
-        v.extend(args);
-        v
-    }
 
     mod arg_matches {
         use super::*;
@@ -759,7 +803,7 @@ mod tests {
                     settings.set_snapshot_path(SNAPSHOT_DIR);
                     settings.bind(|| {
                         let cmd = command();
-                        let mat = cmd.get_matches_from(cmdline(&$args));
+                        let mat = cmd.get_matches_from($args);
                         let raw = get_raw_matched_arguments(&mat);
                         insta::assert_debug_snapshot!(raw);
                     });
@@ -767,7 +811,7 @@ mod tests {
             };
         }
 
-        snapshot_test!(no_arg, []);
+        snapshot_test!(no_arg, EMPTY);
         snapshot_test!(pat_only, ["pat"]);
         snapshot_test!(pat_and_dir, ["pat", "dir1"]);
         snapshot_test!(pat_and_dirs, ["pat", "dir1", "dir2", "dir3"]);
@@ -863,7 +907,7 @@ mod tests {
                 &["--printer", "bat", "--background"][..],
                 &["--printer", "bat", "--ascii-lines"][..],
             ] {
-                let mat = command().get_matches_from(cmdline(args));
+                let mat = command().get_matches_from(args);
                 assert!(run(mat).is_err(), "args: {:?}", args);
             }
         }
@@ -881,7 +925,7 @@ mod tests {
                 &["--wrap", "foo"][..],
                 &["--generate-completion-script", "unknown-shell"][..],
             ] {
-                let parsed = command().try_get_matches_from(cmdline(args));
+                let parsed = command().try_get_matches_from(args);
                 assert!(parsed.is_err(), "args: {:?}", args);
             }
         }
@@ -897,7 +941,7 @@ mod tests {
                     let mut settings = insta::Settings::clone_current();
                     settings.set_snapshot_path(SNAPSHOT_DIR);
                     settings.bind(|| {
-                        let mat = command().get_matches_from(cmdline(&$args));
+                        let mat = command().get_matches_from($args);
                         let min_ctx = mat
                             .get_one::<String>("min-context")
                             .unwrap()
@@ -916,7 +960,7 @@ mod tests {
             };
         }
 
-        snapshot_test!(no_arg, []);
+        snapshot_test!(no_arg, EMPTY);
         snapshot_test!(pat_only, ["pat"]);
         snapshot_test!(pat_and_dirs, ["pat", "dir1", "dir2"]);
         snapshot_test!(glob_one, ["--glob", "*.txt", "pat", "dir"]);
