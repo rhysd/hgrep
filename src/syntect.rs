@@ -699,7 +699,7 @@ impl<'file, W: Write> Drawer<'file, W> {
             self.canvas.write_all(self.chars.horizontal.as_bytes())?;
         }
         self.canvas.write_all(sep.as_bytes())?;
-        for _ in 0..self.term_width - gutter_width + 1 {
+        for _ in 0..=self.term_width - gutter_width {
             self.canvas.write_all(self.chars.horizontal.as_bytes())?;
         }
         self.canvas.draw_newline()

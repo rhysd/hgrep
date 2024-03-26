@@ -406,7 +406,7 @@ pub fn grep<'main, P: Printer + Sync>(
 
     let paths = entries.filter_map(|entry| match entry {
         Ok(entry) => {
-            if entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
+            if entry.file_type().is_some_and(|t| t.is_file()) {
                 Some(Ok(entry.into_path()))
             } else {
                 None

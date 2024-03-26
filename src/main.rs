@@ -385,19 +385,19 @@ fn generate_completion_script<W: io::Write>(shell: &str, out: &mut W) {
 
     let mut cmd = command();
     if shell.eq_ignore_ascii_case("bash") {
-        generate(Bash, &mut cmd, "hgrep", out)
+        generate(Bash, &mut cmd, "hgrep", out);
     } else if shell.eq_ignore_ascii_case("zsh") {
-        generate(Zsh, &mut cmd, "hgrep", out)
+        generate(Zsh, &mut cmd, "hgrep", out);
     } else if shell.eq_ignore_ascii_case("powershell") {
-        generate(PowerShell, &mut cmd, "hgrep", out)
+        generate(PowerShell, &mut cmd, "hgrep", out);
     } else if shell.eq_ignore_ascii_case("fish") {
-        generate(Fish, &mut cmd, "hgrep", out)
+        generate(Fish, &mut cmd, "hgrep", out);
     } else if shell.eq_ignore_ascii_case("elvish") {
-        generate(Elvish, &mut cmd, "hgrep", out)
+        generate(Elvish, &mut cmd, "hgrep", out);
     } else if shell.eq_ignore_ascii_case("nushell") {
-        generate(Nushell, &mut cmd, "hgrep", out)
+        generate(Nushell, &mut cmd, "hgrep", out);
     } else {
-        unreachable!() // SHELL argument was validated by clap
+        unreachable!(); // SHELL argument was validated by clap
     }
 }
 
