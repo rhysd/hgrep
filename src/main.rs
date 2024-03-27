@@ -25,14 +25,15 @@ use hgrep::syntect::SyntectPrinter;
 const COMPLETION_SHELLS: [&str; 6] = ["bash", "zsh", "powershell", "fish", "elvish", "nushell"];
 const OPTS_ENV_VAR: &str = "HGREP_DEFAULT_OPTS";
 
+#[derive(Debug)]
 struct Args {
-    env_opts: Vec<String>,
-    cmd_args: env::ArgsOs,
+    env: Vec<String>,
+    args: env::ArgsOs,
 }
 
 impl Args {
     fn new() -> Result<Self> {
-        let env_opts = match env::var(OPTS_ENV_VAR) {
+        let env = match env::var(OPTS_ENV_VAR) {
             Ok(var) => {
                 let Some(mut opts) = shlex::split(&var) else {
                     anyhow::bail!("String in `{}` environment variable cannot be parsed as a shell command: {:?}", OPTS_ENV_VAR, var);
@@ -50,10 +51,10 @@ impl Args {
             }
         };
 
-        let mut cmd_args = env::args_os();
-        cmd_args.next(); // Skip the executable name at the first item
+        let mut args = env::args_os();
+        args.next(); // Skip the executable name at the first item
 
-        Ok(Self { env_opts, cmd_args })
+        Ok(Self { env, args })
     }
 }
 
@@ -61,10 +62,10 @@ impl Iterator for Args {
     type Item = OsString;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(opt) = self.env_opts.pop() {
-            Some(opt.into())
+        if let Some(arg) = self.env.pop() {
+            Some(arg.into())
         } else {
-            self.cmd_args.next()
+            self.args.next()
         }
     }
 }
@@ -1027,6 +1028,100 @@ mod tests {
             let mut v = vec![];
             generate_completion_script(shell, &mut v);
             assert!(!v.is_empty(), "shell: {}", shell);
+        }
+    }
+
+    mod args {
+        use super::*;
+        use std::ffi::OsString;
+        use std::sync::Mutex;
+
+        struct Guard {
+            saved: Option<String>,
+        }
+        impl Guard {
+            fn new() -> Self {
+                Self {
+                    saved: env::var(OPTS_ENV_VAR).ok(),
+                }
+            }
+        }
+        impl Drop for Guard {
+            fn drop(&mut self) {
+                if let Some(v) = &self.saved {
+                    env::set_var(OPTS_ENV_VAR, v);
+                } else {
+                    env::remove_var(OPTS_ENV_VAR);
+                }
+            }
+        }
+
+        static MU: Mutex<()> = Mutex::new(());
+
+        #[test]
+        fn iterate_args() {
+            let _lock = MU.lock().unwrap();
+            let _guard = Guard::new();
+
+            for (env, prefix) in [
+                ("-i", &["-i"][..]),
+                ("-i -S", &["-i", "-S"][..]),
+                ("'-i'", &["-i"][..]),
+                ("'foo bar'", &["foo bar"][..]),
+                (r#""foo\\ bar""#, &[r#"foo\ bar"#][..]),
+                ("", &[][..]),
+            ] {
+                env::set_var(OPTS_ENV_VAR, env);
+
+                let have = Args::new().unwrap().collect::<Vec<_>>();
+                let mut want = prefix.iter().map(OsString::from).collect::<Vec<_>>();
+                let mut args = env::args_os();
+                args.next(); // Omit the executable name at the first argument
+                want.extend(args);
+
+                assert_eq!(want, have, "{env:?}, {prefix:?}");
+            }
+        }
+
+        #[test]
+        fn no_env_for_args() {
+            let _lock = MU.lock().unwrap();
+            let _guard = Guard::new();
+            env::remove_var(OPTS_ENV_VAR);
+
+            let have = Args::new().unwrap().collect::<Vec<_>>();
+            let mut want = env::args_os().collect::<Vec<_>>();
+            want.remove(0);
+            assert_eq!(want, have);
+        }
+
+        #[test]
+        fn broken_shell_command_in_env() {
+            let _lock = MU.lock().unwrap();
+            let _guard = Guard::new();
+            env::set_var(OPTS_ENV_VAR, "'-i");
+
+            let err = Args::new().unwrap_err();
+            let msg = format!("{}", err);
+            assert!(
+                msg.contains("cannot be parsed as a shell command"),
+                "{msg:?}",
+            );
+        }
+
+        #[test]
+        #[cfg(not(windows))]
+        fn invalid_utf8_sequence_in_env() {
+            use std::ffi::OsStr;
+            use std::os::unix::ffi::OsStrExt;
+
+            let _lock = MU.lock().unwrap();
+            let _guard = Guard::new();
+            env::set_var(OPTS_ENV_VAR, OsStr::from_bytes(b"\xc3\x28"));
+
+            let err = Args::new().unwrap_err();
+            let msg = format!("{}", err);
+            assert!(msg.contains("is not a valid UTF-8 sequence"), "{msg:?}");
         }
     }
 }
