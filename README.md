@@ -134,17 +134,9 @@ be specified by `-C`. If you don't want the heuristics, give the same value to t
 hgrep pattern  -c 10 -C 20 paths...
 ```
 
-When you want a pager, please pipe the output to external commands like `less`. `$COLUMNS` needs to be passed because terminal
-width is fixed to 80 characters when stdout is not connected to TTY. If you frequently use a pager,
-['Set default command options'](#set-default-command-options) section would describe a better way.
-
-```sh
-hgrep --term-width "$COLUMNS" [options...] pattern paths... | less -R
-```
-
-It's faster when there are so many matches because everything is done in the same process. In combination with `syntect-printer`
-feature, matched regions can be highlighted in a searched text color. The built-in grep feature is enabled by default and can be
-omitted by feature flags.
+Compared to receiveing inputs from `rg` via pipe, it's fast to handle so many matches in the same process. In combination with
+`syntect-printer` feature, matched regions can be highlighted in a searched text color. The built-in grep feature is enabled by
+default and can be omitted by feature flags.
 
 Though almost all useful options are implemented, the built-in grep implementation is a subset of ripgrep. If you need full
 functionalities, use `rg` command and eat its output by hgrep via stdin. Currently there are the following restrictions.
@@ -156,7 +148,7 @@ functionalities, use `rg` command and eat its output by hgrep via stdin. Current
 - Adding and removing file types are not supported. Only default file types are supported (see `--type-list`)
 - `.ripgreprc` config file is not supported
 
-### Eat `grep -nH` output
+### Eating `grep -nH` output
 
 When no pattern and paths are given in command line arguments, hgrep can take grep results via stdin. Since hgrep expects file
 paths and line numbers in each line of the output, `-nH` is necessary at `grep` command.
@@ -180,7 +172,7 @@ implementation built on top of [bat][]'s pretty printer. And `syntect` printer i
 
 At first, there was `bat` printer only. And then `syntect` printer was implemented for better performance and optimized layout.
 
-#### Pros of each printer
+#### Pros of each printers
 
 - `syntect` printer
   - Performance is much better. 2x to 4x faster (more match results get better performance).
@@ -228,6 +220,18 @@ means that printing match results including syntax highlighting must be done in 
 |----------------------------|------------------------|
 | ![](https://github.com/rhysd/ss/raw/master/hgrep/comparison_syntect.png) | ![](https://github.com/rhysd/ss/raw/master/hgrep/comparison_bat.png) |
 
+### Using pager
+
+When you want a pager to see the output interactively, please pipe the output to external commands like `less`. `$COLUMNS` needs
+to be passed to `--term-width` option because the terminal width is fixed to 80 characters when stdout is not connected to TTY.
+If you frequently use a pager, it is a good option to define a wrapper shell function like below:
+
+```sh
+function hgrep() {
+    command hgrep --term-width "$COLUMNS" "$@" | less -R
+}
+```
+
 ### Change color theme and layout
 
 The default color theme is `Monokai Extended` respecting `bat` command's default. Other theme can be specified via `--theme`
@@ -262,28 +266,21 @@ hgrep --background ...
 
 ### Set default command options
 
-Wrapping `hgrep` command with shell's `alias` command works fine for setting default command options.
+`HGREP_DEFAULT_OPTS` environment variable is available. Options set to the variable are prepended to the command line arguments
+when you run `hgrep` command.
 
-For example, if you're using Bash and want to search hidden files with `bat` printer, you can put the following line in your
-`.bash_profile`.
-
-```sh
-# Search hidden files with 'bat' printer by default
-alias hgrep='hgrep --hidden --printer bat'
-```
-
-If you like a pager, try the following wrapper function. `--term-width` propagates the correct width of the terminal window.
-Passing terminal width via the option is necessary because `hgrep`'s stdout is not connected to a terminal when it is piped to
-a pager process.
+Here are some examples:
 
 ```sh
-# Always use ayu-dark theme enabling background colors with less as pager. $COLUMNS corrects terminal window width
-function hgrep() {
-    command hgrep --theme ayu-dark --background --term-width "$COLUMNS" "$@" | less -R
-}
-```
+# Set the `ayu-dark` color theme with background colors
+export HGREP_DEFAULT_OPTS='--theme ayu-dark --background'
 
-Author's Zsh configuration for `hgrep` is [here][rhysd-config].
+# Search hidden files
+export HGREP_DEFAULT_OPTS='--hidden'
+
+# Use 'bat' printer by default
+export HGREP_DEFAULT_OPTS='--printer bat'
+```
 
 ### Command options
 
@@ -336,10 +333,10 @@ See `--help` for the full list of available options in your environment.
 ### Generate completion scripts
 
 Shell completion script for `hgrep` command is available. `--generate-completion-script` option generates completion script and
-prints it to stdout. [Bash][bash], [Zsh][zsh], [Fish][fish], [PowerShell][pwsh], [Elvish][elvish] are supported. See `--help` for
-the argument of the option.
+prints it to stdout. [Bash][bash], [Zsh][zsh], [Fish][fish], [PowerShell][pwsh], [Elvish][elvish], [Nushell][nushell] are
+supported. See `--help` for more details.
 
-This is an example of setup the completion script on Zsh.
+Here is an example of setup the completion script on Zsh.
 
 ```sh
 # Let's say we set comps=~/.zsh/site-functions
@@ -356,13 +353,13 @@ This is an example to generate man page in `/usr/local/share`.
 ```sh
 hgrep --generate-man-page > /usr/local/share/man/man1/hgrep.1
 
-# See manual page
+# See the manual page
 man hgrep
 ```
 
 ### Exit status
 
-`hgrep` command returns exit statuses as follows.
+`hgrep` command returns the exit status as follows.
 
 | Status | Description                         |
 |--------|-------------------------------------|
@@ -386,7 +383,7 @@ On Windows, hgrep enables 24-bit colors if the Windows version is 10.0.15063 or 
 
 #### `TERM`
 
-When `COLORTERM` is not set, hgrep checks [`TERM` environment variable][term-caps] where the terminal name is set.
+When `COLORTERM` is not set, hgrep checks [`TERM` environment variable][term-caps] which the terminal name is set.
 
 - When it ends with `-truecolor` or `-24bit`, 24-bit colors are enabled.
 - When it ends with `-256color` or `-square`, 256 colors are enabled.
@@ -443,7 +440,7 @@ hgrep focuses on surveying all the matches.
 
 ## Bug reporting
 
-Please [make an issue on GitHub][new-issue]. Ensure to describe how to reproduce the bug.
+Please [create an issue on GitHub][new-issue]. Ensure to describe how to reproduce the bug.
 
 ## License
 
@@ -468,6 +465,7 @@ hgrep is distributed under [the MIT license](./LICENSE.txt).
 [fish]: https://fishshell.com/
 [pwsh]: https://docs.microsoft.com/en-us/powershell/
 [elvish]: https://elv.sh/
+[nushell]: https://www.nushell.sh/
 [homebrew]: https://brew.sh/
 [macports]: https://www.macports.org/
 [new-issue]: https://github.com/rhysd/hgrep/issues/new
@@ -475,7 +473,6 @@ hgrep is distributed under [the MIT license](./LICENSE.txt).
 [bat-vs-syntect]: #bat-printer-vs-syntect-printer
 [ayu]: https://github.com/dempfi/ayu
 [predawn]: https://github.com/jamiewilson/predawn
-[rhysd-config]: https://github.com/rhysd/dogfiles/blob/4aeccbc98ced7fbd9cf590003adb7217810f8b24/zshrc#L124-L127
 [formula]: ./HomebrewFormula/hgrep.rb
 [issue-6]: https://github.com/rhysd/hgrep/issues/6
 [term-caps]: http://jdebp.uk/Softwares/nosh/guide/TerminalCapabilities.html
