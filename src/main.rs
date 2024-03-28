@@ -80,10 +80,11 @@ fn command() -> Command {
     let cmd = Command::new("hgrep")
         .version(env!("CARGO_PKG_VERSION"))
         .about(
-            "hgrep is grep with human-friendly search output. It eats an output of `grep -nH` and prints the matches \
+            "hgrep is grep with human-friendly search output. hgrep eats an output of `grep -nH` and prints the matches \
             with syntax-highlighted code snippets.\n\n\
             $ grep -nH pattern -R . | hgrep\n\n\
-            For more details, visit https://github.com/rhysd/hgrep"
+            The default options can be customized with HGREP_DEFAULT_OPTS environment variable. \
+            For more details, visit https://github.com/rhysd/hgrep#readme"
         )
         .no_binary_name(true)
         .arg(
@@ -218,13 +219,14 @@ fn command() -> Command {
     #[cfg(feature = "ripgrep")]
     let cmd = cmd
             .about(
-                "hgrep is grep with human-friendly search output. It eats an output of `grep -nH` and prints the \
-                matches with syntax-highlighted code snippets.\n\n\
+                "hgrep is grep with human-friendly search output.\n\n\
+                hgrep eats an output of `grep -nH` and prints the matches with syntax-highlighted code snippets.\n\n\
                 $ grep -nH pattern -R . | hgrep\n\n\
-                hgrep has its builtin subset of ripgrep. Its search output and performance are better than reading \
-                `grep -nH`.\n\n\
+                hgrep has its builtin subset of ripgrep, whose search output and performance are better than reading \
+                the output from `grep -nH`.\n\n\
                 $ hgrep pattern\n\n\
-                For more details, visit https://github.com/rhysd/hgrep"
+                The default options can be customized with HGREP_DEFAULT_OPTS environment variable. \
+                For more details, visit https://github.com/rhysd/hgrep#readme"
             )
             .override_usage("hgrep [FLAGS] [OPTIONS] [PATTERN [PATH...]]")
             .arg(
