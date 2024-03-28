@@ -43,9 +43,9 @@ members = [
 
 [features]
 default = ["ripgrep", "bat-printer", "syntect-printer"]
-ripgrep = ["grep-matcher", "grep-pcre2", "grep-regex", "grep-searcher", "ignore", "regex-syntax", "rayon"]
-syntect-printer = ["syntect", "rayon", "unicode-width", "bincode", "flate2", "ansi_colours"]
-bat-printer = ["bat", "dirs"]
+ripgrep = ["dep:grep-matcher", "dep:grep-pcre2", "dep:grep-regex", "dep:grep-searcher", "dep:ignore", "dep:regex-syntax", "dep:rayon"]
+syntect-printer = ["dep:syntect", "dep:rayon", "dep:unicode-width", "dep:bincode", "dep:flate2", "dep:ansi_colours"]
+bat-printer = ["dep:bat", "dep:dirs"]
 
 [dependencies]
 anyhow = "1"
