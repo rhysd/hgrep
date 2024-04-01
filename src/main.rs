@@ -836,6 +836,7 @@ mod tests {
             ["--generate-completion-script", "bash"]
         );
         snapshot_test!(generate_man_page, ["--generate-man-page"]);
+        snapshot_test!(max_filesize, ["--max-filesize", "100M"]);
         snapshot_test!(
             all_printer_opts_before_args,
             [
@@ -1019,6 +1020,7 @@ mod tests {
             bool_short_flags,
             ["-i", "-S", "-F", "-w", "-L", "-U", "-.", "-x", "-P", "pat", "dir"]
         );
+        snapshot_test!(max_filesize, ["--max-filesize", "100M"]);
     }
 
     #[test]
