@@ -747,10 +747,7 @@ fn run(matches: ArgMatches) -> Result<bool> {
 fn main() {
     #[cfg(windows)]
     if let Err(code) = nu_ansi_term::enable_ansi_support() {
-        eprintln!(
-            "ANSI color support could not be enabled with error code {}",
-            code
-        );
+        eprintln!("ANSI color support could not be enabled with error code {code}");
         process::exit(2);
     }
 
@@ -806,7 +803,7 @@ mod tests {
                     settings.set_snapshot_path(SNAPSHOT_DIR);
                     settings.bind(|| {
                         let cmd = command();
-                        let mat = cmd.get_matches_from($args);
+                        let mat = cmd.try_get_matches_from($args).unwrap();
                         let raw = get_raw_matched_arguments(&mat);
                         insta::assert_debug_snapshot!(raw);
                     });
@@ -910,7 +907,7 @@ mod tests {
                 &["--printer", "bat", "--background"][..],
                 &["--printer", "bat", "--ascii-lines"][..],
             ] {
-                let mat = command().get_matches_from(args);
+                let mat = command().try_get_matches_from(args).unwrap();
                 assert!(run(mat).is_err(), "args: {:?}", args);
             }
         }
@@ -944,7 +941,7 @@ mod tests {
                     let mut settings = insta::Settings::clone_current();
                     settings.set_snapshot_path(SNAPSHOT_DIR);
                     settings.bind(|| {
-                        let mat = command().get_matches_from($args);
+                        let mat = command().try_get_matches_from($args).unwrap();
                         let min_ctx = mat
                             .get_one::<String>("min-context")
                             .unwrap()
