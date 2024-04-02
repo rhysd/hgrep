@@ -282,6 +282,13 @@ export HGREP_DEFAULT_OPTS='--hidden'
 export HGREP_DEFAULT_OPTS='--printer bat'
 ```
 
+The command line arguments in the environment variable are parsed with [shlex][]. Use quotes for including spaces in some command
+line option arguments. For example:
+
+```pwsh
+$Env:HGREP_DEFAULT_OPTS = "--glob '!C:\Program Files'"
+```
+
 ### Command options
 
 - Common options
@@ -460,6 +467,7 @@ hgrep is distributed under [the MIT license](./LICENSE.txt).
 [codecov-badge]: https://codecov.io/gh/rhysd/hgrep/branch/main/graph/badge.svg?token=IF41OXFJEQ
 [codecov]: https://codecov.io/gh/rhysd/hgrep
 [releases]: https://github.com/rhysd/hgrep/releases
+[shlex]: https://crates.io/crates/shlex
 [bash]: https://www.gnu.org/software/bash/
 [zsh]: https://www.zsh.org/
 [fish]: https://fishshell.com/
