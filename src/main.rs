@@ -416,6 +416,13 @@ fn command() -> Command {
                     .help("The upper size limit of the regex DFA. The default limit is 10M. For the size suffixes, see --max-filesize"),
             )
             .arg(
+                Arg::new("unrestricted")
+                    .short('u')
+                    .long("unrestricted")
+                    .action(ArgAction::Count)
+                    .help(r#"Reduce the level of "smart" filtering by repeated uses (up to 2). A single flag is equivalent to --no-ignore. Two flags are equivalent to --no-ignore --hidden. Unlike ripgrep, three flags are not supported since hgrep doesn't support --binary flag"#)
+            )
+            .arg(
                 Arg::new("PATTERN")
                     .help("Pattern to search. Regular expression is available"),
             )
@@ -525,6 +532,17 @@ fn build_ripgrep_config(
     let types_not = matches.get_many::<String>("type-not");
     if let Some(types_not) = types_not {
         config.types_not(types_not.map(String::as_str));
+    }
+
+    match matches.get_count("unrestricted") {
+        0 => {}
+        1 => {
+            config.no_ignore(true);
+        }
+        2 => {
+            config.no_ignore(true).hidden(true);
+        }
+        _ => anyhow::bail!("-u or --unrestricted cannot be repeated more than twice. Try -uu to search every text file"),
     }
 
     Ok(config)
@@ -837,6 +855,9 @@ mod tests {
         );
         snapshot_test!(generate_man_page, ["--generate-man-page"]);
         snapshot_test!(max_filesize, ["--max-filesize", "100M"]);
+        snapshot_test!(unrestricted_once, ["-u"]);
+        snapshot_test!(unrestricted_twice, ["-u", "-u"]);
+        snapshot_test!(unrestricted_twice_in_single_flag, ["-uu"]);
         snapshot_test!(
             all_printer_opts_before_args,
             [
@@ -1021,6 +1042,25 @@ mod tests {
             ["-i", "-S", "-F", "-w", "-L", "-U", "-.", "-x", "-P", "pat", "dir"]
         );
         snapshot_test!(max_filesize, ["--max-filesize", "100M"]);
+        snapshot_test!(unrestricted_once, ["-u"]);
+        snapshot_test!(unrestricted_twice, ["-u", "-u"]);
+
+        #[test]
+        fn invalid_options() {
+            for args in [
+                &["--max-count", "foo"][..],
+                &["--max-depth", "foo"][..],
+                &["--max-filesize", "foo"][..],
+                &["--regex-size-limit", "foo"][..],
+                &["--dfa-size-limit", "foo"][..],
+                &["-u", "-u", "-u"][..],
+                &["-uuu"][..],
+            ] {
+                let mat = command().try_get_matches_from(args).unwrap();
+                let ret = build_ripgrep_config(3, 6, &mat);
+                assert!(ret.is_err(), "args: {args:?}");
+            }
+        }
     }
 
     #[test]
