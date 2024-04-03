@@ -35,7 +35,7 @@ fn parse_size(input: &str) -> Result<u64> {
 
     let u: u64 = input
         .parse()
-        .with_context(|| format!("could not parse {:?} as unsigned integer", input))?;
+        .with_context(|| format!("Could not parse {:?} as unsigned integer", input))?;
 
     Ok(u * mag)
 }
@@ -977,9 +977,9 @@ mod tests {
             ("123M", Ok(123 * 1024 * 1024)),
             ("123G", Ok(123 * 1024 * 1024 * 1024)),
             ("", Err("Size string must not be empty")),
-            ("abc", Err("could not parse \"abc\" as unsigned integer")),
-            ("123kk", Err("could not parse \"123k\" as unsigned integer")),
-            ("-123k", Err("could not parse \"-123\" as unsigned integer")),
+            ("abc", Err("Could not parse \"abc\" as unsigned integer")),
+            ("123kk", Err("Could not parse \"123k\" as unsigned integer")),
+            ("-123k", Err("Could not parse \"-123\" as unsigned integer")),
         ];
 
         for (input, want) in tests.iter().copied() {

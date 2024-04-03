@@ -488,33 +488,33 @@ fn build_ripgrep_config(
     if let Some(num) = matches.get_one::<String>("max-count") {
         let num = num
             .parse()
-            .context("could not parse --max-count option value as unsigned integer")?;
+            .context("Could not parse --max-count option value as unsigned integer")?;
         config.max_count(num);
     }
 
     if let Some(num) = matches.get_one::<String>("max-depth") {
         let num = num
             .parse()
-            .context("could not parse --max-depth option value as unsigned integer")?;
+            .context("Could not parse --max-depth option value as unsigned integer")?;
         config.max_depth(num);
     }
 
     if let Some(size) = matches.get_one::<String>("max-filesize") {
         config
             .max_filesize(size)
-            .context("could not parse --max-filesize option value as file size string")?;
+            .context("Could not parse --max-filesize option value as file size string")?;
     }
 
     if let Some(limit) = matches.get_one::<String>("regex-size-limit") {
         config
             .regex_size_limit(limit)
-            .context("could not parse --regex-size-limit option value as size string")?;
+            .context("Could not parse --regex-size-limit option value as size string")?;
     }
 
     if let Some(limit) = matches.get_one::<String>("dfa-size-limit") {
         config
             .dfa_size_limit(limit)
-            .context("could not parse --dfa-size-limit option value as size string")?;
+            .context("Could not parse --dfa-size-limit option value as size string")?;
     }
 
     let types = matches.get_many::<String>("type");
@@ -569,19 +569,19 @@ fn run(matches: ArgMatches) -> Result<bool> {
         .get_one::<String>("min-context")
         .unwrap()
         .parse()
-        .context("could not parse \"min-context\" option value as unsigned integer")?;
+        .context("Could not parse \"min-context\" option value as unsigned integer")?;
     let max_context = matches
         .get_one::<String>("max-context")
         .unwrap()
         .parse()
-        .context("could not parse \"max-context\" option value as unsigned integer")?;
+        .context("Could not parse \"max-context\" option value as unsigned integer")?;
     let max_context = cmp::max(min_context, max_context);
 
     let mut printer_opts = PrinterOptions::default();
     if let Some(width) = matches.get_one::<String>("tab") {
         printer_opts.tab_width = width
             .parse()
-            .context("could not parse \"tab\" option value as unsigned integer")?;
+            .context("Could not parse \"tab\" option value as unsigned integer")?;
     }
 
     #[cfg(feature = "bat-printer")]
@@ -614,7 +614,7 @@ fn run(matches: ArgMatches) -> Result<bool> {
     if let Some(width) = matches.get_one::<String>("term-width") {
         let width = width
             .parse()
-            .context("could not parse \"term-width\" option value as unsigned integer")?;
+            .context("Could not parse \"term-width\" option value as unsigned integer")?;
         printer_opts.term_width = width;
         if width < 10 {
             anyhow::bail!("Too small value at --term-width option ({} < 10)", width);
