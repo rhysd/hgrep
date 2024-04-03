@@ -1,0 +1,5 @@
+---
+source: src/main.rs
+expression: msg
+---
+"Could not parse --regex-size-limit option value as size string -> Could not parse \"foo\" as unsigned integer -> invalid digit found in string"

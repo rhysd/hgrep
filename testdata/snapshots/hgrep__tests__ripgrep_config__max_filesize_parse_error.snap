@@ -1,0 +1,5 @@
+---
+source: src/main.rs
+expression: msg
+---
+"Could not parse --max-filesize option value as file size string -> Could not parse \"foo\" as unsigned integer -> invalid digit found in string"

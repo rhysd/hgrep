@@ -917,22 +917,44 @@ mod tests {
             ]
         );
 
-        #[test]
-        fn invalid_option() {
-            for args in [
-                &["--min-context", "foo"][..],
-                &["--max-context", "foo"][..],
-                &["--term-width", "foo"][..],
-                &["--term-width", "1"][..],
-                &["--tab", "foo"][..],
-                &["--printer", "syntect", "--custom-assets"][..],
-                &["--printer", "bat", "--background"][..],
-                &["--printer", "bat", "--ascii-lines"][..],
-            ] {
-                let mat = command().try_get_matches_from(args).unwrap();
-                assert!(run(mat).is_err(), "args: {:?}", args);
-            }
+        macro_rules! snapshot_error_test {
+            ($name:ident, $args:expr) => {
+                #[test]
+                fn $name() {
+                    use std::fmt::Write;
+                    let mut settings = insta::Settings::clone_current();
+                    settings.set_snapshot_path(SNAPSHOT_DIR);
+                    settings.bind(|| {
+                        let cmd = command();
+                        let mat = cmd.try_get_matches_from($args).unwrap();
+                        let err = run(mat).unwrap_err();
+                        let mut msg = format!("{err}");
+                        for err in err.chain().skip(1) {
+                            write!(msg, " -> {err}").unwrap();
+                        }
+                        insta::assert_debug_snapshot!(msg);
+                    });
+                }
+            };
         }
+
+        snapshot_error_test!(invalid_min_context, ["--min-context", "foo"]);
+        snapshot_error_test!(invalid_max_context, ["--max-context", "foo"]);
+        snapshot_error_test!(invalid_term_width, ["--term-width", "foo"]);
+        snapshot_error_test!(term_width_too_small, ["--term-width", "1"]);
+        snapshot_error_test!(invalid_tab_width, ["--tab", "foo"]);
+        snapshot_error_test!(
+            invalid_opt_for_syntect,
+            ["--printer", "syntect", "--custom-assets"]
+        );
+        snapshot_error_test!(
+            bat_doesnt_support_background,
+            ["--printer", "bat", "--background"]
+        );
+        snapshot_error_test!(
+            bat_doesnt_support_ascii_lines,
+            ["--printer", "bat", "--ascii-lines"]
+        );
 
         #[test]
         fn arg_parser_debug_assert() {
@@ -1045,22 +1067,34 @@ mod tests {
         snapshot_test!(unrestricted_once, ["-u"]);
         snapshot_test!(unrestricted_twice, ["-u", "-u"]);
 
-        #[test]
-        fn invalid_options() {
-            for args in [
-                &["--max-count", "foo"][..],
-                &["--max-depth", "foo"][..],
-                &["--max-filesize", "foo"][..],
-                &["--regex-size-limit", "foo"][..],
-                &["--dfa-size-limit", "foo"][..],
-                &["-u", "-u", "-u"][..],
-                &["-uuu"][..],
-            ] {
-                let mat = command().try_get_matches_from(args).unwrap();
-                let ret = build_ripgrep_config(3, 6, &mat);
-                assert!(ret.is_err(), "args: {args:?}");
-            }
+        macro_rules! snapshot_error_test {
+            ($name:ident, $args:expr) => {
+                #[test]
+                fn $name() {
+                    use std::fmt::Write;
+                    let mut settings = insta::Settings::clone_current();
+                    settings.set_snapshot_path(SNAPSHOT_DIR);
+                    settings.bind(|| {
+                        let cmd = command();
+                        let mat = cmd.try_get_matches_from($args).unwrap();
+                        let err = build_ripgrep_config(3, 6, &mat).unwrap_err();
+                        let mut msg = format!("{err}");
+                        for err in err.chain().skip(1) {
+                            write!(msg, " -> {err}").unwrap();
+                        }
+                        insta::assert_debug_snapshot!(msg);
+                    });
+                }
+            };
         }
+
+        snapshot_error_test!(max_count_parse_error, ["--max-count", "foo"]);
+        snapshot_error_test!(max_depth_parse_error, ["--max-depth", "foo"]);
+        snapshot_error_test!(max_filesize_parse_error, ["--max-filesize", "foo"]);
+        snapshot_error_test!(regex_size_limit_parse_error, ["--regex-size-limit", "foo"]);
+        snapshot_error_test!(dfa_size_limit_parse_error, ["--dfa-size-limit", "foo"]);
+        snapshot_error_test!(too_many_u_flags_mutiple, ["-u", "-u", "-u"]);
+        snapshot_error_test!(too_many_u_flags_single, ["-uuu"]);
     }
 
     #[test]
