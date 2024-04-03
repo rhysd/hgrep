@@ -10,7 +10,6 @@ use grep_searcher::{BinaryDetection, MmapChoice, Searcher, SearcherBuilder, Sink
 use ignore::overrides::OverrideBuilder;
 use ignore::types::{Types, TypesBuilder};
 use ignore::{Walk, WalkBuilder};
-use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
 use std::env;
 use std::fs::File;
