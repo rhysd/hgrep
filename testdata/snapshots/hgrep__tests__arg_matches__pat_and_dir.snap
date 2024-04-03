@@ -190,6 +190,12 @@ expression: raw
         ],
     ),
     (
+        "unrestricted",
+        [
+            "0",
+        ],
+    ),
+    (
         "word-regexp",
         [
             "false",

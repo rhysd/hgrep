@@ -1,0 +1,5 @@
+---
+source: src/main.rs
+expression: msg
+---
+"--custom-assets flag is only available for bat printer"

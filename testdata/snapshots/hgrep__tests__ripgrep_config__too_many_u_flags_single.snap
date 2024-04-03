@@ -1,0 +1,5 @@
+---
+source: src/main.rs
+expression: msg
+---
+"-u or --unrestricted cannot be repeated more than twice. Try -uu to search every text file"

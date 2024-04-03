@@ -24,7 +24,7 @@ expression: raw
     (
         "custom-assets",
         [
-            "true",
+            "false",
         ],
     ),
     (
@@ -156,7 +156,7 @@ expression: raw
     (
         "printer",
         [
-            "bat",
+            "syntect",
         ],
     ),
     (
@@ -180,7 +180,7 @@ expression: raw
     (
         "unrestricted",
         [
-            "0",
+            "2",
         ],
     ),
     (

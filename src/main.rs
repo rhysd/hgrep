@@ -416,6 +416,13 @@ fn command() -> Command {
                     .help("The upper size limit of the regex DFA. The default limit is 10M. For the size suffixes, see --max-filesize"),
             )
             .arg(
+                Arg::new("unrestricted")
+                    .short('u')
+                    .long("unrestricted")
+                    .action(ArgAction::Count)
+                    .help(r#"Reduce the level of "smart" filtering by repeated uses (up to 2). A single flag is equivalent to --no-ignore. Two flags are equivalent to --no-ignore --hidden. Unlike ripgrep, three flags are not supported since hgrep doesn't support --binary flag"#)
+            )
+            .arg(
                 Arg::new("PATTERN")
                     .help("Pattern to search. Regular expression is available"),
             )
@@ -525,6 +532,17 @@ fn build_ripgrep_config(
     let types_not = matches.get_many::<String>("type-not");
     if let Some(types_not) = types_not {
         config.types_not(types_not.map(String::as_str));
+    }
+
+    match matches.get_count("unrestricted") {
+        0 => {}
+        1 => {
+            config.no_ignore(true);
+        }
+        2 => {
+            config.no_ignore(true).hidden(true);
+        }
+        _ => anyhow::bail!("-u or --unrestricted cannot be repeated more than twice. Try -uu to search every text file"),
     }
 
     Ok(config)
@@ -837,6 +855,9 @@ mod tests {
         );
         snapshot_test!(generate_man_page, ["--generate-man-page"]);
         snapshot_test!(max_filesize, ["--max-filesize", "100M"]);
+        snapshot_test!(unrestricted_once, ["-u"]);
+        snapshot_test!(unrestricted_twice, ["-u", "-u"]);
+        snapshot_test!(unrestricted_twice_in_single_flag, ["-uu"]);
         snapshot_test!(
             all_printer_opts_before_args,
             [
@@ -896,22 +917,44 @@ mod tests {
             ]
         );
 
-        #[test]
-        fn invalid_option() {
-            for args in [
-                &["--min-context", "foo"][..],
-                &["--max-context", "foo"][..],
-                &["--term-width", "foo"][..],
-                &["--term-width", "1"][..],
-                &["--tab", "foo"][..],
-                &["--printer", "syntect", "--custom-assets"][..],
-                &["--printer", "bat", "--background"][..],
-                &["--printer", "bat", "--ascii-lines"][..],
-            ] {
-                let mat = command().try_get_matches_from(args).unwrap();
-                assert!(run(mat).is_err(), "args: {:?}", args);
-            }
+        macro_rules! snapshot_error_test {
+            ($name:ident, $args:expr) => {
+                #[test]
+                fn $name() {
+                    use std::fmt::Write;
+                    let mut settings = insta::Settings::clone_current();
+                    settings.set_snapshot_path(SNAPSHOT_DIR);
+                    settings.bind(|| {
+                        let cmd = command();
+                        let mat = cmd.try_get_matches_from($args).unwrap();
+                        let err = run(mat).unwrap_err();
+                        let mut msg = format!("{err}");
+                        for err in err.chain().skip(1) {
+                            write!(msg, " -> {err}").unwrap();
+                        }
+                        insta::assert_debug_snapshot!(msg);
+                    });
+                }
+            };
         }
+
+        snapshot_error_test!(invalid_min_context, ["--min-context", "foo"]);
+        snapshot_error_test!(invalid_max_context, ["--max-context", "foo"]);
+        snapshot_error_test!(invalid_term_width, ["--term-width", "foo"]);
+        snapshot_error_test!(term_width_too_small, ["--term-width", "1"]);
+        snapshot_error_test!(invalid_tab_width, ["--tab", "foo"]);
+        snapshot_error_test!(
+            invalid_opt_for_syntect,
+            ["--printer", "syntect", "--custom-assets"]
+        );
+        snapshot_error_test!(
+            bat_doesnt_support_background,
+            ["--printer", "bat", "--background"]
+        );
+        snapshot_error_test!(
+            bat_doesnt_support_ascii_lines,
+            ["--printer", "bat", "--ascii-lines"]
+        );
 
         #[test]
         fn arg_parser_debug_assert() {
@@ -1021,6 +1064,37 @@ mod tests {
             ["-i", "-S", "-F", "-w", "-L", "-U", "-.", "-x", "-P", "pat", "dir"]
         );
         snapshot_test!(max_filesize, ["--max-filesize", "100M"]);
+        snapshot_test!(unrestricted_once, ["-u"]);
+        snapshot_test!(unrestricted_twice, ["-u", "-u"]);
+
+        macro_rules! snapshot_error_test {
+            ($name:ident, $args:expr) => {
+                #[test]
+                fn $name() {
+                    use std::fmt::Write;
+                    let mut settings = insta::Settings::clone_current();
+                    settings.set_snapshot_path(SNAPSHOT_DIR);
+                    settings.bind(|| {
+                        let cmd = command();
+                        let mat = cmd.try_get_matches_from($args).unwrap();
+                        let err = build_ripgrep_config(3, 6, &mat).unwrap_err();
+                        let mut msg = format!("{err}");
+                        for err in err.chain().skip(1) {
+                            write!(msg, " -> {err}").unwrap();
+                        }
+                        insta::assert_debug_snapshot!(msg);
+                    });
+                }
+            };
+        }
+
+        snapshot_error_test!(max_count_parse_error, ["--max-count", "foo"]);
+        snapshot_error_test!(max_depth_parse_error, ["--max-depth", "foo"]);
+        snapshot_error_test!(max_filesize_parse_error, ["--max-filesize", "foo"]);
+        snapshot_error_test!(regex_size_limit_parse_error, ["--regex-size-limit", "foo"]);
+        snapshot_error_test!(dfa_size_limit_parse_error, ["--dfa-size-limit", "foo"]);
+        snapshot_error_test!(too_many_u_flags_mutiple, ["-u", "-u", "-u"]);
+        snapshot_error_test!(too_many_u_flags_single, ["-uuu"]);
     }
 
     #[test]

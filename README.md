@@ -131,12 +131,23 @@ be specified by `-C`. If you don't want the heuristics, give the same value to t
 
 ```sh
 # At least 10 context lines and at most 20 context lines
-hgrep pattern  -c 10 -C 20 paths...
+hgrep -c 10 -C 20 pattern paths...
 ```
 
-Compared to receiveing inputs from `rg` via pipe, it's fast to handle so many matches in the same process. In combination with
-`syntect-printer` feature, matched regions can be highlighted in a searched text color. The built-in grep feature is enabled by
-default and can be omitted by feature flags.
+Like ripgrep, the built-in grep filters files by default. It looks at ignore files such as `.gitignore` and ignores hidden files.
+To disable the filters, `--no-ignore` and `--hidden` are available respectively. `-u` is a useful shortcut for them.
+
+```sh
+# Same as `hgrep --no-ignore pattern paths...`
+hgrep -u pattern paths...
+
+# Same as `hgrep --no-ignore --hidden pattern paths...`
+hgrep -uu pattern paths...
+```
+
+Regarding to the performance compared to receiveing inputs from `grep` or `rg` via pipe, it's fast to handle so many matches in
+the same process. In combination with `syntect-printer` feature, matched regions can be highlighted in a searched text color.
+The built-in grep feature is enabled by default and can be omitted by feature flags.
 
 Though almost all useful options are implemented, the built-in grep implementation is a subset of ripgrep. If you need full
 functionalities, use `rg` command and eat its output by hgrep via stdin. Currently there are the following restrictions.
@@ -147,6 +158,7 @@ functionalities, use `rg` command and eat its output by hgrep via stdin. Current
 - Memory map is not used until `--mmap` flag is specified
 - Adding and removing file types are not supported. Only default file types are supported (see `--type-list`)
 - `.ripgreprc` config file is not supported
+- Searching binary files (`--binary`) is not supported
 
 ### Eating `grep -nH` output
 
@@ -274,9 +286,11 @@ Here are some examples:
 ```sh
 # Set the `ayu-dark` color theme with background colors
 export HGREP_DEFAULT_OPTS='--theme ayu-dark --background'
+# Same as `hgrep --theme ayu-dark --background pattern paths`
+hgrep pattern paths...
 
-# Search hidden files
-export HGREP_DEFAULT_OPTS='--hidden'
+# Disable automatic filtering
+export HGREP_DEFAULT_OPTS='--no-ignore --hidden'
 
 # Use 'bat' printer by default
 export HGREP_DEFAULT_OPTS='--printer bat'
@@ -294,7 +308,7 @@ $Env:HGREP_DEFAULT_OPTS = "--glob '!C:\Program Files'"
 - Common options
   - `--min-context NUM` (`-c`): Minimum lines of leading and trailing context surrounding each match. Default value is 3
   - `--max-context NUM` (`-C`): Maximum lines of leading and trailing context surrounding each match. Default value is 6
-  - `--no-grid` (`-G`): Remove borderlines for more compact output. `--grid` flag is an opposite of this flag
+  - `--no-grid` (`-G`): Remove borderlines for more compact output. --grid flag is an opposite of this flag
   - `--tab NUM`: Number of spaces for tab character. Set 0 to pass tabs through. Default value is 4
   - `--theme THEME`: Theme for syntax highlighting. Default value is the same as `bat` command
   - `--list-themes`: List all available theme names and their samples for --theme option
@@ -307,6 +321,9 @@ $Env:HGREP_DEFAULT_OPTS = "--glob '!C:\Program Files'"
   - `--ignore-case` (`-i`): When this flag is provided, the given pattern will be searched case insensitively
   - `--smart-case` (`-S`): Search case insensitively if the pattern is all lowercase. Search case sensitively otherwise
   - `--hidden` (`-.`): Search hidden files and directories. By default, hidden files and directories are skipped
+  - `--unrestricted` (`-u`): Reduce the level of "smart" filtering by repeated uses (up to 2). A single flag `-u` is equivalent to --no-ignore.
+    Two flags `-uu` are equivalent to --no-ignore --hidden. Unlike ripgrep, three flags `-uuu` are not supported since hgrep doesn't support
+    --binary flag
   - `--glob GLOB...` (`-g`): Include or exclude files and directories for searching that match the given glob
   - `--glob-case-insensitive`: Process glob patterns given with the -g/--glob flag case insensitively
   - `--fixed-strings` (`-F`): Treat the pattern as a literal string instead of a regular expression

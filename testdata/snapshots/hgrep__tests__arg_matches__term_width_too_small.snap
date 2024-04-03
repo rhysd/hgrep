@@ -1,0 +1,5 @@
+---
+source: src/main.rs
+expression: msg
+---
+"Too small value at --term-width option (1 < 10)"

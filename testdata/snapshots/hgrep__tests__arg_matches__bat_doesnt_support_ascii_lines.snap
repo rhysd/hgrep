@@ -1,0 +1,5 @@
+---
+source: src/main.rs
+expression: msg
+---
+"--ascii-lines flag is only available for syntect printer since bat does not support this feature"

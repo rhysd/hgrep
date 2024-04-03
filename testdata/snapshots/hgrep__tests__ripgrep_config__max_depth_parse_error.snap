@@ -1,0 +1,5 @@
+---
+source: src/main.rs
+expression: msg
+---
+"Could not parse --max-depth option value as unsigned integer -> invalid digit found in string"
