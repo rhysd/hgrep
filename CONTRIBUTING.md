@@ -56,7 +56,7 @@ Once some of them fail, the error messages contain the differences. You need to 
 
 ```sh
 # Run snapshot tests
-cargo test
+cargo insta test
 # Review snapshot diffs
 cargo insta review
 # After accepting the diffs, remember to add the changes

@@ -87,6 +87,7 @@ fn command() -> Command {
             For more details, visit https://github.com/rhysd/hgrep#readme"
         )
         .no_binary_name(true)
+        .args_override_self(true)
         .arg(
             Arg::new("min-context")
                 .short('c')
@@ -915,6 +916,10 @@ mod tests {
                 "--custom-assets",
                 "--list-themes",
             ]
+        );
+        snapshot_test!(
+            override_options,
+            ["--theme", "ayu-dark", "--theme", "OneHalfDark"]
         );
 
         macro_rules! snapshot_error_test {
