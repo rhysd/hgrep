@@ -24,7 +24,7 @@ jobs:
             os: macos-latest
             target: x86_64-apple-darwin
           - build: mac-aarch64
-            os: macos-11
+            os: macos-14
             target: aarch64-apple-darwin
           - build: win
             os: windows-latest
@@ -85,7 +85,7 @@ jobs:
           cp target/${{ matrix.target }}/release/hgrep.exe LICENSE.txt README.md ${{ steps.info.outputs.asset_dir }}
           7z a ${{ steps.info.outputs.zip }} ${{ steps.info.outputs.asset_dir }}
       - name: Upload release artifact
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.info.outputs.version }}
           draft: false
@@ -133,7 +133,7 @@ jobs:
           cp target/x86_64-unknown-linux-musl/release/hgrep LICENSE.txt README.md ${{ steps.info.outputs.asset_dir }}
           zip ${{ steps.info.outputs.zip }} -r ${{ steps.info.outputs.asset_dir }}
       - name: Upload release artifact
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.info.outputs.version }}
           draft: false
