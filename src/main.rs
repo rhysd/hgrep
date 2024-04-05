@@ -36,18 +36,14 @@ impl Args {
         let env = match env::var(OPTS_ENV_VAR) {
             Ok(var) => {
                 let Some(mut opts) = shlex::split(&var) else {
-                    anyhow::bail!("String in `{}` environment variable cannot be parsed as a shell command: {:?}", OPTS_ENV_VAR, var);
+                    anyhow::bail!("String in `{OPTS_ENV_VAR}` environment variable cannot be parsed as a shell command: {var:?}");
                 };
                 opts.reverse();
                 opts
             }
             Err(env::VarError::NotPresent) => vec![],
             Err(env::VarError::NotUnicode(invalid)) => {
-                anyhow::bail!(
-                    "String in `{}` environment variable is not a valid UTF-8 sequence: {:?}",
-                    OPTS_ENV_VAR,
-                    invalid,
-                );
+                anyhow::bail!("String in `{OPTS_ENV_VAR}` environment variable is not a valid UTF-8 sequence: {invalid:?}");
             }
         };
 
@@ -1080,8 +1076,7 @@ mod tests {
                     let mut settings = insta::Settings::clone_current();
                     settings.set_snapshot_path(SNAPSHOT_DIR);
                     settings.bind(|| {
-                        let cmd = command();
-                        let mat = cmd.try_get_matches_from($args).unwrap();
+                        let mat = command().try_get_matches_from($args).unwrap();
                         let err = build_ripgrep_config(3, 6, &mat).unwrap_err();
                         let mut msg = format!("{err}");
                         for err in err.chain().skip(1) {

@@ -93,7 +93,7 @@ jobs:
           files: ${{ steps.info.outputs.zip }}
         if: ${{ github.event_name != 'workflow_dispatch' }}
       - name: Upload release artifact for dry-run
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.info.outputs.asset_dir }}
           path: ${{ steps.info.outputs.asset_dir }}
@@ -141,10 +141,43 @@ jobs:
           files: ${{ steps.info.outputs.zip }}
         if: ${{ github.event_name != 'workflow_dispatch' }}
       - name: Upload release artifact for dry-run
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.info.outputs.asset_dir }}
           path: ${{ steps.info.outputs.asset_dir }}
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+  debian:
+    name: Upload Debian package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Collect build information
+        id: info
+        # $GITHUB_REF will have a value like "refs/tags/0.3.1". Extract "0.3.1" from it
+        run: |
+          if ${{ github.event_name == 'workflow_dispatch' }}; then
+            echo "version=v0.0.0" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF##refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install cargo-deb
+      - run: cargo build --release
+      - run: target/release/hgrep --generate-completion-script bash > target/release/hgrep.bash
+      - run: target/release/hgrep --generate-man-page > target/release/hgrep.1
+      - run: cargo deb
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.info.outputs.version }}
+          draft: false
+          prerelease: false
+          files: target/debian/hgrep_*.deb
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+      - name: Upload release artifact for dry-run
+        uses: actions/upload-artifact@v4
+        with:
+          name: hgrep_${{ steps.info.outputs.version }}_amd64.deb
+          path: target/debian/hgrep_*.deb
         if: ${{ github.event_name == 'workflow_dispatch' }}
   homebrew:
     name: Update Homebrew formula

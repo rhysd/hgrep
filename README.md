@@ -84,6 +84,17 @@ cd /usr/pkgsrc/textproc/hgrep
 make install
 ```
 
+### Via [APT][apt] package manager on Debian or Ubuntu
+
+Visit [the releases page][releases] and download `.deb` package file. It can be installed via `dpkg` command:
+
+```sh
+sudo dpkg -i hgrep_v0.3.5_amd64.deb
+```
+
+The manual (for `man` command) and Bash completion is automatically installed. If you're using some other shell, setup the shell
+completion by yourself. See ['Generate completion scripts' section](#gen-completion-scripts) for more details.
+
 ### Via [cargo][] package manager
 
 ```sh
@@ -354,6 +365,8 @@ $Env:HGREP_DEFAULT_OPTS = "--glob '!C:\Program Files'"
 
 See `--help` for the full list of available options in your environment.
 
+
+<a name="gen-completion-scripts"></a>
 ### Generate completion scripts
 
 Shell completion script for `hgrep` command is available. `--generate-completion-script` option generates completion script and
@@ -493,6 +506,7 @@ hgrep is distributed under [the MIT license](./LICENSE.txt).
 [nushell]: https://www.nushell.sh/
 [homebrew]: https://brew.sh/
 [macports]: https://www.macports.org/
+[apt]: https://www.debian.org/doc/manuals/debian-faq/pkgtools.html
 [new-issue]: https://github.com/rhysd/hgrep/issues/new
 [syntect]: https://github.com/trishume/syntect
 [bat-vs-syntect]: #bat-printer-vs-syntect-printer

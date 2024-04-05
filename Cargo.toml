@@ -85,3 +85,13 @@ insta = "1.38.0"
 lazy_static = "1.4"
 pretty_assertions = "1"
 regex = "1.10.4"
+
+[package.metadata.deb]
+copyright = "Copyright (c) 2021 rhysd"
+license-file = ["LICENSE.txt", "0"]
+assets = [
+    ["target/release/hgrep", "usr/bin/", "755"],
+    ["README.md", "usr/share/doc/hgrep/README", "644"],
+    ["target/release/hgrep.1", "usr/share/man/man1/hgrep.1", "644"],
+    ["target/release/hgrep.bash", "usr/share/bash-completion/completions/hgrep", "644"],
+]

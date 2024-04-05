@@ -66,6 +66,30 @@ git add testdata/snapshots
 These snapshot tests were added because `clap`'s major changes caused some regressions. `clap`'s major version bump caused API
 breaking changes frequently and it was hard to follow them without tests.
 
+## How to generate `.deb` file
+
+[cargo-deb][] needs to be installed. The `.deb` package metadata is described in `[package.metadata.deb]` section in
+[Cargo.toml](./Cargo.toml).
+
+The `.deb` file contains a manual file for `man` and a Bash completion file. You need to generate them in advance.
+
+```sh
+cargo build --release
+# Create a manual file
+target/release/hgrep --generate-man-page > target/release/hgrep.1
+# Create a Bash completion file
+target/release/hgrep --generate-completion-script bash > target/release/hgrep.bash
+# Generate `.deb` file at `target/debian/`
+cargo deb
+# Try to install the package
+sudo dpkg -i target/debian/hgrep_*.deb
+```
+
+These build steps should be done on Linux. I haven't tried cross compilation.
+
+The release CI workflow automatically builds `.deb` file and uploads it to [the GitHub releases page][releases] so usually you
+don't need to build it manually.
+
 ## Make a new release
 
 Let's say we're releasing v1.2.3.
@@ -102,6 +126,7 @@ Syntax set and theme set are managed in [./assets](./assets) directory. See [the
 [clippy]: https://github.com/rust-lang/rust-clippy
 [rustfmt]: https://github.com/rust-lang/rustfmt
 [repo]: https://github.com/rhysd/hgrep
+[cargo-deb]: https://github.com/kornelski/cargo-deb
 [release-ci]: ./.github/workflows/release.yml
 [releases]: https://github.com/rhysd/hgrep/releases
 [changelog-from-release]: https://github.com/rhysd/changelog-from-release
