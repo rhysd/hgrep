@@ -89,7 +89,7 @@ make install
 Visit [the releases page][releases] and download `.deb` package file. It can be installed via `dpkg` command:
 
 ```sh
-sudo dpkg -i hgrep_v0.3.5_amd64.deb
+sudo dpkg -i hgrep_v0.3.6-1_amd64.deb
 ```
 
 The manual (for `man` command) and Bash completion is automatically installed. If you're using some other shell, setup the shell

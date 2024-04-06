@@ -1,6 +1,6 @@
 [package]
 name = "hgrep"
-version = "0.3.5"
+version = "0.3.6"
 edition = "2021"
 authors = ["rhysd <lin90162@yahoo.co.jp>"]
 description = """
