@@ -1,3 +1,26 @@
+<a name="v0.3.6"></a>
+# [v0.3.6](https://github.com/rhysd/hgrep/releases/tag/v0.3.6) - 06 Apr 2024
+
+- Add `-u`/`--unrestricted` flags to built-in ripgrep (`ripgrep` feature). This flag reduces the level of "smart" filtering by repeated uses (up to 2). A single flag `-u` is equivalent to `--no-ignore`. Two flags `-uu` are equivalent to `--no-ignore --hidden`. Unlike ripgrep, three flags `-uuu` are not supported since hgrep doesn't support `--binary` flag.
+  ```sh
+  # Same as `hgrep --no-ignore pattern paths...`
+  hgrep -u pattern paths...
+  # Same as `hgrep --no-ignore --hidden pattern paths...`
+  hgrep -uu pattern paths...
+  ```
+- Allow command line options to override previous values. For example, `hgrep --theme ayu-dark --theme OneHalfDark` specifies `OneHalfDark` theme, which previously caused a command line parse error. This new behavior is useful when you specify a default option in `HGREP_DEFAULT_OPTS` and want to override the default value in a command line.
+  ```sh
+  # Set the default theme value
+  export HGREP_DEFAULT_OPTS='--theme ayu-dark'
+  # v0.3.5 caused an error and v0.3.6 now allows this
+  hgrep --theme OneHalfDark pattern paths...
+  ```
+- A debian package (`.deb` file) is now released in the release page. For example the package file for v0.3.6 can be downloaded from [this link](https://github.com/rhysd/hgrep/releases/download/v0.3.6/hgrep_0.3.6-1_amd64.deb). The package can be installed via `dpkg` command. It installs the man page and bash completion file automatically. Please see [the document](https://github.com/rhysd/hgrep?tab=readme-ov-file#via-apt-package-manager-on-debian-or-ubuntu) for more details. ([#17](https://github.com/rhysd/hgrep/issues/17))
+- Fix redundant imports warning reported from a nightly compiler.
+
+[Changes][v0.3.6]
+
+
 <a name="v0.3.5"></a>
 # [v0.3.5](https://github.com/rhysd/hgrep/releases/tag/v0.3.5) - 31 Mar 2024
 
@@ -338,6 +361,7 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [Changes][v0.1.1]
 
 
+[v0.3.6]: https://github.com/rhysd/hgrep/compare/v0.3.5...v0.3.6
 [v0.3.5]: https://github.com/rhysd/hgrep/compare/v0.3.4...v0.3.5
 [v0.3.4]: https://github.com/rhysd/hgrep/compare/v0.3.3...v0.3.4
 [v0.3.3]: https://github.com/rhysd/hgrep/compare/v0.3.2...v0.3.3
