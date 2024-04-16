@@ -46,8 +46,12 @@ impl File {
         path: PathBuf,
         lm: Vec<LineMatch>,
         chunks: Vec<(u64, u64)>,
-        contents: Vec<u8>,
+        mut contents: Vec<u8>,
     ) -> Self {
+        // Strip UTF-8 BOM from file (#20)
+        if contents.starts_with(b"\xEF\xBB\xBF") {
+            contents.drain(..3);
+        }
         Self {
             path,
             line_matches: lm.into_boxed_slice(),
@@ -468,5 +472,12 @@ mod tests {
                 .unwrap_err();
             assert_eq!(format!("{}", err), "dummy error!");
         }
+    }
+
+    #[test]
+    fn test_file_strip_utf8_bom() {
+        let contents = "\u{feff}hello\nworld".to_string().into_bytes();
+        let file = File::new(PathBuf::from("foo"), vec![], vec![], contents);
+        assert_eq!(file.contents.as_ref(), b"hello\nworld");
     }
 }
