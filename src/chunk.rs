@@ -1,12 +1,13 @@
 use crate::grep::GrepMatch;
 use anyhow::Result;
-use memchr::{memchr_iter, Memchr};
+use memchr::{memchr2, memchr_iter, Memchr};
 use pathdiff::diff_paths;
 use std::cmp;
 use std::env;
 use std::fs;
 use std::iter::Peekable;
 use std::path::PathBuf;
+use std::str;
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
 #[derive(Clone)] // Implement Clone for benchmark
@@ -46,8 +47,12 @@ impl File {
         path: PathBuf,
         lm: Vec<LineMatch>,
         chunks: Vec<(u64, u64)>,
-        contents: Vec<u8>,
+        mut contents: Vec<u8>,
     ) -> Self {
+        // Strip UTF-8 BOM from file (#20)
+        if contents.starts_with(b"\xEF\xBB\xBF") {
+            contents.drain(..3);
+        }
         Self {
             path,
             line_matches: lm.into_boxed_slice(),
@@ -72,6 +77,14 @@ fn print_sqrt<S: AsRef<str>>(input: S) {
 }\
         ";
         Self::new(PathBuf::from("sample.rs"), lmats, chunks, contents.to_vec())
+    }
+
+    pub fn first_line(&self) -> Option<&str> {
+        let mut line = self.contents.as_ref();
+        if let Some(idx) = memchr2(b'\n', b'\r', line) {
+            line = &line[..idx];
+        }
+        str::from_utf8(line).ok()
     }
 }
 
@@ -467,6 +480,33 @@ mod tests {
                 .collect::<Result<Vec<_>>>()
                 .unwrap_err();
             assert_eq!(format!("{}", err), "dummy error!");
+        }
+    }
+
+    #[test]
+    fn test_file_strip_utf8_bom() {
+        let contents = "\u{feff}hello\nworld".to_string().into_bytes();
+        let file = File::new(PathBuf::from("foo"), vec![], vec![], contents);
+        assert_eq!(file.contents.as_ref(), b"hello\nworld");
+    }
+
+    #[test]
+    fn test_file_get_first_line() {
+        let tests = [
+            ("", ""),
+            ("hello", "hello"),
+            ("hello\nworld", "hello"),
+            ("hello\r\nworld", "hello"),
+            ("\u{feff}hello\nworld", "hello"),
+        ];
+        for (lines, first_line) in tests {
+            let contents = lines.as_bytes().to_vec();
+            let file = File::new(PathBuf::from("foo"), vec![], vec![], contents);
+            assert_eq!(
+                file.first_line(),
+                Some(first_line),
+                "first line of {lines:?} is incorrect",
+            );
         }
     }
 }
