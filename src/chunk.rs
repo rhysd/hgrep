@@ -489,4 +489,24 @@ mod tests {
         let file = File::new(PathBuf::from("foo"), vec![], vec![], contents);
         assert_eq!(file.contents.as_ref(), b"hello\nworld");
     }
+
+    #[test]
+    fn test_file_get_first_line() {
+        let tests = [
+            ("", ""),
+            ("hello", "hello"),
+            ("hello\nworld", "hello"),
+            ("hello\r\nworld", "hello"),
+            ("\u{feff}hello\nworld", "hello"),
+        ];
+        for (lines, first_line) in tests {
+            let contents = lines.as_bytes().to_vec();
+            let file = File::new(PathBuf::from("foo"), vec![], vec![], contents);
+            assert_eq!(
+                file.first_line(),
+                Some(first_line),
+                "first line of {lines:?} is incorrect",
+            );
+        }
+    }
 }

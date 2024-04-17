@@ -1268,7 +1268,7 @@ mod tests {
         }
 
         fn run_uitest(file: File, expected_file: PathBuf, f: fn(&mut PrinterOptions<'_>) -> ()) {
-            let stdout = DummyStdout(RefCell::new(vec![]));
+            let stdout = DummyStdout::default();
             let mut opts = PrinterOptions {
                 term_width: 80,
                 color_support: TermColorSupport::True,
@@ -1579,7 +1579,7 @@ mod tests {
     fn test_print_nothing() {
         let file = File::new(PathBuf::from("x.txt"), vec![], vec![], vec![]);
         let opts = PrinterOptions::default();
-        let stdout = DummyStdout(RefCell::new(vec![]));
+        let stdout = DummyStdout::default();
         let mut printer = SyntectPrinter::with_assets(ASSETS.clone(), stdout, opts);
         printer.print(file).unwrap();
         let printed = mem::take(printer.writer_mut()).0.into_inner();
@@ -1594,7 +1594,7 @@ mod tests {
     fn test_no_syntax_found() {
         let file = sample_chunk("LICENSE.txt");
         let opts = PrinterOptions::default();
-        let stdout = DummyStdout(RefCell::new(vec![]));
+        let stdout = DummyStdout::default();
         let mut printer = SyntectPrinter::with_assets(ASSETS.clone(), stdout, opts);
         printer.print(file).unwrap();
         let printed = mem::take(printer.writer_mut()).0.into_inner();
@@ -1616,7 +1616,7 @@ mod tests {
             color_support: TermColorSupport::True,
             ..Default::default()
         };
-        let stdout = DummyStdout(RefCell::new(vec![]));
+        let stdout = DummyStdout::default();
         let mut printer = SyntectPrinter::with_assets(ASSETS.clone(), stdout, opts);
         printer.print(file).unwrap();
 
@@ -1657,5 +1657,88 @@ mod tests {
             &ASSETS.syntax_set,
         )
         .unwrap();
+    }
+
+    #[test]
+    fn test_find_syntax_from_path() {
+        let tests = [
+            // Additional syntaxes by file extensions
+            ("foo.fs", "F#"),
+            ("/path/to/foo.fs", "F#"),
+            ("foo.h", "C++"),
+            ("foo.ron", "Rust"),
+            // Additional syntaxes by file name
+            ("nginx.conf", "nginx"),
+            ("/path/to/nginx.conf", "nginx"),
+            // Additional syntaxes by file path
+            ("/path/to/git/config", "Git Config"),
+            ("/path/to/git/ignore", "Git Ignore"),
+            ("/path/to/git/attributes", "Git Attributes"),
+            ("/path/to/.ssh/config", "SSH Config"),
+            #[cfg(not(windows))]
+            ("/etc/profile", "Bourne Again Shell (bash)"),
+            #[cfg(not(windows))]
+            ("/var/spool/mail/foo", "Email"),
+            #[cfg(not(windows))]
+            ("/var/mail/foo", "Email"),
+            // From syntax definitions by file extension
+            ("foo.c", "C"),
+            ("/path/to/foo.c", "C"),
+            // From syntax definitions by file name
+            ("Makefile", "Makefile"),
+            ("/path/to/Makefile", "Makefile"),
+            // No syntax found
+            ("foooooooo", "Plain Text"),
+            ("/path/to/foooooooo", "Plain Text"),
+        ];
+
+        let printer = SyntectPrinter::with_assets(
+            ASSETS.clone(),
+            DummyStdout::default(),
+            PrinterOptions::default(),
+        );
+
+        for (path, name) in tests {
+            #[cfg(windows)]
+            let path = {
+                let mut path = path.replace('/', "\\");
+                if path.starts_with('\\') {
+                    path.insert_str(0, "C:");
+                }
+                path
+            };
+            let file = File::new(PathBuf::from(&path), vec![], vec![], vec![]);
+            let syntax = printer.find_syntax(&file);
+            assert_eq!(
+                syntax.name, name,
+                "could not find correct syntax from file path {path:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn test_find_syntax_from_first_line() {
+        let tests = [
+            (r#"<?xml version="1.0" encoding="utf-8"?>"#, "XML"),
+            ("#!/bin/bash", "Bourne Again Shell (bash)"),
+            ("hello, world!", "Plain Text"),
+        ];
+
+        let printer = SyntectPrinter::with_assets(
+            ASSETS.clone(),
+            DummyStdout::default(),
+            PrinterOptions::default(),
+        );
+        for (line, name) in tests {
+            let contents = [line, "this is second line", "this is third line"]
+                .join("\n")
+                .into_bytes();
+            let file = File::new(PathBuf::from("foooooooo"), vec![], vec![], contents);
+            let syntax = printer.find_syntax(&file);
+            assert_eq!(
+                syntax.name, name,
+                "could not find correct syntax from first line {line:?}",
+            );
+        }
     }
 }
