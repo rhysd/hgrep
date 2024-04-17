@@ -1445,6 +1445,7 @@ mod tests {
             }),
             test_wrap_between_regions(|_| {}),
             test_wrap_regions_japanese(|_| {}),
+            test_utf8_bom(|_| {}),
         );
     }
 

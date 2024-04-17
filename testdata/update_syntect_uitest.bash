@@ -12,6 +12,7 @@ set -x
 cargo build --release
 
 export COLORTERM=truecolor
+export HGREP_DEFAULT_OPTS=
 
 HGREP="$(pwd)/target/release/hgrep"
 
@@ -80,6 +81,7 @@ env -u COLORTERM "$HGREP" '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-wi
 "$HGREP" '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80                           ./testdata/syntect/wrap_between_regions.rs         > ./testdata/syntect/wrap_between_regions.out
 "$HGREP" '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80                           ./testdata/syntect/wrap_accross_regions.rs         > ./testdata/syntect/wrap_accross_regions.out
 "$HGREP" '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80                           ./testdata/syntect/wrap_regions_japanese.rs        > ./testdata/syntect/wrap_regions_japanese.out
+"$HGREP" '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80                           ./testdata/syntect/utf8_bom.rs                     > ./testdata/syntect/utf8_bom.out
 
 # Test for --list-themes
 "$HGREP" --list-themes -p syntect --term-width 80              > ./testdata/syntect/list_themes_default.out
@@ -151,6 +153,7 @@ cat ./testdata/syntect/multi_regions_bg.out
 cat ./testdata/syntect/wrap_between_regions.out
 cat ./testdata/syntect/wrap_accross_regions.out
 cat ./testdata/syntect/wrap_regions_japanese.out
+cat ./testdata/syntect/utf8_bom.out
 
 cat ./testdata/syntect/list_themes_default.out
 cat ./testdata/syntect/list_themes_no_grid.out
