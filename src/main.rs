@@ -73,15 +73,27 @@ fn command() -> Command {
     #[cfg(all(not(feature = "syntect-printer"), feature = "bat-printer"))]
     const DEFAULT_PRINTER: &str = "bat";
 
+    #[cfg(not(feature = "ripgrep"))]
+    const ABOUT: &str =
+        "hgrep is grep with human-friendly search output. hgrep eats an output of `grep -nH` and prints the matches \
+        with syntax-highlighted code snippets.\n\n\
+        $ grep -nH pattern -R . | hgrep\n\n\
+        The default options can be customized with HGREP_DEFAULT_OPTS environment variable. \
+        For more details, visit https://github.com/rhysd/hgrep#readme";
+    #[cfg(feature = "ripgrep")]
+    const ABOUT: &str =
+        "hgrep is grep with human-friendly search output.\n\n\
+        hgrep eats an output of `grep -nH` and prints the matches with syntax-highlighted code snippets.\n\n\
+        $ grep -nH pattern -R . | hgrep\n\n\
+        hgrep has its builtin subset of ripgrep, whose search output and performance are better than reading \
+        the output from `grep -nH`.\n\n\
+        $ hgrep pattern\n\n\
+        The default options can be customized with HGREP_DEFAULT_OPTS environment variable. \
+        For more details, visit https://github.com/rhysd/hgrep#readme";
+
     let cmd = Command::new("hgrep")
         .version(env!("CARGO_PKG_VERSION"))
-        .about(
-            "hgrep is grep with human-friendly search output. hgrep eats an output of `grep -nH` and prints the matches \
-            with syntax-highlighted code snippets.\n\n\
-            $ grep -nH pattern -R . | hgrep\n\n\
-            The default options can be customized with HGREP_DEFAULT_OPTS environment variable. \
-            For more details, visit https://github.com/rhysd/hgrep#readme"
-        )
+        .about(ABOUT)
         .no_binary_name(true)
         .args_override_self(true)
         .arg(
@@ -215,17 +227,6 @@ fn command() -> Command {
 
     #[cfg(feature = "ripgrep")]
     let cmd = cmd
-            .about(
-                "hgrep is grep with human-friendly search output.\n\n\
-                hgrep eats an output of `grep -nH` and prints the matches with syntax-highlighted code snippets.\n\n\
-                $ grep -nH pattern -R . | hgrep\n\n\
-                hgrep has its builtin subset of ripgrep, whose search output and performance are better than reading \
-                the output from `grep -nH`.\n\n\
-                $ hgrep pattern\n\n\
-                The default options can be customized with HGREP_DEFAULT_OPTS environment variable. \
-                For more details, visit https://github.com/rhysd/hgrep#readme"
-            )
-            .override_usage("hgrep [FLAGS] [OPTIONS] [PATTERN [PATH...]]")
             .arg(
                 Arg::new("no-ignore")
                     .long("no-ignore")

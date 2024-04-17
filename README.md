@@ -170,6 +170,7 @@ functionalities, use `rg` command and eat its output by hgrep via stdin. Current
 - Adding and removing file types are not supported. Only default file types are supported (see `--type-list`)
 - `.ripgreprc` config file is not supported
 - Searching binary files (`--binary`) is not supported
+- Only UTF-8 is supported. Other encoding such as UTF-16 or Shift JIS may be supported in the future
 
 ### Eating `grep -nH` output
 
