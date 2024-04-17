@@ -6,7 +6,6 @@ use anyhow::Result;
 use flate2::read::ZlibDecoder;
 use memchr::{memchr_iter, Memchr};
 use std::cmp;
-use std::ffi::OsStr;
 use std::io::{self, Stdout, StdoutLock, Write};
 use std::ops::{Deref, DerefMut};
 use std::path::Path;
@@ -1036,84 +1035,83 @@ impl<'main, W> SyntectPrinter<'main, W> {
         &self.themes.themes[name]
     }
 
-    fn find_syntax(&self, path: &Path) -> Result<&SyntaxReference> {
-        // Find from file extension
-        let name = match path.extension().and_then(OsStr::to_str) {
-            Some("fs") => Some("F#"),
-            Some("h") => Some("C++"),
-            Some("pac") => Some("JavaScript (Babel)"),
-            Some("nse") => Some("Lua"),
-            Some(
+    fn find_syntax(&self, file: &File) -> &SyntaxReference {
+        let extension = file.path.extension();
+        let file_name = file.path.file_name();
+
+        let name =
+            // Find from file extension
+            extension.and_then(|e| match e.to_str()? {
+                "fs" => Some("F#"),
+                "h" => Some("C++"),
+                "pac" => Some("JavaScript (Babel)"),
+                "nse" => Some("Lua"),
                 "automount" | "device" | "dnssd" | "link" | "mount" | "netdev" | "network"
-                | "nspawn" | "path" | "service" | "scope" | "slice" | "socket" | "swap" | "target"
-                | "timer",
-            ) => Some("INI"),
-            Some("sarif" | "jsonl") => Some("JSON"),
-            Some("ron") => Some("Rust"),
-            _ => None,
-        };
+                | "nspawn" | "path" | "service" | "scope" | "slice" | "socket" | "swap"
+                | "target" | "timer" => Some("INI"),
+                "sarif" | "jsonl" => Some("JSON"),
+                "ron" => Some("Rust"),
+                _ => None,
+            })
+            // Find from file name
+            .or_else(|| match file_name?.to_str()? {
+                ".clang-format" | "fish_history" => Some("YAML"),
+                "nginx.conf" | "mime.types" => Some("nginx"),
+                "httpd.conf" => Some("Apache Conf"),
+                "Containerfile" => Some("Dockerfile"),
+                _ => None,
+            })
+            // Find from file path
+            .or_else(|| {
+                #[cfg(not(windows))]
+                const GIT_CONFIG: &str = "/git/config";
+                #[cfg(windows)]
+                const GIT_CONFIG: &str = "\\git\\config";
+                #[cfg(not(windows))]
+                const GIT_IGNORE: &str = "/git/ignore";
+                #[cfg(windows)]
+                const GIT_IGNORE: &str = "\\git\\ignore";
+                #[cfg(not(windows))]
+                const GIT_ATTRIBUTES: &str = "/git/attributes";
+                #[cfg(windows)]
+                const GIT_ATTRIBUTES: &str = "\\git\\attributes";
+                #[cfg(not(windows))]
+                const SSH_CONFIG: &str = "/.ssh/config";
+                #[cfg(windows)]
+                const SSH_CONFIG: &str = "\\.ssh\\config";
 
-        // Find from file name
-        let name = name.or_else(|| match path.file_name().and_then(OsStr::to_str) {
-            Some(".clang-format" | "fish_history") => Some("YAML"),
-            Some("nginx.conf" | "mime.types") => Some("nginx"),
-            Some("httpd.conf") => Some("Apache Conf"),
-            Some("Containerfile") => Some("Dockerfile"),
-            _ => None,
-        });
+                let path = file.path.to_str()?;
+                if path.ends_with(GIT_CONFIG) {
+                    return Some("Git Config");
+                }
+                if path.ends_with(GIT_IGNORE) {
+                    return Some("Git Ignore");
+                }
+                if path.ends_with(GIT_ATTRIBUTES) {
+                    return Some("Git Attributes");
+                }
+                if path.ends_with(SSH_CONFIG) {
+                    return Some("SSH Config");
+                }
+                #[cfg(not(windows))]
+                if path == "/etc/profile" {
+                    return Some("Bourne Again Shell (bash)");
+                }
+                #[cfg(not(windows))]
+                if path.starts_with("/var/spool/mail/") || path.starts_with("/var/mail/") {
+                    return Some("Email");
+                }
+                None
+            });
 
-        // Find from file path
-        let name = name.or_else(|| {
-            #[cfg(not(windows))]
-            const GIT_CONFIG: &str = "/git/config";
-            #[cfg(windows)]
-            const GIT_CONFIG: &str = "\\git\\config";
-            #[cfg(not(windows))]
-            const GIT_IGNORE: &str = "/git/ignore";
-            #[cfg(windows)]
-            const GIT_IGNORE: &str = "\\git\\ignore";
-            #[cfg(not(windows))]
-            const GIT_ATTRIBUTES: &str = "/git/attributes";
-            #[cfg(windows)]
-            const GIT_ATTRIBUTES: &str = "\\git\\attributes";
-            #[cfg(not(windows))]
-            const SSH_CONFIG: &str = "/.ssh/config";
-            #[cfg(windows)]
-            const SSH_CONFIG: &str = "\\.ssh\\config";
-
-            let path = path.to_str()?;
-            if path.ends_with(GIT_CONFIG) {
-                return Some("Git Config");
-            }
-            if path.ends_with(GIT_IGNORE) {
-                return Some("Git Ignore");
-            }
-            if path.ends_with(GIT_ATTRIBUTES) {
-                return Some("Git Attributes");
-            }
-            if path.ends_with(SSH_CONFIG) {
-                return Some("SSH Config");
-            }
-            #[cfg(not(windows))]
-            if path == "/etc/profile" {
-                return Some("Bourne Again Shell (bash)");
-            }
-            #[cfg(not(windows))]
-            if path.starts_with("/var/spool/mail/") || path.starts_with("/var/mail/") {
-                return Some("Email");
-            }
-
-            None
-        });
-
-        if let Some(syntax) = name.and_then(|n| self.syntaxes.find_syntax_by_name(n)) {
-            return Ok(syntax);
-        }
-
-        Ok(self
-            .syntaxes
-            .find_syntax_for_file(path)?
-            .unwrap_or_else(|| self.syntaxes.find_syntax_plain_text()))
+        // Avoid `SyntaxSet::find_syntax_for_file` since it opens the file and reads the first line.
+        // (That's why `SyntaxSet::find_syntax_for_file` returns `io::Result`).
+        // It is redundant since we already read the file content into `File` struct.
+        name.and_then(|n| self.syntaxes.find_syntax_by_name(n))
+            .or_else(|| self.syntaxes.find_syntax_by_extension(extension?.to_str()?))
+            .or_else(|| self.syntaxes.find_syntax_by_extension(file_name?.to_str()?))
+            .or_else(|| self.syntaxes.find_syntax_by_first_line(file.first_line()?))
+            .unwrap_or_else(|| self.syntaxes.find_syntax_plain_text())
     }
 }
 
@@ -1125,7 +1123,7 @@ impl<'main, W: WriteOnLocked> Printer for SyntectPrinter<'main, W> {
 
         let mut buf = vec![];
         let theme = self.theme();
-        let syntax = self.find_syntax(&file.path)?;
+        let syntax = self.find_syntax(&file);
 
         let hl = LineHighlighter::new(syntax, theme, &self.syntaxes);
         Drawer::new(&mut buf, &self.opts, theme, &file.chunks).draw_file(&file, hl)?;

@@ -1,12 +1,13 @@
 use crate::grep::GrepMatch;
 use anyhow::Result;
-use memchr::{memchr_iter, Memchr};
+use memchr::{memchr2, memchr_iter, Memchr};
 use pathdiff::diff_paths;
 use std::cmp;
 use std::env;
 use std::fs;
 use std::iter::Peekable;
 use std::path::PathBuf;
+use std::str;
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
 #[derive(Clone)] // Implement Clone for benchmark
@@ -76,6 +77,14 @@ fn print_sqrt<S: AsRef<str>>(input: S) {
 }\
         ";
         Self::new(PathBuf::from("sample.rs"), lmats, chunks, contents.to_vec())
+    }
+
+    pub fn first_line(&self) -> Option<&str> {
+        let mut line = self.contents.as_ref();
+        if let Some(idx) = memchr2(b'\n', b'\r', line) {
+            line = &line[..idx];
+        }
+        str::from_utf8(line).ok()
     }
 }
 
