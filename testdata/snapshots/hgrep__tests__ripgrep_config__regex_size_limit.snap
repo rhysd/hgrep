@@ -32,4 +32,5 @@ Config {
         20971520,
     ),
     dfa_size_limit: None,
+    encoding: None,
 }

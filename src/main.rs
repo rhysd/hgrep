@@ -869,6 +869,7 @@ mod tests {
         snapshot_test!(unrestricted_once, ["-u"]);
         snapshot_test!(unrestricted_twice, ["-u", "-u"]);
         snapshot_test!(unrestricted_twice_in_single_flag, ["-uu"]);
+        snapshot_test!(encoding, ["--encoding", "sjis"]);
         snapshot_test!(
             all_printer_opts_before_args,
             [
@@ -1081,6 +1082,7 @@ mod tests {
         snapshot_test!(max_filesize, ["--max-filesize", "100M"]);
         snapshot_test!(unrestricted_once, ["-u"]);
         snapshot_test!(unrestricted_twice, ["-u", "-u"]);
+        snapshot_test!(encoding, ["--encoding", "sjis"]);
 
         macro_rules! snapshot_error_test {
             ($name:ident, $args:expr) => {
