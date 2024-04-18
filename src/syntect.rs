@@ -1220,7 +1220,7 @@ mod tests {
                 lmats.extend(ls);
                 chunks.push(c);
             }
-            File::new(path, lmats, chunks, contents.into_bytes())
+            File::new(path, lmats, chunks, contents.into_bytes(), None)
         }
 
         #[cfg(not(windows))]
@@ -1537,7 +1537,7 @@ mod tests {
         let lmats = vec![LineMatch::lnum(3)];
         let chunks = vec![(1, 6)];
         let contents = fs::read(&readme).unwrap();
-        File::new(readme, lmats, chunks, contents)
+        File::new(readme, lmats, chunks, contents, None)
     }
 
     #[test]
@@ -1578,7 +1578,7 @@ mod tests {
 
     #[test]
     fn test_print_nothing() {
-        let file = File::new(PathBuf::from("x.txt"), vec![], vec![], vec![]);
+        let file = File::new(PathBuf::from("x.txt"), vec![], vec![], vec![], None);
         let opts = PrinterOptions::default();
         let stdout = DummyStdout::default();
         let mut printer = SyntectPrinter::with_assets(ASSETS.clone(), stdout, opts);
@@ -1611,7 +1611,13 @@ mod tests {
             ranges,
         }];
         let chunks = vec![(1, 1)];
-        let file = File::new(PathBuf::from("test.txt"), lmats, chunks, contents.to_vec());
+        let file = File::new(
+            PathBuf::from("test.txt"),
+            lmats,
+            chunks,
+            contents.to_vec(),
+            None,
+        );
 
         let opts = PrinterOptions {
             color_support: TermColorSupport::True,
@@ -1708,7 +1714,7 @@ mod tests {
                 }
                 path
             };
-            let file = File::new(PathBuf::from(&path), vec![], vec![], vec![]);
+            let file = File::new(PathBuf::from(&path), vec![], vec![], vec![], None);
             let syntax = printer.find_syntax(&file);
             assert_eq!(
                 syntax.name, name,
@@ -1734,7 +1740,7 @@ mod tests {
             let contents = [line, "this is second line", "this is third line"]
                 .join("\n")
                 .into_bytes();
-            let file = File::new(PathBuf::from("foooooooo"), vec![], vec![], contents);
+            let file = File::new(PathBuf::from("foooooooo"), vec![], vec![], contents, None);
             let syntax = printer.find_syntax(&file);
             assert_eq!(
                 syntax.name, name,

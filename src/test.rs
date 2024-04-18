@@ -66,7 +66,7 @@ pub(crate) fn read_expected_chunks<S: AsRef<str>>(dir: &Path, input: S) -> Optio
     }
     let infile = dir.join(format!("{}.in", input));
     let contents = fs::read(&infile).unwrap();
-    Some(File::new(infile, lmats, chunks, contents))
+    Some(File::new(infile, lmats, chunks, contents, None))
 }
 
 pub(crate) fn read_all_expected_chunks<S: AsRef<str>>(dir: &Path, inputs: &[S]) -> Vec<File> {

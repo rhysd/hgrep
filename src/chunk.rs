@@ -1,5 +1,6 @@
 use crate::grep::GrepMatch;
 use anyhow::Result;
+use encoding_rs::{Encoding, UTF_8};
 use memchr::{memchr2, memchr_iter, Memchr};
 use pathdiff::diff_paths;
 use std::cmp;
@@ -39,7 +40,7 @@ pub struct File {
     pub path: PathBuf,
     pub line_matches: Box<[LineMatch]>,
     pub chunks: Box<[(u64, u64)]>,
-    pub contents: Box<[u8]>,
+    pub contents: Box<[u8]>, // TODO: This field should be Box<str>
 }
 
 impl File {
@@ -48,11 +49,23 @@ impl File {
         lm: Vec<LineMatch>,
         chunks: Vec<(u64, u64)>,
         mut contents: Vec<u8>,
+        encoding: Option<&'static Encoding>,
     ) -> Self {
-        // Strip UTF-8 BOM from file (#20)
-        if contents.starts_with(b"\xEF\xBB\xBF") {
-            contents.drain(..3);
+        fn decode(bytes: &[u8], enc: &'static Encoding) -> Vec<u8> {
+            let decoded = enc.decode_with_bom_removal(bytes).0;
+            decoded.into_owned().into_bytes()
         }
+
+        if let Some(encoding) = encoding {
+            contents = decode(&contents, encoding);
+        } else if let Some((encoding, bom_len)) = Encoding::for_bom(&contents) {
+            if encoding == UTF_8 {
+                contents.drain(..bom_len); // Strip UTF-8 BOM from file (#20)
+            } else {
+                contents = decode(&contents, encoding);
+            }
+        }
+
         Self {
             path,
             line_matches: lm.into_boxed_slice(),
@@ -76,7 +89,13 @@ fn print_sqrt<S: AsRef<str>>(input: S) {
     }
 }\
         ";
-        Self::new(PathBuf::from("sample.rs"), lmats, chunks, contents.to_vec())
+        Self::new(
+            PathBuf::from("sample.rs"),
+            lmats,
+            chunks,
+            contents.to_vec(),
+            None,
+        )
     }
 
     pub fn first_line(&self) -> Option<&str> {
@@ -94,17 +113,32 @@ pub struct Files<I: Iterator> {
     max_context: u64,
     saw_error: bool,
     cwd: Option<PathBuf>,
+    encoding: Option<&'static Encoding>,
 }
 
 impl<I: Iterator> Files<I> {
-    pub fn new(iter: I, min_context: u64, max_context: u64) -> Self {
-        Self {
+    pub fn new(
+        iter: I,
+        min_context: u64,
+        max_context: u64,
+        encoding: Option<&str>,
+    ) -> Result<Self> {
+        let encoding = if let Some(label) = encoding {
+            let encoding = Encoding::for_label(label.as_bytes())
+                .ok_or_else(|| anyhow::anyhow!("Unknown encoding name: {label:?}"))?;
+            Some(encoding)
+        } else {
+            None
+        };
+
+        Ok(Self {
             iter: iter.peekable(),
             min_context,
             max_context,
             saw_error: false,
             cwd: env::current_dir().ok(),
-        }
+            encoding,
+        })
     }
 }
 
@@ -306,7 +340,7 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
         }
 
         let path = self.relative_path(path);
-        Some(Ok(File::new(path, lmats, chunks, contents)))
+        Some(Ok(File::new(path, lmats, chunks, contents, self.encoding)))
     }
 }
 
@@ -322,7 +356,8 @@ mod tests {
         let dir = Path::new("testdata").join("chunk");
 
         let matches = test::read_all_matches(&dir, inputs);
-        let got: Vec<_> = Files::new(matches.into_iter(), 3, 6)
+        let got: Vec<_> = Files::new(matches.into_iter(), 3, 6, None)
+            .unwrap()
             .collect::<Result<_>>()
             .unwrap();
         let expected = test::read_all_expected_chunks(&dir, inputs);
@@ -391,7 +426,8 @@ mod tests {
     fn test_same_min_ctx_and_max_ctx() {
         let dir = Path::new("testdata").join("chunk");
         let matches = test::read_matches(&dir, "single_max");
-        let got: Vec<_> = Files::new(matches.into_iter(), 3, 3)
+        let got: Vec<_> = Files::new(matches.into_iter(), 3, 3, None)
+            .unwrap()
             .collect::<Result<_>>()
             .unwrap();
 
@@ -411,7 +447,8 @@ mod tests {
     fn test_zero_context() {
         let dir = Path::new("testdata").join("chunk");
         let matches = test::read_matches(&dir, "single_max");
-        let got: Vec<_> = Files::new(matches.into_iter(), 0, 0)
+        let got: Vec<_> = Files::new(matches.into_iter(), 0, 0, None)
+            .unwrap()
             .collect::<Result<_>>()
             .unwrap();
 
@@ -440,7 +477,7 @@ mod tests {
         };
         let matches = [mat(1), mat(1), mat(1), mat(2), mat(2), mat(2)];
 
-        let mut files = Files::new(matches.into_iter(), 0, 0);
+        let mut files = Files::new(matches.into_iter(), 0, 0, None).unwrap();
         let File {
             line_matches,
             chunks,
@@ -476,7 +513,8 @@ mod tests {
                 Err(Error::new(DummyError)), // Error at second match
             ],
         ] {
-            let err = Files::new(matches.into_iter(), 3, 6)
+            let err = Files::new(matches.into_iter(), 3, 6, None)
+                .unwrap()
                 .collect::<Result<Vec<_>>>()
                 .unwrap_err();
             assert_eq!(format!("{}", err), "dummy error!");
@@ -486,7 +524,7 @@ mod tests {
     #[test]
     fn test_file_strip_utf8_bom() {
         let contents = "\u{feff}hello\nworld".to_string().into_bytes();
-        let file = File::new(PathBuf::from("foo"), vec![], vec![], contents);
+        let file = File::new(PathBuf::from("foo"), vec![], vec![], contents, None);
         assert_eq!(file.contents.as_ref(), b"hello\nworld");
     }
 
@@ -501,7 +539,7 @@ mod tests {
         ];
         for (lines, first_line) in tests {
             let contents = lines.as_bytes().to_vec();
-            let file = File::new(PathBuf::from("foo"), vec![], vec![], contents);
+            let file = File::new(PathBuf::from("foo"), vec![], vec![], contents, None);
             assert_eq!(
                 file.first_line(),
                 Some(first_line),

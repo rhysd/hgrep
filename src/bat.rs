@@ -190,7 +190,7 @@ mod tests {
         let contents = "fn main() {\n    println!(\"hello\");\n}\n"
             .as_bytes()
             .to_vec();
-        File::new(path, lmats, chunks, contents)
+        File::new(path, lmats, chunks, contents, None)
     }
 
     #[test]
@@ -217,7 +217,7 @@ mod tests {
     #[test]
     fn test_print_nothing() {
         let p = BatPrinter::new(PrinterOptions::default());
-        let f = File::new(PathBuf::from("x.txt"), vec![], vec![], vec![]);
+        let f = File::new(PathBuf::from("x.txt"), vec![], vec![], vec![], None);
         p.print(f).unwrap();
     }
 }

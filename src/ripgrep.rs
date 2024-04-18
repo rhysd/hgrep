@@ -6,7 +6,9 @@ use anyhow::{Context, Result};
 use grep_matcher::{LineTerminator, Matcher};
 use grep_pcre2::{RegexMatcher as Pcre2Matcher, RegexMatcherBuilder as Pcre2MatcherBuilder};
 use grep_regex::{RegexMatcher, RegexMatcherBuilder};
-use grep_searcher::{BinaryDetection, MmapChoice, Searcher, SearcherBuilder, Sink, SinkMatch};
+use grep_searcher::{
+    BinaryDetection, Encoding, MmapChoice, Searcher, SearcherBuilder, Sink, SinkMatch,
+};
 use ignore::overrides::OverrideBuilder;
 use ignore::types::{Types, TypesBuilder};
 use ignore::{Walk, WalkBuilder};
@@ -68,6 +70,7 @@ pub struct Config<'main> {
     no_unicode: bool,
     regex_size_limit: Option<usize>,
     dfa_size_limit: Option<usize>,
+    encoding: Option<&'main str>,
 }
 
 impl<'main> Config<'main> {
@@ -227,6 +230,11 @@ impl<'main> Config<'main> {
         Ok(self)
     }
 
+    pub fn encoding(&mut self, name: &'main str) -> &mut Self {
+        self.encoding = Some(name);
+        self
+    }
+
     fn build_walker(&self, mut paths: impl Iterator<Item = &'main Path>) -> Result<Walk> {
         let target = paths.next().unwrap();
 
@@ -337,7 +345,7 @@ impl<'main> Config<'main> {
         }
     }
 
-    fn build_searcher(&self) -> Searcher {
+    fn build_searcher(&self) -> Result<Searcher> {
         let mut builder = SearcherBuilder::new();
         let mmap = if self.mmap {
             unsafe { MmapChoice::auto() }
@@ -353,7 +361,10 @@ impl<'main> Config<'main> {
         if self.crlf {
             builder.line_terminator(LineTerminator::crlf());
         }
-        builder.build()
+        if let Some(label) = self.encoding {
+            builder.encoding(Some(Encoding::new(label)?));
+        }
+        Ok(builder.build())
     }
 
     fn build_types(&self) -> Result<Types> {
@@ -568,7 +579,7 @@ where
         }
 
         let file = File::open(&path)?;
-        let mut searcher = self.config.build_searcher();
+        let mut searcher = self.config.build_searcher()?;
         let mut matches = Matches {
             count: &self.count,
             path,
@@ -587,7 +598,7 @@ where
     fn print_matches(&self, matches: Vec<GrepMatch>) -> Result<bool> {
         let (min, max) = (self.config.min_context, self.config.max_context);
         let mut found = false;
-        for file in Files::new(matches.into_iter().map(Ok), min, max) {
+        for file in Files::new(matches.into_iter().map(Ok), min, max, self.config.encoding)? {
             self.printer.print(file?)?;
             found = true;
         }
@@ -818,7 +829,7 @@ mod tests {
             }
         }
 
-        File::new(path, line_matches, chunks, contents.into_bytes())
+        File::new(path, line_matches, chunks, contents.into_bytes(), None)
     }
 
     fn test_ripgrep_config(file: &str, pat: &str, f: fn(&mut Config) -> ()) {

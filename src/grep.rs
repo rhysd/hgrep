@@ -64,8 +64,13 @@ pub struct GrepLines<R: BufRead> {
 }
 
 impl<R: BufRead> GrepLines<R> {
-    pub fn chunks_per_file(self, min: u64, max: u64) -> Files<Self> {
-        Files::new(self, min, max)
+    pub fn chunks_per_file(
+        self,
+        min: u64,
+        max: u64,
+        encoding: Option<&str>,
+    ) -> Result<Files<Self>> {
+        Files::new(self, min, max, encoding)
     }
 }
 
