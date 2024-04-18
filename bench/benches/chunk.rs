@@ -23,7 +23,7 @@ fn prepare() -> Vec<u8> {
 #[inline]
 fn count_chunks(data: &[u8], min: u64, max: u64) -> usize {
     let mut total = 0;
-    for f in data.grep_lines().chunks_per_file(min, max) {
+    for f in data.grep_lines().chunks_per_file(min, max, None).unwrap() {
         let f = f.unwrap();
         assert!(!f.line_matches.is_empty());
         assert!(!f.chunks.is_empty());

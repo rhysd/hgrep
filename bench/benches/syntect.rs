@@ -43,6 +43,7 @@ fn create_files_for_contents(contents: String, path: &Path, per_lines: usize) ->
             vec![LineMatch::lnum(l)],
             vec![(s, e)],
             contents.clone().into_bytes(),
+            None,
         ))
     }
     files
