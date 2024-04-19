@@ -349,7 +349,9 @@ mod tests {
     use super::*;
     use crate::test;
     use anyhow::Error;
+    use encoding_rs::{SHIFT_JIS, UTF_16BE, UTF_16LE, UTF_8};
     use std::fmt;
+    use std::iter;
     use std::path::Path;
 
     fn test_success_case(inputs: &[&str]) {
@@ -522,6 +524,24 @@ mod tests {
     }
 
     #[test]
+    fn test_files_invalid_encoding() {
+        let msg = match Files::new(iter::empty::<()>(), 3, 6, Some("foooooooo")) {
+            Ok(_) => panic!("error did not happen"),
+            Err(err) => format!("{err}"),
+        };
+        assert!(
+            msg.contains("Unknown encoding name: \"foooooooo\""),
+            "message={msg:?}",
+        );
+    }
+
+    #[test]
+    fn test_files_with_encoding() {
+        let files = Files::new(iter::empty::<()>(), 3, 6, Some("utf-16")).unwrap();
+        assert_eq!(files.encoding, Some(UTF_16LE));
+    }
+
+    #[test]
     fn test_file_strip_utf8_bom() {
         let contents = "\u{feff}hello\nworld".to_string().into_bytes();
         let file = File::new(PathBuf::from("foo"), vec![], vec![], contents, None);
@@ -546,5 +566,65 @@ mod tests {
                 "first line of {lines:?} is incorrect",
             );
         }
+    }
+
+    // "こんにちは\r\n" in several encodings
+    const HELLO_UTF_16BE: &[u8] = b"\x30\x53\x30\x93\x30\x6B\x30\x61\x30\x6F\x00\x0D\x00\x0A";
+    const HELLO_UTF_16BE_BOM: &[u8] =
+        b"\xFE\xFF\x30\x53\x30\x93\x30\x6B\x30\x61\x30\x6F\x00\x0D\x00\x0A";
+    const HELLO_UTF_16LE: &[u8] = b"\x53\x30\x93\x30\x6B\x30\x61\x30\x6F\x30\x0D\x00\x0A\x00";
+    const HELLO_UTF_16LE_BOM: &[u8] =
+        b"\xFF\xFE\x53\x30\x93\x30\x6B\x30\x61\x30\x6F\x30\x0D\x00\x0A\x00";
+    const HELLO_UTF_8: &[u8] =
+        b"\xE3\x81\x93\xE3\x82\x93\xE3\x81\xAB\xE3\x81\xA1\xE3\x81\xAF\x0D\x0A";
+    const HELLO_UTF_8_BOM: &[u8] =
+        b"\xEF\xBB\xBF\xE3\x81\x93\xE3\x82\x93\xE3\x81\xAB\xE3\x81\xA1\xE3\x81\xAF\x0D\x0A";
+    const HELLO_SJIS: &[u8] = b"\x82\xB1\x82\xF1\x82\xC9\x82\xBF\x82\xCD\x0D\x0A";
+
+    #[test]
+    fn test_file_decode_content_with_specified_encoding() {
+        let tests = [
+            (UTF_16BE, HELLO_UTF_16BE),
+            (UTF_16BE, HELLO_UTF_16BE_BOM),
+            (UTF_16LE, HELLO_UTF_16LE),
+            (UTF_16LE, HELLO_UTF_16LE_BOM),
+            (UTF_8, HELLO_UTF_8),
+            (UTF_8, HELLO_UTF_8_BOM),
+            (SHIFT_JIS, HELLO_SJIS),
+        ];
+
+        for (encoding, contents) in tests {
+            let file = File::new(
+                PathBuf::new(),
+                vec![],
+                vec![],
+                contents.to_vec(),
+                Some(encoding),
+            );
+            assert_eq!(
+                file.contents.as_ref(),
+                "こんにちは\r\n".as_bytes(),
+                "encoding={encoding:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_file_decode_content_with_encoding_detected_from_bom() {
+        let tests = [HELLO_UTF_16BE_BOM, HELLO_UTF_16LE_BOM, HELLO_UTF_8_BOM];
+        for contents in tests {
+            let file = File::new(PathBuf::new(), vec![], vec![], contents.to_vec(), None);
+            assert_eq!(
+                file.contents.as_ref(),
+                "こんにちは\r\n".as_bytes(),
+                "input={contents:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn test_file_use_replacement_char_for_invalid_utf8() {
+        let file = File::new(PathBuf::new(), vec![], vec![], vec![0xff], Some(UTF_8));
+        assert_eq!(file.contents.as_ref(), "\u{fffd}".as_bytes());
     }
 }
