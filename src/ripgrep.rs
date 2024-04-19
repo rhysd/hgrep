@@ -646,7 +646,7 @@ mod tests {
     impl DummyPrinter {
         fn validate_and_remove_region_ranges(&mut self) {
             for file in self.0.get_mut().unwrap().iter_mut() {
-                let lines: Vec<_> = file.contents.split_inclusive(|b| *b == b'\n').collect();
+                let lines: Vec<_> = file.contents.lines().collect();
                 for lmat in file.line_matches.iter_mut() {
                     // Reset `lmat.range` to None since ranges in `expected` are `None`
                     let (start, end) = mem::take(&mut lmat.ranges)[0];
@@ -654,13 +654,13 @@ mod tests {
                     let matched_part = &line[start..end];
                     assert_eq!(
                         matched_part,
-                        b"*",
+                        "*",
                         "{:?} did not match to pattern '\\*$'. Line was {:?} (lnum={}). Byte range was ({}, {})",
-                        std::str::from_utf8(matched_part).unwrap(),
-                        std::str::from_utf8(line).unwrap(),
+                        matched_part,
+                        line,
                         lmat.line_number,
                         start,
-                        end
+                        end,
                     )
                 }
             }
@@ -829,7 +829,7 @@ mod tests {
             }
         }
 
-        File::new(path, line_matches, chunks, contents.into_bytes(), None)
+        File::new(path, line_matches, chunks, contents)
     }
 
     fn test_ripgrep_config(file: &str, pat: &str, f: fn(&mut Config) -> ()) {

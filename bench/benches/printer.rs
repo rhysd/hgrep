@@ -19,8 +19,7 @@ fn large_file(c: &mut Criterion) {
                 path.into(),
                 vec![LineMatch::lnum(count)],
                 vec![(count - 6, count + 6)],
-                contents.clone().into_bytes(),
-                None,
+                contents.clone(),
             ))
         }
     })

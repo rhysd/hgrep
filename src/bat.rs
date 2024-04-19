@@ -143,7 +143,7 @@ impl<'main> BatPrinter<'main> {
         config.visible_lines = VisibleLines::Ranges(LineRanges::from(ranges));
 
         let input =
-            Input::from_reader(Box::new(file.contents.as_ref())).with_name(Some(&file.path));
+            Input::from_reader(Box::new(file.contents.as_bytes())).with_name(Some(&file.path));
 
         let ranges = file
             .line_matches
@@ -187,10 +187,8 @@ mod tests {
         let path = PathBuf::from("test.rs");
         let lmats = vec![LineMatch::lnum(1)];
         let chunks = vec![(1, 2)];
-        let contents = "fn main() {\n    println!(\"hello\");\n}\n"
-            .as_bytes()
-            .to_vec();
-        File::new(path, lmats, chunks, contents, None)
+        let contents = "fn main() {\n    println!(\"hello\");\n}\n".to_string();
+        File::new(path, lmats, chunks, contents)
     }
 
     #[test]
@@ -217,7 +215,7 @@ mod tests {
     #[test]
     fn test_print_nothing() {
         let p = BatPrinter::new(PrinterOptions::default());
-        let f = File::new(PathBuf::from("x.txt"), vec![], vec![], vec![], None);
+        let f = File::new(PathBuf::from("x.txt"), vec![], vec![], String::new());
         p.print(f).unwrap();
     }
 }

@@ -1,14 +1,35 @@
 use crate::grep::GrepMatch;
 use anyhow::Result;
 use encoding_rs::{Encoding, UTF_8};
-use memchr::{memchr2, memchr_iter, Memchr};
+use memchr::memchr2;
 use pathdiff::diff_paths;
 use std::cmp;
 use std::env;
 use std::fs;
 use std::iter::Peekable;
 use std::path::PathBuf;
-use std::str;
+
+fn decode_text(mut bytes: Vec<u8>, encoding: Option<&'static Encoding>) -> String {
+    if let Some(encoding) = encoding {
+        return encoding.decode_with_bom_removal(&bytes).0.into_owned();
+    }
+
+    if let Some((encoding, bom_len)) = Encoding::for_bom(&bytes) {
+        if encoding == UTF_8 {
+            bytes.drain(..bom_len); // Strip UTF-8 BOM from file (#20)
+        } else {
+            return encoding
+                .decode_without_bom_handling(&bytes[bom_len..])
+                .0
+                .into_owned();
+        }
+    }
+
+    match String::from_utf8(bytes) {
+        Ok(decoded) => decoded,
+        Err(err) => String::from_utf8_lossy(err.as_bytes()).into_owned(),
+    }
+}
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
 #[derive(Clone)] // Implement Clone for benchmark
@@ -40,7 +61,7 @@ pub struct File {
     pub path: PathBuf,
     pub line_matches: Box<[LineMatch]>,
     pub chunks: Box<[(u64, u64)]>,
-    pub contents: Box<[u8]>, // TODO: This field should be Box<str>
+    pub contents: Box<str>,
 }
 
 impl File {
@@ -48,29 +69,13 @@ impl File {
         path: PathBuf,
         lm: Vec<LineMatch>,
         chunks: Vec<(u64, u64)>,
-        mut contents: Vec<u8>,
-        encoding: Option<&'static Encoding>,
+        contents: String,
     ) -> Self {
-        fn decode(bytes: &[u8], enc: &'static Encoding) -> Vec<u8> {
-            let decoded = enc.decode_with_bom_removal(bytes).0;
-            decoded.into_owned().into_bytes()
-        }
-
-        if let Some(encoding) = encoding {
-            contents = decode(&contents, encoding);
-        } else if let Some((encoding, bom_len)) = Encoding::for_bom(&contents) {
-            if encoding == UTF_8 {
-                contents.drain(..bom_len); // Strip UTF-8 BOM from file (#20)
-            } else {
-                contents = decode(&contents, encoding);
-            }
-        }
-
         Self {
             path,
             line_matches: lm.into_boxed_slice(),
             chunks: chunks.into_boxed_slice(),
-            contents: contents.into_boxed_slice(),
+            contents: contents.into_boxed_str(),
         }
     }
 
@@ -80,7 +85,7 @@ impl File {
             LineMatch::new(4, vec![(7, 10)]),
         ];
         let chunks = vec![(1, 7)];
-        let contents = b"\
+        let contents = "\
 // Parse input as float number and print sqrt of it
 fn print_sqrt<S: AsRef<str>>(input: S) {
     let result = input.as_ref().parse::<f64>();
@@ -93,17 +98,16 @@ fn print_sqrt<S: AsRef<str>>(input: S) {
             PathBuf::from("sample.rs"),
             lmats,
             chunks,
-            contents.to_vec(),
-            None,
+            contents.to_string(),
         )
     }
 
     pub fn first_line(&self) -> Option<&str> {
         let mut line = self.contents.as_ref();
-        if let Some(idx) = memchr2(b'\n', b'\r', line) {
+        if let Some(idx) = memchr2(b'\n', b'\r', line.as_bytes()) {
             line = &line[..idx];
         }
-        str::from_utf8(line).ok()
+        Some(line) // TODO: Remove Some()
     }
 }
 
@@ -142,58 +146,12 @@ impl<I: Iterator> Files<I> {
     }
 }
 
-pub struct Line<'a>(pub &'a [u8], pub u64);
-struct Lines<'a> {
-    lnum: usize,
-    prev: usize,
-    buf: &'a [u8],
-    iter: Memchr<'a>,
-}
-impl<'a> Lines<'a> {
-    pub fn new(buf: &'a [u8]) -> Self {
-        Self {
-            lnum: 1,
-            prev: 0,
-            buf,
-            iter: memchr_iter(b'\n', buf),
-        }
-    }
-}
-impl<'a> Iterator for Lines<'a> {
-    type Item = Line<'a>;
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(idx) = self.iter.next() {
-            let lnum = self.lnum;
-            let end = idx + 1;
-            let mut line = &self.buf[self.prev..end - 1];
-            if line.ends_with(b"\r") {
-                line = &line[..line.len() - 1];
-            }
-            self.prev = end;
-            self.lnum += 1;
-            Some(Line(line, lnum as u64))
-        } else if self.prev == self.buf.len() {
-            None
-        } else {
-            let mut line = &self.buf[self.prev..];
-            if line.ends_with(b"\n") {
-                line = &line[..line.len() - 1];
-            }
-            if line.ends_with(b"\r") {
-                line = &line[..line.len() - 1];
-            }
-            self.prev = self.buf.len();
-            Some(Line(line, self.lnum as u64))
-        }
-    }
-}
-
 impl<I: Iterator<Item = Result<GrepMatch>>> Files<I> {
     fn calculate_chunk_range<'contents>(
         &self,
         match_start: u64,
         match_end: u64,
-        lines: impl Iterator<Item = Line<'contents>>,
+        lines: impl Iterator<Item = (&'contents str, u64)>,
     ) -> (u64, u64) {
         let before_start = cmp::max(match_start.saturating_sub(self.max_context), 1);
         let before_end = cmp::max(match_start.saturating_sub(self.min_context), 1);
@@ -204,7 +162,7 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Files<I> {
         let mut range_end = after_end;
         let mut last_lnum = None;
 
-        for Line(line, lnum) in lines {
+        for (line, lnum) in lines {
             last_lnum = Some(lnum);
             assert!(lnum <= after_end, "line {} > chunk {}", lnum, after_end);
 
@@ -265,11 +223,11 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
             Err(e) => return self.error_item(e),
         };
         let contents = match fs::read(&path) {
-            Ok(vec) => vec,
+            Ok(vec) => decode_text(vec, self.encoding),
             Err(err) => return self.error_item(err.into()),
         };
         // Assumes that matched lines are sorted by source location
-        let mut lines = Lines::new(&contents);
+        let mut lines = contents.lines().enumerate().map(|(i, l)| (l, i as u64 + 1));
         let mut lmats = vec![LineMatch {
             line_number,
             ranges,
@@ -340,7 +298,7 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
         }
 
         let path = self.relative_path(path);
-        Some(Ok(File::new(path, lmats, chunks, contents, self.encoding)))
+        Some(Ok(File::new(path, lmats, chunks, contents)))
     }
 }
 
@@ -437,7 +395,7 @@ mod tests {
         let expected = File {
             line_matches: vec![LineMatch::lnum(8)].into_boxed_slice(),
             chunks: vec![(5, 11)].into_boxed_slice(),
-            contents: fs::read(&path).unwrap().into_boxed_slice(),
+            contents: fs::read_to_string(&path).unwrap().into_boxed_str(),
             path,
         };
 
@@ -458,7 +416,7 @@ mod tests {
         let expected = File {
             line_matches: vec![LineMatch::lnum(8)].into_boxed_slice(),
             chunks: vec![(8, 8)].into_boxed_slice(),
-            contents: fs::read(&path).unwrap().into_boxed_slice(),
+            contents: fs::read_to_string(&path).unwrap().into_boxed_str(),
             path,
         };
 
@@ -542,24 +500,17 @@ mod tests {
     }
 
     #[test]
-    fn test_file_strip_utf8_bom() {
-        let contents = "\u{feff}hello\nworld".to_string().into_bytes();
-        let file = File::new(PathBuf::from("foo"), vec![], vec![], contents, None);
-        assert_eq!(file.contents.as_ref(), b"hello\nworld");
-    }
-
-    #[test]
     fn test_file_get_first_line() {
         let tests = [
             ("", ""),
             ("hello", "hello"),
             ("hello\nworld", "hello"),
             ("hello\r\nworld", "hello"),
-            ("\u{feff}hello\nworld", "hello"),
+            ("\nhello", ""),
+            ("\r\nhello", ""),
         ];
         for (lines, first_line) in tests {
-            let contents = lines.as_bytes().to_vec();
-            let file = File::new(PathBuf::from("foo"), vec![], vec![], contents, None);
+            let file = File::new(PathBuf::from("foo"), vec![], vec![], lines.to_string());
             assert_eq!(
                 file.first_line(),
                 Some(first_line),
@@ -582,7 +533,7 @@ mod tests {
     const HELLO_SJIS: &[u8] = b"\x82\xB1\x82\xF1\x82\xC9\x82\xBF\x82\xCD\x0D\x0A";
 
     #[test]
-    fn test_file_decode_content_with_specified_encoding() {
+    fn test_decode_content_with_specified_encoding() {
         let tests = [
             (UTF_16BE, HELLO_UTF_16BE),
             (UTF_16BE, HELLO_UTF_16BE_BOM),
@@ -594,37 +545,23 @@ mod tests {
         ];
 
         for (encoding, contents) in tests {
-            let file = File::new(
-                PathBuf::new(),
-                vec![],
-                vec![],
-                contents.to_vec(),
-                Some(encoding),
-            );
-            assert_eq!(
-                file.contents.as_ref(),
-                "こんにちは\r\n".as_bytes(),
-                "encoding={encoding:?}"
-            );
+            let text = decode_text(contents.to_vec(), Some(encoding));
+            assert_eq!(text, "こんにちは\r\n", "encoding={encoding:?}");
         }
     }
 
     #[test]
-    fn test_file_decode_content_with_encoding_detected_from_bom() {
+    fn test_decode_content_with_encoding_detected_from_bom() {
         let tests = [HELLO_UTF_16BE_BOM, HELLO_UTF_16LE_BOM, HELLO_UTF_8_BOM];
         for contents in tests {
-            let file = File::new(PathBuf::new(), vec![], vec![], contents.to_vec(), None);
-            assert_eq!(
-                file.contents.as_ref(),
-                "こんにちは\r\n".as_bytes(),
-                "input={contents:?}",
-            );
+            let text = decode_text(contents.to_vec(), None);
+            assert_eq!(text, "こんにちは\r\n", "input={contents:?}");
         }
     }
 
     #[test]
-    fn test_file_use_replacement_char_for_invalid_utf8() {
-        let file = File::new(PathBuf::new(), vec![], vec![], vec![0xff], Some(UTF_8));
-        assert_eq!(file.contents.as_ref(), "\u{fffd}".as_bytes());
+    fn test_decode_with_replacement_char_for_malformed_utf8_file() {
+        let text = decode_text(vec![0xff], Some(UTF_8));
+        assert_eq!(text, "\u{fffd}");
     }
 }
