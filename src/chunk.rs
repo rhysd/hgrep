@@ -1,7 +1,7 @@
 use crate::grep::GrepMatch;
 use anyhow::Result;
 use encoding_rs::{Encoding, UTF_8};
-use memchr::memchr2;
+use memchr::{memchr2, memchr_iter, Memchr};
 use pathdiff::diff_paths;
 use std::cmp;
 use std::env;
@@ -144,6 +144,63 @@ impl<I: Iterator> Files<I> {
     }
 }
 
+pub struct LinesInclusive<'a> {
+    lnum: usize,
+    prev: usize,
+    buf: &'a str,
+    iter: Memchr<'a>,
+}
+
+impl<'a> LinesInclusive<'a> {
+    pub fn new(buf: &'a str) -> Self {
+        Self {
+            lnum: 1,
+            prev: 0,
+            buf,
+            iter: memchr_iter(b'\n', buf.as_bytes()),
+        }
+    }
+}
+
+impl<'a> Iterator for LinesInclusive<'a> {
+    type Item = (&'a str, u64);
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(idx) = self.iter.next() {
+            let lnum = self.lnum;
+            let end = idx + 1;
+            let line = &self.buf[self.prev..end];
+            self.prev = end;
+            self.lnum += 1;
+            Some((line, lnum as u64))
+        } else if self.prev == self.buf.len() {
+            None
+        } else {
+            let line = &self.buf[self.prev..];
+            self.prev = self.buf.len();
+            Some((line, self.lnum as u64))
+        }
+    }
+}
+
+struct Lines<'a>(LinesInclusive<'a>);
+
+impl<'a> Lines<'a> {
+    pub fn new(buf: &'a str) -> Self {
+        Self(LinesInclusive::new(buf))
+    }
+}
+
+impl<'a> Iterator for Lines<'a> {
+    type Item = (&'a str, u64);
+    fn next(&mut self) -> Option<Self::Item> {
+        let (mut line, lnum) = self.0.next()?;
+        if let Some(l) = line.strip_suffix('\n') {
+            line = l.strip_suffix('\r').unwrap_or(l);
+        }
+        Some((line, lnum))
+    }
+}
+
 impl<I: Iterator<Item = Result<GrepMatch>>> Files<I> {
     fn calculate_chunk_range<'contents>(
         &self,
@@ -225,7 +282,7 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
             Err(err) => return self.error_item(err.into()),
         };
         // Assumes that matched lines are sorted by source location
-        let mut lines = contents.lines().enumerate().map(|(i, l)| (l, i as u64 + 1));
+        let mut lines = Lines::new(&contents);
         let mut lmats = vec![LineMatch {
             line_number,
             ranges,

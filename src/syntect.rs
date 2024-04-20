@@ -1,10 +1,9 @@
 use crate::broken_pipe::IgnoreBrokenPipe as _;
-use crate::chunk::File;
+use crate::chunk::{File, LinesInclusive};
 use crate::printer::{Printer, PrinterOptions, TermColorSupport, TextWrapMode};
 use ansi_colours::ansi256_from_rgb;
 use anyhow::Result;
 use flate2::read::ZlibDecoder;
-use memchr::{memchr_iter, Memchr};
 use std::cmp;
 use std::io::{self, Stdout, StdoutLock, Write};
 use std::ops::{Deref, DerefMut};
@@ -604,43 +603,6 @@ impl<'a> LineHighlighter<'a> {
             })
             .collect();
         Ok(tokens)
-    }
-}
-
-// Like chunk::Lines, but includes newlines
-struct LinesInclusive<'a> {
-    lnum: usize,
-    prev: usize,
-    buf: &'a str,
-    iter: Memchr<'a>,
-}
-impl<'a> LinesInclusive<'a> {
-    pub fn new(buf: &'a str) -> Self {
-        Self {
-            lnum: 1,
-            prev: 0,
-            buf,
-            iter: memchr_iter(b'\n', buf.as_bytes()),
-        }
-    }
-}
-impl<'a> Iterator for LinesInclusive<'a> {
-    type Item = (&'a str, u64);
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(idx) = self.iter.next() {
-            let lnum = self.lnum;
-            let end = idx + 1;
-            let line = &self.buf[self.prev..end];
-            self.prev = end;
-            self.lnum += 1;
-            Some((line, lnum as u64))
-        } else if self.prev == self.buf.len() {
-            None
-        } else {
-            let line = &self.buf[self.prev..];
-            self.prev = self.buf.len();
-            Some((line, self.lnum as u64))
-        }
     }
 }
 
