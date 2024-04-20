@@ -1,5 +1,5 @@
 use crate::grep::GrepMatch;
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 use encoding_rs::{Encoding, UTF_8};
 use memchr::{memchr2, memchr_iter, Memchr};
 use pathdiff::diff_paths;
@@ -278,9 +278,11 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
             Ok(m) => m,
             Err(e) => return self.error_item(e),
         };
-        let contents = match fs::read(&path) {
+        let contents = match fs::read(&path)
+            .with_context(|| format!("Could not open the matched file {:?}", path))
+        {
             Ok(vec) => decode_text(vec, self.encoding),
-            Err(err) => return self.error_item(err.into()), // TODO: Add file path to the context of the error
+            Err(err) => return self.error_item(err),
         };
         // Assumes that matched lines are sorted by source location
         let mut lines = Lines::new(&contents);
@@ -601,6 +603,24 @@ mod tests {
 
             assert_eq!(files, expected, "read file {file:?} with encoding {enc:?}");
         }
+    }
+
+    #[test]
+    fn test_files_read_file_error() {
+        let item = Ok(GrepMatch {
+            path: PathBuf::from("this-file-does-not-exist"),
+            line_number: 1,
+            ranges: vec![],
+        });
+        let result = Files::new(iter::once(item), 1, 1, None)
+            .unwrap()
+            .next()
+            .unwrap();
+        let msg = format!("{}", result.unwrap_err());
+        assert!(
+            msg.contains("Could not open the matched file \"this-file-does-not-exist\""),
+            "error message was {msg:?}",
+        );
     }
 
     #[test]
