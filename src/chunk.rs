@@ -58,7 +58,7 @@ impl LineMatch {
 pub struct File {
     pub path: PathBuf,
     pub line_matches: Box<[LineMatch]>,
-    pub chunks: Box<[(u64, u64)]>,
+    pub chunks: Box<[(u64, u64)]>, // Start/End line number of the chunk
     pub contents: Box<str>,
 }
 
@@ -109,6 +109,64 @@ fn print_sqrt<S: AsRef<str>>(input: S) {
     }
 }
 
+pub struct LinesInclusive<'a> {
+    lnum: u64,
+    prev: usize,
+    buf: &'a str,
+    iter: Memchr<'a>,
+}
+
+impl<'a> LinesInclusive<'a> {
+    pub fn new(buf: &'a str) -> Self {
+        Self {
+            lnum: 1,
+            prev: 0,
+            buf,
+            iter: memchr_iter(b'\n', buf.as_bytes()),
+        }
+    }
+}
+
+impl<'a> Iterator for LinesInclusive<'a> {
+    type Item = (&'a str, u64);
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(idx) = self.iter.next() {
+            let lnum = self.lnum;
+            let end = idx + 1;
+            let line = &self.buf[self.prev..end];
+            self.prev = end;
+            self.lnum += 1;
+            Some((line, lnum))
+        } else if self.prev == self.buf.len() {
+            None
+        } else {
+            let line = &self.buf[self.prev..];
+            self.prev = self.buf.len();
+            Some((line, self.lnum))
+        }
+    }
+}
+
+// Optimized version of str::Lines with line numbers
+struct Lines<'a>(LinesInclusive<'a>);
+
+impl<'a> Lines<'a> {
+    pub fn new(buf: &'a str) -> Self {
+        Self(LinesInclusive::new(buf))
+    }
+}
+
+impl<'a> Iterator for Lines<'a> {
+    type Item = (&'a str, u64);
+    fn next(&mut self) -> Option<Self::Item> {
+        let (mut line, lnum) = self.0.next()?;
+        if let Some(l) = line.strip_suffix('\n') {
+            line = l.strip_suffix('\r').unwrap_or(l);
+        }
+        Some((line, lnum))
+    }
+}
+
 pub struct Files<I: Iterator> {
     iter: Peekable<I>,
     min_context: u64,
@@ -141,63 +199,6 @@ impl<I: Iterator> Files<I> {
             cwd: env::current_dir().ok(),
             encoding,
         })
-    }
-}
-
-pub struct LinesInclusive<'a> {
-    lnum: usize,
-    prev: usize,
-    buf: &'a str,
-    iter: Memchr<'a>,
-}
-
-impl<'a> LinesInclusive<'a> {
-    pub fn new(buf: &'a str) -> Self {
-        Self {
-            lnum: 1,
-            prev: 0,
-            buf,
-            iter: memchr_iter(b'\n', buf.as_bytes()),
-        }
-    }
-}
-
-impl<'a> Iterator for LinesInclusive<'a> {
-    type Item = (&'a str, u64);
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(idx) = self.iter.next() {
-            let lnum = self.lnum;
-            let end = idx + 1;
-            let line = &self.buf[self.prev..end];
-            self.prev = end;
-            self.lnum += 1;
-            Some((line, lnum as u64))
-        } else if self.prev == self.buf.len() {
-            None
-        } else {
-            let line = &self.buf[self.prev..];
-            self.prev = self.buf.len();
-            Some((line, self.lnum as u64))
-        }
-    }
-}
-
-struct Lines<'a>(LinesInclusive<'a>);
-
-impl<'a> Lines<'a> {
-    pub fn new(buf: &'a str) -> Self {
-        Self(LinesInclusive::new(buf))
-    }
-}
-
-impl<'a> Iterator for Lines<'a> {
-    type Item = (&'a str, u64);
-    fn next(&mut self) -> Option<Self::Item> {
-        let (mut line, lnum) = self.0.next()?;
-        if let Some(l) = line.strip_suffix('\n') {
-            line = l.strip_suffix('\r').unwrap_or(l);
-        }
-        Some((line, lnum))
     }
 }
 
@@ -279,7 +280,7 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
         };
         let contents = match fs::read(&path) {
             Ok(vec) => decode_text(vec, self.encoding),
-            Err(err) => return self.error_item(err.into()),
+            Err(err) => return self.error_item(err.into()), // TODO: Add file path to the context of the error
         };
         // Assumes that matched lines are sorted by source location
         let mut lines = Lines::new(&contents);
@@ -552,6 +553,54 @@ mod tests {
     fn test_files_with_encoding() {
         let files = Files::new(iter::empty::<()>(), 3, 6, Some("utf-16")).unwrap();
         assert_eq!(files.encoding, Some(UTF_16LE));
+    }
+
+    #[test]
+    fn test_files_decode_file() {
+        let tests = [
+            (Some("utf-8"), "utf8_bom.txt"),
+            (Some("utf-16le"), "utf16le_bom.txt"),
+            (Some("utf-16be"), "utf16be_bom.txt"),
+            (Some("sjis"), "sjis.txt"),
+            (None, "utf8_bom.txt"),    // Detect from BOM
+            (None, "utf16le_bom.txt"), // Detect from BOM
+            (None, "utf16be_bom.txt"), // Detect from BOM
+        ];
+
+        let dir = {
+            let mut p = PathBuf::from("testdata");
+            p.push("chunk");
+            p.push("encoding");
+            p
+        };
+        let contents = fs::read_to_string(dir.join("utf8.txt")).unwrap();
+
+        for (enc, file) in tests {
+            let path = dir.join(file);
+            let ranges = vec![(0, 3)]; // "う"
+            let item = Ok(GrepMatch {
+                path: path.clone(),
+                line_number: 4,
+                ranges: ranges.clone(),
+            });
+            let files = Files::new(iter::once(item), 1, 3, enc)
+                .unwrap()
+                .map(Result::unwrap)
+                .collect::<Vec<_>>();
+
+            let expected = [File {
+                path,
+                line_matches: vec![LineMatch {
+                    line_number: 4,
+                    ranges,
+                }]
+                .into_boxed_slice(),
+                chunks: vec![(3, 5)].into_boxed_slice(), // Line 3 to 5 should be a chunk because line 2 and line 4 are empty
+                contents: contents.clone().into_boxed_str(),
+            }];
+
+            assert_eq!(files, expected, "read file {file:?} with encoding {enc:?}");
+        }
     }
 
     #[test]

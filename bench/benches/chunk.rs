@@ -8,7 +8,11 @@ fn prepare() -> Vec<u8> {
     let data_dir = Path::new("..").join("testdata").join("chunk");
     let mut buf = String::new();
     for entry in fs::read_dir(data_dir).unwrap() {
-        let path = entry.unwrap().path();
+        let entry = entry.unwrap();
+        if !entry.metadata().unwrap().is_file() {
+            continue;
+        }
+        let path = entry.path();
         for (idx, line) in fs::read_to_string(&path).unwrap().lines().enumerate() {
             if line.ends_with('*') {
                 let l = idx + 1;
