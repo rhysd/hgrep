@@ -25,10 +25,8 @@ fn decode_text(mut bytes: Vec<u8>, encoding: Option<&'static Encoding>) -> Strin
         }
     }
 
-    match String::from_utf8(bytes) {
-        Ok(decoded) => decoded,
-        Err(err) => String::from_utf8_lossy(err.as_bytes()).into_owned(),
-    }
+    String::from_utf8(bytes)
+        .unwrap_or_else(|err| String::from_utf8_lossy(err.as_bytes()).into_owned())
 }
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
@@ -102,12 +100,12 @@ fn print_sqrt<S: AsRef<str>>(input: S) {
         )
     }
 
-    pub fn first_line(&self) -> Option<&str> {
+    pub fn first_line(&self) -> &str {
         let mut line = self.contents.as_ref();
         if let Some(idx) = memchr2(b'\n', b'\r', line.as_bytes()) {
             line = &line[..idx];
         }
-        Some(line) // TODO: Remove Some()
+        line
     }
 }
 
@@ -513,7 +511,7 @@ mod tests {
             let file = File::new(PathBuf::from("foo"), vec![], vec![], lines.to_string());
             assert_eq!(
                 file.first_line(),
-                Some(first_line),
+                first_line,
                 "first line of {lines:?} is incorrect",
             );
         }
