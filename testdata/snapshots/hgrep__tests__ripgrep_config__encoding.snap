@@ -7,11 +7,9 @@ Config {
     max_context: 6,
     no_ignore: false,
     hidden: false,
-    case_insensitive: true,
+    case_insensitive: false,
     smart_case: false,
-    globs: [
-        "*.txt",
-    ],
+    globs: [],
     glob_case_insensitive: false,
     fixed_strings: false,
     word_regexp: false,
@@ -32,5 +30,7 @@ Config {
     no_unicode: false,
     regex_size_limit: None,
     dfa_size_limit: None,
-    encoding: None,
+    encoding: Some(
+        "sjis",
+    ),
 }

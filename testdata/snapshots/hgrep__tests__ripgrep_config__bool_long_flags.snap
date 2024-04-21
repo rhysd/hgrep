@@ -30,4 +30,5 @@ Config {
     no_unicode: true,
     regex_size_limit: None,
     dfa_size_limit: None,
+    encoding: None,
 }

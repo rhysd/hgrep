@@ -8,7 +8,11 @@ fn prepare() -> Vec<u8> {
     let data_dir = Path::new("..").join("testdata").join("chunk");
     let mut buf = String::new();
     for entry in fs::read_dir(data_dir).unwrap() {
-        let path = entry.unwrap().path();
+        let entry = entry.unwrap();
+        if !entry.metadata().unwrap().is_file() {
+            continue;
+        }
+        let path = entry.path();
         for (idx, line) in fs::read_to_string(&path).unwrap().lines().enumerate() {
             if line.ends_with('*') {
                 let l = idx + 1;
@@ -23,7 +27,7 @@ fn prepare() -> Vec<u8> {
 #[inline]
 fn count_chunks(data: &[u8], min: u64, max: u64) -> usize {
     let mut total = 0;
-    for f in data.grep_lines().chunks_per_file(min, max) {
+    for f in data.grep_lines().chunks_per_file(min, max, None).unwrap() {
         let f = f.unwrap();
         assert!(!f.line_matches.is_empty());
         assert!(!f.chunks.is_empty());

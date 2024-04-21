@@ -1,10 +1,9 @@
 use crate::broken_pipe::IgnoreBrokenPipe as _;
-use crate::chunk::{File, Line};
+use crate::chunk::{File, LinesInclusive};
 use crate::printer::{Printer, PrinterOptions, TermColorSupport, TextWrapMode};
 use ansi_colours::ansi256_from_rgb;
 use anyhow::Result;
 use flate2::read::ZlibDecoder;
-use memchr::{memchr_iter, Memchr};
 use std::cmp;
 use std::io::{self, Stdout, StdoutLock, Write};
 use std::ops::{Deref, DerefMut};
@@ -607,43 +606,6 @@ impl<'a> LineHighlighter<'a> {
     }
 }
 
-// Like chunk::Lines, but includes newlines
-struct LinesInclusive<'a> {
-    lnum: usize,
-    prev: usize,
-    buf: &'a [u8],
-    iter: Memchr<'a>,
-}
-impl<'a> LinesInclusive<'a> {
-    pub fn new(buf: &'a [u8]) -> Self {
-        Self {
-            lnum: 1,
-            prev: 0,
-            buf,
-            iter: memchr_iter(b'\n', buf),
-        }
-    }
-}
-impl<'a> Iterator for LinesInclusive<'a> {
-    type Item = Line<'a>;
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(idx) = self.iter.next() {
-            let lnum = self.lnum;
-            let end = idx + 1;
-            let line = &self.buf[self.prev..end];
-            self.prev = end;
-            self.lnum += 1;
-            Some(Line(line, lnum as u64))
-        } else if self.prev == self.buf.len() {
-            None
-        } else {
-            let line = &self.buf[self.prev..];
-            self.prev = self.buf.len();
-            Some(Line(line, self.lnum as u64))
-        }
-    }
-}
-
 // Drawer is responsible for one-time screen drawing
 struct Drawer<'file, W: Write> {
     grid: bool,
@@ -877,10 +839,10 @@ impl<'file, W: Write> Drawer<'file, W> {
         let mut chunks = file.chunks.iter();
         let mut chunk = chunks.next().unwrap(); // OK since chunks is not empty
 
-        for Line(bytes, lnum) in LinesInclusive::new(&file.contents) {
+        for (line, lnum) in LinesInclusive::new(&file.contents) {
             let (start, end) = *chunk;
             if lnum < start {
-                hl.skip_line(String::from_utf8_lossy(bytes).as_ref())?; // Discard parsed result
+                hl.skip_line(line)?; // Discard parsed result
                 continue;
             }
             if start <= lnum && lnum <= end {
@@ -891,10 +853,9 @@ impl<'file, W: Write> Drawer<'file, W> {
                     }
                     _ => None,
                 };
-                let line = String::from_utf8_lossy(bytes);
                 // Collect to `Vec` rather than handing HighlightIterator as-is. HighlightIterator takes ownership of Highlighter
                 // while the iteration. When the highlighter is stored in `self`, it means the iterator takes ownership of `self`.
-                self.draw_line(hl.highlight(line.as_ref())?, lnum, regions)?;
+                self.draw_line(hl.highlight(line)?, lnum, regions)?;
 
                 if lnum == end {
                     if self.first_only {
@@ -1110,7 +1071,7 @@ impl<'main, W> SyntectPrinter<'main, W> {
         name.and_then(|n| self.syntaxes.find_syntax_by_name(n))
             .or_else(|| self.syntaxes.find_syntax_by_extension(extension?.to_str()?))
             .or_else(|| self.syntaxes.find_syntax_by_extension(file_name?.to_str()?))
-            .or_else(|| self.syntaxes.find_syntax_by_first_line(file.first_line()?))
+            .or_else(|| self.syntaxes.find_syntax_by_first_line(file.first_line()))
             .unwrap_or_else(|| self.syntaxes.find_syntax_plain_text())
     }
 }
@@ -1220,7 +1181,7 @@ mod tests {
                 lmats.extend(ls);
                 chunks.push(c);
             }
-            File::new(path, lmats, chunks, contents.into_bytes())
+            File::new(path, lmats, chunks, contents)
         }
 
         #[cfg(not(windows))]
@@ -1445,7 +1406,6 @@ mod tests {
             }),
             test_wrap_between_regions(|_| {}),
             test_wrap_regions_japanese(|_| {}),
-            test_utf8_bom(|_| {}),
         );
     }
 
@@ -1536,7 +1496,7 @@ mod tests {
         let readme = PathBuf::from(file);
         let lmats = vec![LineMatch::lnum(3)];
         let chunks = vec![(1, 6)];
-        let contents = fs::read(&readme).unwrap();
+        let contents = fs::read_to_string(&readme).unwrap();
         File::new(readme, lmats, chunks, contents)
     }
 
@@ -1578,7 +1538,7 @@ mod tests {
 
     #[test]
     fn test_print_nothing() {
-        let file = File::new(PathBuf::from("x.txt"), vec![], vec![], vec![]);
+        let file = File::new(PathBuf::from("x.txt"), vec![], vec![], String::new());
         let opts = PrinterOptions::default();
         let stdout = DummyStdout::default();
         let mut printer = SyntectPrinter::with_assets(ASSETS.clone(), stdout, opts);
@@ -1604,14 +1564,19 @@ mod tests {
 
     #[test]
     fn test_adjacent_regions() {
-        let contents = b"this is test\n";
+        let contents = "this is test\n";
         let ranges = (0..contents.len()).map(|i| (i, i + 1)).collect();
         let lmats = vec![LineMatch {
             line_number: 1,
             ranges,
         }];
         let chunks = vec![(1, 1)];
-        let file = File::new(PathBuf::from("test.txt"), lmats, chunks, contents.to_vec());
+        let file = File::new(
+            PathBuf::from("test.txt"),
+            lmats,
+            chunks,
+            contents.to_string(),
+        );
 
         let opts = PrinterOptions {
             color_support: TermColorSupport::True,
@@ -1708,7 +1673,7 @@ mod tests {
                 }
                 path
             };
-            let file = File::new(PathBuf::from(&path), vec![], vec![], vec![]);
+            let file = File::new(PathBuf::from(&path), vec![], vec![], String::new());
             let syntax = printer.find_syntax(&file);
             assert_eq!(
                 syntax.name, name,
@@ -1731,9 +1696,7 @@ mod tests {
             PrinterOptions::default(),
         );
         for (line, name) in tests {
-            let contents = [line, "this is second line", "this is third line"]
-                .join("\n")
-                .into_bytes();
+            let contents = [line, "this is second line", "this is third line"].join("\n");
             let file = File::new(PathBuf::from("foooooooo"), vec![], vec![], contents);
             let syntax = printer.find_syntax(&file);
             assert_eq!(

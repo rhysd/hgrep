@@ -32,4 +32,5 @@ Config {
     dfa_size_limit: Some(
         20971520,
     ),
+    encoding: None,
 }

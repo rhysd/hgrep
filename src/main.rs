@@ -183,6 +183,13 @@ fn command() -> Command {
                 .long("first-only")
                 .action(ArgAction::SetTrue)
                 .help("Show only the first code snippet per file")
+        ).arg(
+            Arg::new("encoding")
+                .short('E')
+                .long("encoding")
+                .num_args(1)
+                .value_name("ENCODING")
+                .help("Specify the text encoding that hgrep will use on all files printed like 'sjis'")
         )
         .arg(
             Arg::new("generate-completion-script")
@@ -543,6 +550,10 @@ fn build_ripgrep_config(
         _ => anyhow::bail!("-u or --unrestricted cannot be repeated more than twice. Try -uu to search every text file"),
     }
 
+    if let Some(encoding) = matches.get_one::<String>("encoding") {
+        config.encoding(encoding);
+    }
+
     Ok(config)
 }
 
@@ -726,6 +737,8 @@ fn run(matches: ArgMatches) -> Result<bool> {
         unreachable!();
     }
 
+    let encoding = matches.get_one::<String>("encoding").map(String::as_str);
+
     #[cfg(feature = "syntect-printer")]
     if printer_kind == PrinterKind::Syntect {
         use hgrep::printer::Printer;
@@ -733,7 +746,7 @@ fn run(matches: ArgMatches) -> Result<bool> {
         let printer = SyntectPrinter::with_stdout(printer_opts)?;
         return io::BufReader::new(io::stdin())
             .grep_lines()
-            .chunks_per_file(min_context, max_context)
+            .chunks_per_file(min_context, max_context, encoding)?
             .par_bridge()
             .map(|file| {
                 printer.print(file?)?;
@@ -749,7 +762,7 @@ fn run(matches: ArgMatches) -> Result<bool> {
         let stdin = io::stdin();
         for f in io::BufReader::new(stdin.lock())
             .grep_lines()
-            .chunks_per_file(min_context, max_context)
+            .chunks_per_file(min_context, max_context, encoding)?
         {
             printer.print(f?)?;
             found = true;
@@ -856,6 +869,7 @@ mod tests {
         snapshot_test!(unrestricted_once, ["-u"]);
         snapshot_test!(unrestricted_twice, ["-u", "-u"]);
         snapshot_test!(unrestricted_twice_in_single_flag, ["-uu"]);
+        snapshot_test!(encoding, ["--encoding", "sjis"]);
         snapshot_test!(
             all_printer_opts_before_args,
             [
@@ -1068,6 +1082,7 @@ mod tests {
         snapshot_test!(max_filesize, ["--max-filesize", "100M"]);
         snapshot_test!(unrestricted_once, ["-u"]);
         snapshot_test!(unrestricted_twice, ["-u", "-u"]);
+        snapshot_test!(encoding, ["--encoding", "sjis"]);
 
         macro_rules! snapshot_error_test {
             ($name:ident, $args:expr) => {
