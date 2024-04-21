@@ -832,6 +832,7 @@ mod tests {
         File::new(path, line_matches, chunks, contents)
     }
 
+    #[track_caller]
     fn test_ripgrep_config(file: &str, pat: &str, f: fn(&mut Config) -> ()) {
         let path = Path::new("testdata").join("ripgrep").join(file);
         let paths = iter::once(path.as_path());
@@ -888,6 +889,14 @@ mod tests {
         test_ripgrep_config("pcre2.txt", r"this\sis\stest", |c| {
             c.pcre2(true);
         });
+    }
+
+    #[test]
+    fn test_invalid_encoding_error() {
+        Config::new(1, 2)
+            .encoding("foooooooooooo")
+            .build_searcher()
+            .unwrap_err();
     }
 
     macro_rules! line_regions_tests {
