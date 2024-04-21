@@ -170,7 +170,6 @@ functionalities, use `rg` command and eat its output by hgrep via stdin. Current
 - Adding and removing file types are not supported. Only default file types are supported (see `--type-list`)
 - `.ripgreprc` config file is not supported
 - Searching binary files (`--binary`) is not supported
-- Only UTF-8 is supported. Other encoding such as UTF-16 or Shift JIS may be supported in the future
 
 ### Eating `grep -nH` output
 
@@ -328,6 +327,7 @@ $Env:HGREP_DEFAULT_OPTS = "--glob '!C:\Program Files'"
   - `--term-width NUM`: Width (number of characters) of terminal window
   - `--wrap MODE`: Text-wrapping mode. 'char' enables character-wise text-wrapping. 'never' disables text-wrapping. Default value is 'char'
   - `--first-only` (`-f`): Show only the first code snippet per file
+  - `--encoding` (`-E`): Specify the text encoding that hgrep will use on all files printed like 'sjis'
 - Only for `ripgrep` feature
   - `--no-ignore`: Don't respect ignore files (.gitignore, .ignore, etc.)
   - `--ignore-case` (`-i`): When this flag is provided, the given pattern will be searched case insensitively
@@ -366,6 +366,21 @@ $Env:HGREP_DEFAULT_OPTS = "--glob '!C:\Program Files'"
 
 See `--help` for the full list of available options in your environment.
 
+### Text encoding
+
+hgrep supports various encodings thanks to [`encoding_rs` crate][encoding_rs].
+
+`--encoding` (`-E`) command line option can specify the file encoding explicitly. For example, the following command will assume
+matched files are encoded with Shift JIS.
+
+```sh
+hgrep --encoding sjis pattern
+```
+
+In addition, hgrep tries to detect file encodings from [BOM][bom]. UTF-16LE, UTF-16BE, and UTF-8 can be detected automatically.
+
+When no file encoding is detected from BOM, hgrep assumes files are encoded in UTF-8 as default encoding. If malformed UTF-8
+sequences are contained, they are replaced with the replacement character `U+FFFD`.
 
 <a name="gen-completion-scripts"></a>
 ### Generate completion scripts
@@ -499,6 +514,8 @@ hgrep is distributed under [the MIT license](./LICENSE.txt).
 [codecov]: https://codecov.io/gh/rhysd/hgrep
 [releases]: https://github.com/rhysd/hgrep/releases
 [shlex]: https://crates.io/crates/shlex
+[encoding_rs]: https://docs.rs/encoding_rs/latest/encoding_rs/
+[bom]: https://en.wikipedia.org/wiki/Byte_order_mark
 [bash]: https://www.gnu.org/software/bash/
 [zsh]: https://www.zsh.org/
 [fish]: https://fishshell.com/

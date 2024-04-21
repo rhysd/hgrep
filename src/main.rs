@@ -189,7 +189,7 @@ fn command() -> Command {
                 .long("encoding")
                 .num_args(1)
                 .value_name("ENCODING")
-                .help("Specify the text encoding that hgrep will use on all files printed")
+                .help("Specify the text encoding that hgrep will use on all files printed like 'sjis'")
         )
         .arg(
             Arg::new("generate-completion-script")
