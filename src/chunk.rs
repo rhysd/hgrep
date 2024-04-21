@@ -133,14 +133,18 @@ impl<'a> Iterator for LinesInclusive<'a> {
         if let Some(idx) = self.iter.next() {
             let lnum = self.lnum;
             let end = idx + 1;
-            let line = &self.buf[self.prev..end];
+            // Safety: `self.prev` is 0 or the index at the next character of \n or the length of input. `end` indicates the next
+            // of \n. So they are always at UTF-8 boundary and the boundary checks never fail.
+            let line = unsafe { self.buf.get_unchecked(self.prev..end) };
             self.prev = end;
             self.lnum += 1;
             Some((line, lnum))
         } else if self.prev == self.buf.len() {
             None
         } else {
-            let line = &self.buf[self.prev..];
+            // Safety: `self.prev` is 0 or the index at the next character of \n or the length of input. So it is always at UTF-8
+            // boundary and the boundary check never fails.
+            let line = unsafe { self.buf.get_unchecked(self.prev..) };
             self.prev = self.buf.len();
             Some((line, self.lnum))
         }
