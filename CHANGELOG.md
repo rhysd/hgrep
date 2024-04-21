@@ -1,3 +1,19 @@
+<a name="v0.3.7"></a>
+# [v0.3.7](https://github.com/rhysd/hgrep/releases/tag/v0.3.7) - 21 Apr 2024
+
+- Support many text encodings. Previously only UTF-8 was supported. ([#21](https://github.com/rhysd/hgrep/issues/21))
+  - Add `--encoding` (`-E`) command line option to specify file encoding of matched files. For example, the following command searches files encoded in Shift JIS.
+    ```sh
+    hgrep --encoding sjis pattern path/to/dir
+    ```
+  - Detect file encodings from [BOM](https://en.wikipedia.org/wiki/Byte_order_mark). hgrep can automatically detect UTF-16LE, UTF-16BE, and UTF-8 if BOM exists in the file.
+- Fix some syntax detection fails when BOM is inserted at the head of file. ([#20](https://github.com/rhysd/hgrep/issues/20))
+- Improve performance by removing redundant `read` system calls on detecting syntax.
+- Improve error messages when failing to read files
+
+[Changes][v0.3.7]
+
+
 <a name="v0.3.6"></a>
 # [v0.3.6](https://github.com/rhysd/hgrep/releases/tag/v0.3.6) - 06 Apr 2024
 
@@ -8,14 +24,14 @@
   # Same as `hgrep --no-ignore --hidden pattern paths...`
   hgrep -uu pattern paths...
   ```
-- Allow command line options to override previous values. For example, `hgrep --theme ayu-dark --theme OneHalfDark` specifies `OneHalfDark` theme, which previously caused a command line parse error. This new behavior is useful when you specify a default option in `HGREP_DEFAULT_OPTS` and want to override the default value in a command line.
+- Allow command line options to override their previous values. For example, `hgrep --theme ayu-dark --theme OneHalfDark` specifies `OneHalfDark` theme, which previously caused a command line parse error. This new behavior is useful when you specify a default option in `HGREP_DEFAULT_OPTS` and want to override the default value in a command line.
   ```sh
   # Set the default theme value
   export HGREP_DEFAULT_OPTS='--theme ayu-dark'
   # v0.3.5 caused an error and v0.3.6 now allows this
   hgrep --theme OneHalfDark pattern paths...
   ```
-- A debian package (`.deb` file) is now released in the release page. For example the package file for v0.3.6 can be downloaded from [this link](https://github.com/rhysd/hgrep/releases/download/v0.3.6/hgrep_0.3.6-1_amd64.deb). The package can be installed via `dpkg` command. It installs the man page and bash completion file automatically. Please see [the document](https://github.com/rhysd/hgrep?tab=readme-ov-file#via-apt-package-manager-on-debian-or-ubuntu) for more details. ([#17](https://github.com/rhysd/hgrep/issues/17))
+- A Debian package (`.deb` file) is now released in the release page. For example the package file for v0.3.6 can be downloaded from [this link](https://github.com/rhysd/hgrep/releases/download/v0.3.6/hgrep_0.3.6-1_amd64.deb). The package can be installed via `dpkg` command and managed by [APT package manager](https://www.debian.org/doc/manuals/debian-faq/pkgtools.html). It installs the man page and bash completion file automatically. Please see [the document](https://github.com/rhysd/hgrep?tab=readme-ov-file#via-apt-package-manager-on-debian-or-ubuntu) for more details. ([#17](https://github.com/rhysd/hgrep/issues/17))
 - Fix redundant imports warning reported from a nightly compiler.
 
 [Changes][v0.3.6]
@@ -361,6 +377,7 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [Changes][v0.1.1]
 
 
+[v0.3.7]: https://github.com/rhysd/hgrep/compare/v0.3.6...v0.3.7
 [v0.3.6]: https://github.com/rhysd/hgrep/compare/v0.3.5...v0.3.6
 [v0.3.5]: https://github.com/rhysd/hgrep/compare/v0.3.4...v0.3.5
 [v0.3.4]: https://github.com/rhysd/hgrep/compare/v0.3.3...v0.3.4
