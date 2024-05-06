@@ -1,5 +1,7 @@
 use std::io;
 
+// This trait is unused when only bat-printer is enabled.
+#[allow(dead_code)]
 pub trait IgnoreBrokenPipe {
     fn ignore_broken_pipe(self) -> Self;
 }
