@@ -86,6 +86,7 @@ insta = "1.38.0"
 lazy_static = "1.4"
 pretty_assertions = "1"
 regex = "1.10.4"
+set-git-hooks-dir = "1.0.2"
 
 [package.metadata.deb]
 copyright = "Copyright (c) 2021 rhysd"
