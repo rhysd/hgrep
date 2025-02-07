@@ -443,8 +443,7 @@ fn command() -> Command {
 }
 
 fn generate_completion_script<W: io::Write>(shell: &str, out: &mut W) {
-    use clap_complete::generate;
-    use clap_complete::shells::*;
+    use clap_complete::aot::*;
     use clap_complete_nushell::Nushell;
 
     let mut cmd = command();
@@ -567,15 +566,13 @@ enum PrinterKind {
 
 fn run(matches: ArgMatches) -> Result<bool> {
     if let Some(shell) = matches.get_one::<String>("generate-completion-script") {
-        let stdout = io::stdout();
-        generate_completion_script(shell, &mut stdout.lock());
+        generate_completion_script(shell, &mut io::stdout().lock());
         return Ok(true);
     }
 
     if matches.get_flag("generate-man-page") {
         let man = clap_mangen::Man::new(command());
-        let stdout = io::stdout();
-        man.render(&mut stdout.lock())?;
+        man.render(&mut io::stdout().lock())?;
         return Ok(true);
     }
 
