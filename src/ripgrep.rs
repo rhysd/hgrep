@@ -497,7 +497,7 @@ struct Matches<'a, M: Matcher> {
     buf: Vec<GrepMatch>,
 }
 
-impl<'a, M: Matcher> Sink for Matches<'a, M> {
+impl<M: Matcher> Sink for Matches<'_, M> {
     type Error = io::Error;
 
     fn matched(&mut self, _searcher: &Searcher, mat: &SinkMatch<'_>) -> Result<bool, Self::Error> {

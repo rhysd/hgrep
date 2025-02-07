@@ -174,7 +174,7 @@ impl<'main> BatPrinter<'main> {
     }
 }
 
-impl<'main> Printer for Mutex<BatPrinter<'main>> {
+impl Printer for Mutex<BatPrinter<'_>> {
     fn print(&self, file: File) -> Result<()> {
         self.lock().unwrap().print(file)
     }

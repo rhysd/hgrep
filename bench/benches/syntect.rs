@@ -14,7 +14,7 @@ use std::sync::{Mutex, MutexGuard};
 use std::{cmp, fs};
 
 struct SinkLock<'a>(MutexGuard<'a, Vec<u8>>);
-impl<'a> Write for SinkLock<'a> {
+impl Write for SinkLock<'_> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.0.write(buf)
     }

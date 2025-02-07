@@ -105,7 +105,7 @@ pub struct PrinterOptions<'main> {
     pub ascii_lines: bool,
 }
 
-impl<'main> Default for PrinterOptions<'main> {
+impl Default for PrinterOptions<'_> {
     fn default() -> Self {
         use terminal_size::{terminal_size, Width};
         Self {

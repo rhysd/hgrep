@@ -96,7 +96,7 @@ struct Token<'line> {
     text: &'line str,
 }
 
-impl<'line> Token<'line> {
+impl Token<'_> {
     fn chomp(&mut self) {
         if self.text.ends_with('\n') {
             self.text = &self.text[..self.text.len() - 1];
@@ -1076,7 +1076,7 @@ impl<'main, W> SyntectPrinter<'main, W> {
     }
 }
 
-impl<'main, W: WriteOnLocked> Printer for SyntectPrinter<'main, W> {
+impl<W: WriteOnLocked> Printer for SyntectPrinter<'_, W> {
     fn print(&self, file: File) -> Result<()> {
         if file.chunks.is_empty() || file.line_matches.is_empty() {
             return Ok(());
@@ -1111,7 +1111,7 @@ mod tests {
     static ASSETS: Lazy<SyntectAssets> = Lazy::new(|| SyntectAssets::load(None).unwrap());
 
     struct DummyStdoutLock<'a>(RefMut<'a, Vec<u8>>);
-    impl<'a> Write for DummyStdoutLock<'a> {
+    impl Write for DummyStdoutLock<'_> {
         fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
             self.0.write(buf)
         }
