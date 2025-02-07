@@ -162,13 +162,15 @@ impl<'main> BatPrinter<'main> {
 
         let controller = Controller::new(&config, &self.assets);
 
-        // Note: controller.run() returns true when no error
-        // Note: `Controller::run_with_error_handler` because it requires `Fn` (not `FnMut`) for the handler type.
-        if controller.run(vec![input], None)? {
-            Ok(())
-        } else {
-            anyhow::bail!("Could not print file {:?} by bat printer", file.path)
-        }
+        let mut result = Ok(());
+        controller.run_with_error_handler(vec![input], None, |err, _| {
+            result = Err(anyhow::anyhow!(
+                "Could not print file {:?} by bat printer: {}",
+                file.path,
+                err,
+            ));
+        })?;
+        result
     }
 }
 
