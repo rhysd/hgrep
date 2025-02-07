@@ -41,7 +41,7 @@ jobs:
           cargo run --color always -- Printer src | head -n 5
         if: ${{ matrix.os == 'windows-latest' }}
         shell: pwsh
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v5
         with:
           files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
