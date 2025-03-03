@@ -1012,6 +1012,7 @@ impl<'main, W> SyntectPrinter<'main, W> {
                 | "target" | "timer" => Some("INI"),
                 "sarif" | "jsonl" | "geojson" | "jsonc" | "jsonld" => Some("JSON"),
                 "ron" => Some("Rust"),
+                "mkd" => Some("Markdown"),
                 _ => None,
             })
             // Find from file name
