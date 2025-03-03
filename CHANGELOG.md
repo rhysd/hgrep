@@ -1,5 +1,20 @@
-<a name="v0.3.7"></a>
-# [v0.3.7](https://github.com/rhysd/hgrep/releases/tag/v0.3.7) - 21 Apr 2024
+<a id="v0.3.8"></a>
+# [v0.3.8](https://github.com/rhysd/hgrep/releases/tag/v0.3.8) - 2025-03-03
+
+- Update `bat` crate to [v0.25.0](https://github.com/sharkdp/bat/releases/tag/v0.25.0). Update the syntax assets as well.
+- Update all the dependencies to the latest including unic-de-width v0.2 and terminfo v0.9.
+- Associate `*.jsonc`, `*.jsonld`, and `*.geojson` files with JSON syntax.
+- Associate `*.mkd` files with Markdown syntax.
+- Associate several `*.conf` files with proper syntaxes.
+- Replace `lazy_static` crate with `once_cell` crate.
+- Fix unused trait warning when `syntext-printer` feature is disabled.
+- Build a release binary for aarch64 Linux on `ubuntu-24.04-arm` runner instead of cross-compiling it on `ubuntu-latest` runner.
+
+[Changes][v0.3.8]
+
+
+<a id="v0.3.7"></a>
+# [v0.3.7](https://github.com/rhysd/hgrep/releases/tag/v0.3.7) - 2024-04-21
 
 - Support many text encodings. Previously only UTF-8 was supported. ([#21](https://github.com/rhysd/hgrep/issues/21))
   - Add `--encoding` (`-E`) command line option to specify file encoding of matched files. For example, the following command searches files encoded in Shift JIS.
@@ -9,13 +24,13 @@
   - Detect file encodings from [BOM](https://en.wikipedia.org/wiki/Byte_order_mark). hgrep can automatically detect UTF-16LE, UTF-16BE, and UTF-8 if BOM exists in the file.
 - Fix some syntax detection fails when BOM is inserted at the head of file. ([#20](https://github.com/rhysd/hgrep/issues/20))
 - Improve performance by removing redundant `read` system calls on detecting syntax.
-- Improve error messages when failing to read files
+- Improve error messages when failing to read files.
 
 [Changes][v0.3.7]
 
 
-<a name="v0.3.6"></a>
-# [v0.3.6](https://github.com/rhysd/hgrep/releases/tag/v0.3.6) - 06 Apr 2024
+<a id="v0.3.6"></a>
+# [v0.3.6](https://github.com/rhysd/hgrep/releases/tag/v0.3.6) - 2024-04-06
 
 - Add `-u`/`--unrestricted` flags to built-in ripgrep (`ripgrep` feature). This flag reduces the level of "smart" filtering by repeated uses (up to 2). A single flag `-u` is equivalent to `--no-ignore`. Two flags `-uu` are equivalent to `--no-ignore --hidden`. Unlike ripgrep, three flags `-uuu` are not supported since hgrep doesn't support `--binary` flag.
   ```sh
@@ -37,8 +52,8 @@
 [Changes][v0.3.6]
 
 
-<a name="v0.3.5"></a>
-# [v0.3.5](https://github.com/rhysd/hgrep/releases/tag/v0.3.5) - 31 Mar 2024
+<a id="v0.3.5"></a>
+# [v0.3.5](https://github.com/rhysd/hgrep/releases/tag/v0.3.5) - 2024-03-31
 
 - Add `HGREP_DEFAULT_OPTS` environment variable to set the default command line options. For example, the following configuration enables `ayu-dark` theme and background colors by default. See [the document](https://github.com/rhysd/hgrep?tab=readme-ov-file#set-default-command-options) for more details.
   ```sh
@@ -51,8 +66,8 @@
 [Changes][v0.3.5]
 
 
-<a name="v0.3.4"></a>
-# [v0.3.4](https://github.com/rhysd/hgrep/releases/tag/v0.3.4) - 06 Jan 2024
+<a id="v0.3.4"></a>
+# [v0.3.4](https://github.com/rhysd/hgrep/releases/tag/v0.3.4) - 2024-01-06
 
 - Update crates related to ripgrep. This contains the big internal change of `regex` crate and changes for ripgrep v14.
 - Update bat to [v0.24](https://github.com/sharkdp/bat/releases/tag/v0.24.0).
@@ -66,8 +81,8 @@
 [Changes][v0.3.4]
 
 
-<a name="v0.3.3"></a>
-# [v0.3.3](https://github.com/rhysd/hgrep/releases/tag/v0.3.3) - 22 Jul 2023
+<a id="v0.3.3"></a>
+# [v0.3.3](https://github.com/rhysd/hgrep/releases/tag/v0.3.3) - 2023-07-22
 
 - Always enable 24-bit colors on Windows because 24-bit colors support is [available since Windows 10.0.15063](https://github.com/Textualize/rich/issues/140) (released on April 5, 2019).
 - Add [the document](https://github.com/rhysd/hgrep#terminal-color-support-detection) which explains how hgrep detects terminal color support.
@@ -79,8 +94,8 @@
 [Changes][v0.3.3]
 
 
-<a name="v0.3.2"></a>
-# [v0.3.2](https://github.com/rhysd/hgrep/releases/tag/v0.3.2) - 31 Mar 2023
+<a id="v0.3.2"></a>
+# [v0.3.2](https://github.com/rhysd/hgrep/releases/tag/v0.3.2) - 2023-03-31
 
 - Update `bat` from 0.22 to [0.23](https://github.com/sharkdp/bat/releases/tag/v0.23.0). This improves performance on macOS when using `-p bat`.
 - Add support for Ada syntax highlighting
@@ -92,8 +107,8 @@
 [Changes][v0.3.2]
 
 
-<a name="v0.3.1"></a>
-# [v0.3.1](https://github.com/rhysd/hgrep/releases/tag/v0.3.1) - 31 Jan 2023
+<a id="v0.3.1"></a>
+# [v0.3.1](https://github.com/rhysd/hgrep/releases/tag/v0.3.1) - 2023-01-31
 
 - Fix parsing some command line options
   - Fix `--glob` was not repeatable
@@ -103,8 +118,8 @@
 [Changes][v0.3.1]
 
 
-<a name="v0.3.0"></a>
-# [v0.3.0](https://github.com/rhysd/hgrep/releases/tag/v0.3.0) - 21 Jan 2023
+<a id="v0.3.0"></a>
+# [v0.3.0](https://github.com/rhysd/hgrep/releases/tag/v0.3.0) - 2023-01-21
 
 - Update `syntect` dependency to v5.0.0. Thanks to lazy loading, this change makes loading assets at startup about **70%** faster. The small benchmark showed `hgrep` command was [1.7x faster](https://github.com/rhysd/hgrep/commit/c26db0fb924dcea466c00dde84b90d64bce7f461) when searching a small file with `-p syntect` compared to v0.2.8.
 - Update `bat` dependency from 0.20 to 0.22. This introduces several improvements and fixes which were recently added to bat when using `-p bat`.
@@ -120,16 +135,16 @@
 [Changes][v0.3.0]
 
 
-<a name="v0.2.8"></a>
-# [v0.2.8](https://github.com/rhysd/hgrep/releases/tag/v0.2.8) - 10 Jan 2023
+<a id="v0.2.8"></a>
+# [v0.2.8](https://github.com/rhysd/hgrep/releases/tag/v0.2.8) - 2023-01-10
 
 - Fix some command line boolean flags wrongly took an argument. (thanks [@Ryooooooga](https://github.com/Ryooooooga), [#15](https://github.com/rhysd/hgrep/issues/15))
 
 [Changes][v0.2.8]
 
 
-<a name="v0.2.7"></a>
-# [v0.2.7](https://github.com/rhysd/hgrep/releases/tag/v0.2.7) - 04 Jan 2023
+<a id="v0.2.7"></a>
+# [v0.2.7](https://github.com/rhysd/hgrep/releases/tag/v0.2.7) - 2023-01-04
 
 - Fix crash when reading from `rg --vimgrep`. Note that `--vimgrep` flag is not assumed by hgrep. Please use `rg -nH`. ([#13](https://github.com/rhysd/hgrep/issues/13))
 - Fix errors are not reported when they are caused by the second match or later.
@@ -139,8 +154,8 @@
 [Changes][v0.2.7]
 
 
-<a name="v0.2.6"></a>
-# [v0.2.6](https://github.com/rhysd/hgrep/releases/tag/v0.2.6) - 27 May 2022
+<a id="v0.2.6"></a>
+# [v0.2.6](https://github.com/rhysd/hgrep/releases/tag/v0.2.6) - 2022-05-27
 
 - `x86_64-unknown-linux-musl` release binary now links libc statically ([#10](https://github.com/rhysd/hgrep/issues/10))
 - Replace `rgb2ansi256` crate with `ansi_colors` crate
@@ -148,16 +163,16 @@
 [Changes][v0.2.6]
 
 
-<a name="v0.2.5"></a>
-# [v0.2.5](https://github.com/rhysd/hgrep/releases/tag/v0.2.5) - 23 Apr 2022
+<a id="v0.2.5"></a>
+# [v0.2.5](https://github.com/rhysd/hgrep/releases/tag/v0.2.5) - 2022-04-23
 
 - Add pre-built binary for AArch64 Linux. ([#9](https://github.com/rhysd/hgrep/issues/9))
 
 [Changes][v0.2.5]
 
 
-<a name="v0.2.4"></a>
-# [v0.2.4](https://github.com/rhysd/hgrep/releases/tag/v0.2.4) - 17 Apr 2022
+<a id="v0.2.4"></a>
+# [v0.2.4](https://github.com/rhysd/hgrep/releases/tag/v0.2.4) - 2022-04-17
 
 - Update `bat` crate dependency to v0.20.0.
 - Highlight clang-format configuration file.
@@ -165,8 +180,8 @@
 [Changes][v0.2.4]
 
 
-<a name="v0.2.3"></a>
-# [v0.2.3](https://github.com/rhysd/hgrep/releases/tag/v0.2.3) - 02 Feb 2022
+<a id="v0.2.3"></a>
+# [v0.2.3](https://github.com/rhysd/hgrep/releases/tag/v0.2.3) - 2022-02-02
 
 - Update dependencies including `bat` v0.19 and `clap` v3
 - Build binaries with the latest Rust compiler v1.58.1
@@ -174,8 +189,8 @@
 [Changes][v0.2.3]
 
 
-<a name="v0.2.2"></a>
-# [v0.2.2](https://github.com/rhysd/hgrep/releases/tag/v0.2.2) - 11 Dec 2021
+<a id="v0.2.2"></a>
+# [v0.2.2](https://github.com/rhysd/hgrep/releases/tag/v0.2.2) - 2021-12-11
 
 - Fix a build failure since new RC version of `clap` crate was released.
 - Fix a dynamic link error of pcre2 library by linking the library statically. The error could happen when you installed Homebrew to non-default location on macOS ([#6](https://github.com/rhysd/hgrep/issues/6)).
@@ -186,8 +201,8 @@
 [Changes][v0.2.2]
 
 
-<a name="v0.2.1"></a>
-# [v0.2.1](https://github.com/rhysd/hgrep/releases/tag/v0.2.1) - 13 Nov 2021
+<a id="v0.2.1"></a>
+# [v0.2.1](https://github.com/rhysd/hgrep/releases/tag/v0.2.1) - 2021-11-13
 
 - Heuristic algorithm to choose the foreground color of matched regions was improved. Now hgrep generates multiple candidates for the foreground color, and chooses one of them looking at the color distances from the background color.
   - Example with `Coldark-Dark` theme. Please find the 'let' matched regions in the following screenshots. The foreground color is easier to see in v0.2.1 than v0.2.0.
@@ -220,8 +235,8 @@
 [Changes][v0.2.1]
 
 
-<a name="v0.2.0"></a>
-# [v0.2.0](https://github.com/rhysd/hgrep/releases/tag/v0.2.0) - 06 Nov 2021
+<a id="v0.2.0"></a>
+# [v0.2.0](https://github.com/rhysd/hgrep/releases/tag/v0.2.0) - 2021-11-06
 
 - **BREAKING** The default printer is now `syntect`. It has the following benefits. I tested it for several weeks and it seems stable. See [the section in README](https://github.com/rhysd/hgrep#bat-printer-vs-syntect-printer) to know the difference between `bat` printer and `syntect` printer.
   - Performance is 2x to 4x faster
@@ -258,8 +273,8 @@
 [Changes][v0.2.0]
 
 
-<a name="v0.1.9"></a>
-# [v0.1.9](https://github.com/rhysd/hgrep/releases/tag/v0.1.9) - 01 Nov 2021
+<a id="v0.1.9"></a>
+# [v0.1.9](https://github.com/rhysd/hgrep/releases/tag/v0.1.9) - 2021-11-01
 
 - Support multiple regions highlighting. In v0.1.8, matched region highlighting was added but it only highlighted the first match in the line. Now all matched regions are highlighted. Note that region highlighting is available when using hgrep in combination of `syntect-printer` and `ripgrep` features
   - v0.1.8:
@@ -278,8 +293,8 @@
 [Changes][v0.1.9]
 
 
-<a name="v0.1.8"></a>
-# [v0.1.8](https://github.com/rhysd/hgrep/releases/tag/v0.1.8) - 27 Oct 2021
+<a id="v0.1.8"></a>
+# [v0.1.8](https://github.com/rhysd/hgrep/releases/tag/v0.1.8) - 2021-10-27
 
 - `syntect-printer` supports text-wrapping. Longer lines than terminal width are now wrapped by default. It can handle wide characters including special emojis with zero-width joiner (U+200D) like 👨‍👩‍👧‍👦
   <img width="521" alt="screenshot" src="https://user-images.githubusercontent.com/823277/139065592-8d18f8a0-9b10-49c7-8901-fd892d100792.png">
@@ -294,8 +309,8 @@
 [Changes][v0.1.8]
 
 
-<a name="v0.1.7"></a>
-# [v0.1.7](https://github.com/rhysd/hgrep/releases/tag/v0.1.7) - 24 Oct 2021
+<a id="v0.1.7"></a>
+# [v0.1.7](https://github.com/rhysd/hgrep/releases/tag/v0.1.7) - 2021-10-24
 
 - Fix highlighting was broken on 256 colors terminals when using `bat-printer`.
 - `bat-printer` enables text wrapping by default as `bat` command does. `--no-wrap` can disable text wrapping.
@@ -311,8 +326,8 @@
 [Changes][v0.1.7]
 
 
-<a name="v0.1.6"></a>
-# [v0.1.6](https://github.com/rhysd/hgrep/releases/tag/v0.1.6) - 23 Oct 2021
+<a id="v0.1.6"></a>
+# [v0.1.6](https://github.com/rhysd/hgrep/releases/tag/v0.1.6) - 2021-10-23
 
 - Add new experimental `syntect-printer` feature built with [syntect](https://github.com/trishume/syntect) library.
   - It is much faster than current printer built on bat (2x~4x faster).
@@ -326,8 +341,8 @@
 [Changes][v0.1.6]
 
 
-<a name="v0.1.5"></a>
-# [v0.1.5](https://github.com/rhysd/hgrep/releases/tag/v0.1.5) - 20 Oct 2021
+<a id="v0.1.5"></a>
+# [v0.1.5](https://github.com/rhysd/hgrep/releases/tag/v0.1.5) - 2021-10-20
 
 - Always use a relative path in header of output
 - Fix an output is broken due to ANSI color sequence on Windows
@@ -335,8 +350,8 @@
 [Changes][v0.1.5]
 
 
-<a name="v0.1.4"></a>
-# [v0.1.4](https://github.com/rhysd/hgrep/releases/tag/v0.1.4) - 19 Oct 2021
+<a id="v0.1.4"></a>
+# [v0.1.4](https://github.com/rhysd/hgrep/releases/tag/v0.1.4) - 2021-10-19
 
 - Fix compile error on `cargo install` due to new release of `clap` crate v3.0.0-beta.5 ([#2](https://github.com/rhysd/hgrep/issues/2))
 - Add how to install `hgrep` command with [MacPorts](https://www.macports.org/). See [the document](https://github.com/rhysd/hgrep#via-macports) for more details (thanks [@herbygillot](https://github.com/herbygillot), [#1](https://github.com/rhysd/hgrep/issues/1))
@@ -344,8 +359,8 @@
 [Changes][v0.1.4]
 
 
-<a name="v0.1.3"></a>
-# [v0.1.3](https://github.com/rhysd/hgrep/releases/tag/v0.1.3) - 19 Oct 2021
+<a id="v0.1.3"></a>
+# [v0.1.3](https://github.com/rhysd/hgrep/releases/tag/v0.1.3) - 2021-10-19
 
 - Heuristics on calculating context lines is 1.3x faster by using optimized [memchr](https://docs.rs/memchr/2.4.1/memchr/) implementation when the searched file is large
 - [Homebrew](http://brew.sh/) is now supported for managing `hgrep` command on macOS or Linux. See [the installation instruction](https://github.com/rhysd/hgrep#via-homebrew) for more details
@@ -356,8 +371,8 @@
 [Changes][v0.1.3]
 
 
-<a name="v0.1.2"></a>
-# [v0.1.2](https://github.com/rhysd/hgrep/releases/tag/v0.1.2) - 17 Oct 2021
+<a id="v0.1.2"></a>
+# [v0.1.2](https://github.com/rhysd/hgrep/releases/tag/v0.1.2) - 2021-10-17
 
 - Fix printing tab characters. Now default tab width is 4 (can be configured with `--tab` option).
 - Fix exit status is always 0 when no error happens. Grep tool should return non-zero exit status when no match was found.
@@ -367,8 +382,8 @@
 [Changes][v0.1.2]
 
 
-<a name="v0.1.1"></a>
-# [v0.1.1](https://github.com/rhysd/hgrep/releases/tag/v0.1.1) - 16 Oct 2021
+<a id="v0.1.1"></a>
+# [v0.1.1](https://github.com/rhysd/hgrep/releases/tag/v0.1.1) - 2021-10-16
 
 First release :tada:
 
@@ -377,6 +392,7 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [Changes][v0.1.1]
 
 
+[v0.3.8]: https://github.com/rhysd/hgrep/compare/v0.3.7...v0.3.8
 [v0.3.7]: https://github.com/rhysd/hgrep/compare/v0.3.6...v0.3.7
 [v0.3.6]: https://github.com/rhysd/hgrep/compare/v0.3.5...v0.3.6
 [v0.3.5]: https://github.com/rhysd/hgrep/compare/v0.3.4...v0.3.5
@@ -404,4 +420,4 @@ See [the readme document](https://github.com/rhysd/hgrep#readme) for the usage.
 [v0.1.2]: https://github.com/rhysd/hgrep/compare/v0.1.1...v0.1.2
 [v0.1.1]: https://github.com/rhysd/hgrep/tree/v0.1.1
 
-<!-- Generated by https://github.com/rhysd/changelog-from-release v3.7.2 -->
+<!-- Generated by https://github.com/rhysd/changelog-from-release v3.9.0 -->
