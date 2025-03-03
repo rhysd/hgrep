@@ -1010,7 +1010,7 @@ impl<'main, W> SyntectPrinter<'main, W> {
                 "automount" | "device" | "dnssd" | "link" | "mount" | "netdev" | "network"
                 | "nspawn" | "path" | "service" | "scope" | "slice" | "socket" | "swap"
                 | "target" | "timer" => Some("INI"),
-                "sarif" | "jsonl" => Some("JSON"),
+                "sarif" | "jsonl" | "geojson" | "jsonc" | "jsonld" => Some("JSON"),
                 "ron" => Some("Rust"),
                 _ => None,
             })
