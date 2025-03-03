@@ -676,7 +676,7 @@ checksum = "fbf6a919d6cf397374f7dfeeea91d974c7c0a7221d0d0f4f20d859d329e53fcc"
 
 [[package]]
 name = "hgrep"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "ansi_colours",
  "anyhow",
