@@ -5,7 +5,7 @@ jobs:
   unit-test:
     strategy:
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest, macos-13]
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest, macos-14]
       fail-fast: true
     runs-on: ${{ matrix.os }}
     env:
