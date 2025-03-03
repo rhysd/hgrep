@@ -18,7 +18,7 @@ jobs:
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
           - build: linux-aarch64
-            os: ubuntu-latest
+            os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
           - build: mac-x86_64
             os: macos-14
@@ -61,10 +61,6 @@ jobs:
           # https://github.com/BurntSushi/rust-pcre2/tree/master/pcre2-sys
           echo 'PCRE2_SYS_STATIC=1' >> "$GITHUB_ENV"
         if: matrix.build == 'mac-aarch64'
-      - name: Prepare cross compilation for AArch64 Linux
-        run: |
-          sudo apt-get install gcc-aarch64-linux-gnu
-        if: matrix.build == 'linux-aarch64'
       - name: Build
         run: cargo build --release --color always --target=${{ matrix.target }} --verbose
         env:
