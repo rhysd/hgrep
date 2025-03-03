@@ -1063,6 +1063,22 @@ impl<'main, W> SyntectPrinter<'main, W> {
                 if path.starts_with("/var/spool/mail/") || path.starts_with("/var/mail/") {
                     return Some("Email");
                 }
+                #[cfg(not(windows))]
+                if path.starts_with("/etc/wireguard/") && path.ends_with(".conf") {
+                    return Some("INI");
+                }
+                #[cfg(not(windows))]
+                if path == "/etc/pacman.conf" {
+                    return Some("INI");
+                }
+                #[cfg(not(windows))]
+                if path.contains("/containers/") && path.ends_with(".conf") {
+                    return Some("TOML");
+                }
+                #[cfg(not(windows))]
+                if path.starts_with("/etc/kubernetes/") && path.ends_with(".conf") {
+                    return Some("YAML");
+                }
                 None
             });
 
