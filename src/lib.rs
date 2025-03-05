@@ -1,3 +1,4 @@
+#![deny(unsafe_code)]
 #![deny(clippy::dbg_macro)]
 
 #[cfg(not(any(feature = "bat-printer", feature = "syntect-printer")))]

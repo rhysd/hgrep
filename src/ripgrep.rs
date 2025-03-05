@@ -348,7 +348,14 @@ impl<'main> Config<'main> {
     fn build_searcher(&self) -> Result<Searcher> {
         let mut builder = SearcherBuilder::new();
         let mmap = if self.mmap {
-            unsafe { MmapChoice::auto() }
+            // Safety: It is not possible to guarantee this configuration is safe on all platforms. However the worst
+            // case caused by this configuration is SIGBUS (the mapped file is truncated while reading) and it just
+            // makes hgrep abort.
+            // See: https://docs.rs/grep-searcher/latest/grep_searcher/struct.MmapChoice.html#method.auto
+            #[allow(unsafe_code)]
+            unsafe {
+                MmapChoice::auto()
+            }
         } else {
             MmapChoice::never()
         };
