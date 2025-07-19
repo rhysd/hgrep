@@ -43,7 +43,7 @@ mod tests {
 
     #[test]
     fn test_io_do_not_ignore_other_errors() {
-        let err = Error::new(io::ErrorKind::Other, "oops");
+        let err = Error::other("oops");
         let res = io::Result::<i32>::Err(err);
         let res = res.ignore_broken_pipe();
         res.unwrap_err();
@@ -66,7 +66,7 @@ mod tests {
 
     #[test]
     fn test_anyhow_do_not_ignore_other_io_error() {
-        let err = Error::new(io::ErrorKind::Other, "oops");
+        let err = Error::other("oops");
         let res = anyhow::Result::<i32>::Err(err.into());
         let res = res.ignore_broken_pipe();
         res.unwrap_err();

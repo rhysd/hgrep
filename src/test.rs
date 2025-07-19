@@ -32,7 +32,7 @@ pub(crate) fn read_all_matches<S: AsRef<str>>(dir: &Path, inputs: &[S]) -> Vec<R
 
 pub(crate) fn read_expected_chunks<S: AsRef<str>>(dir: &Path, input: S) -> Option<File> {
     let input = input.as_ref();
-    let outfile = dir.join(format!("{}.out", input));
+    let outfile = dir.join(format!("{input}.out"));
     let (chunks, lmats) = fs::read_to_string(outfile)
         .unwrap()
         .lines()
@@ -64,7 +64,7 @@ pub(crate) fn read_expected_chunks<S: AsRef<str>>(dir: &Path, input: S) -> Optio
     if chunks.is_empty() || lmats.is_empty() {
         return None;
     }
-    let infile = dir.join(format!("{}.in", input));
+    let infile = dir.join(format!("{input}.in"));
     let contents = fs::read_to_string(&infile).unwrap();
     Some(File::new(infile, lmats, chunks, contents))
 }
@@ -86,7 +86,7 @@ impl EnvGuard {
         let saved = match env::var(name) {
             Ok(v) => Some(v),
             Err(env::VarError::NotPresent) => None,
-            Err(err) => panic!("coult not set env var {:?}: {}", name, err),
+            Err(err) => panic!("coult not set env var {name:?}: {err}"),
         };
         if let Some(v) = new_value {
             env::set_var(name, v);

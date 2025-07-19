@@ -70,7 +70,7 @@ fn list_themes_with_syntaxes<W: Write>(
         .try_for_each(|(name, theme)| -> Result<()> {
             let mut drawer = Drawer::new(&mut out, opts, theme, &sample_file.chunks);
             drawer.canvas.set_bold()?;
-            write!(drawer.canvas, "{:?}", name)?;
+            write!(drawer.canvas, "{name:?}")?;
             drawer.canvas.draw_newline()?;
             drawer.canvas.draw_sample()?;
             writeln!(drawer.canvas)?;
@@ -521,7 +521,7 @@ impl<W: Write> Canvas<W> {
 
     fn draw_sample_row(&mut self, colors: &[(&str, Color)]) -> io::Result<()> {
         for (name, color) in colors {
-            write!(self.out, "    {} ", name)?;
+            write!(self.out, "    {name} ")?;
             self.set_bg(*color)?;
             self.out.write_all(b"    \x1b[0m")?;
         }
@@ -675,7 +675,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         let width = num_digits(lnum);
         self.canvas
             .draw_spaces((self.lnum_width - width) as usize)?;
-        write!(self.canvas, " {}", lnum)?;
+        write!(self.canvas, " {lnum}")?;
         if self.grid {
             if matched {
                 self.canvas.set_gutter_color()?;
@@ -795,7 +795,7 @@ impl<'file, W: Write> Drawer<'file, W> {
                         self.draw_text_wrappping(matched, events.current_style, events.in_region)?;
                         width = 0;
                     }
-                    write!(self.canvas, "{}", c)?;
+                    write!(self.canvas, "{c}")?;
                     width += w;
                 }
                 DrawEvent::TokenBoundary(prev_style) => {
@@ -880,7 +880,7 @@ impl<'file, W: Write> Drawer<'file, W> {
         let path = path.as_os_str().to_string_lossy();
         self.canvas.set_default_fg()?;
         self.canvas.set_bold()?;
-        write!(self.canvas, " {}", path)?;
+        write!(self.canvas, " {path}")?;
         if self.canvas.has_background {
             self.canvas
                 .fill_spaces(path.width_cjk() + 1, self.term_width as usize)?;
@@ -1272,8 +1272,8 @@ mod tests {
             if input.starts_with("test_") {
                 input = &input["test_".len()..];
             }
-            let infile = dir.join(format!("{}.rs", input));
-            let outfile = dir.join(format!("{}.out", input));
+            let infile = dir.join(format!("{input}.rs"));
+            let outfile = dir.join(format!("{input}.out"));
             let file = read_chunks(infile);
             run_uitest(file, outfile, f);
         }
@@ -1435,7 +1435,7 @@ mod tests {
             if input.starts_with("test_") {
                 input = &input["test_".len()..];
             }
-            let file = format!("list_themes_{}.out", input);
+            let file = format!("list_themes_{input}.out");
             let expected = Path::new("testdata").join("syntect").join(file);
             let expected = fs::read(expected).unwrap();
 
@@ -1522,7 +1522,7 @@ mod tests {
         let printer =
             SyntectPrinter::with_assets(ASSETS.clone(), ErrorStdout(io::ErrorKind::Other), opts);
         let err = printer.print(file).unwrap_err();
-        assert_eq!(&format!("{}", err), "dummy error!", "message={}", err);
+        assert_eq!(&format!("{err}"), "dummy error!", "message={err}");
     }
 
     #[test]
@@ -1547,8 +1547,8 @@ mod tests {
             Err(e) => e,
             Ok(_) => panic!("error did not occur"),
         };
-        let msg = format!("{}", err);
-        assert!(msg.contains("Unknown theme"), "message={:?}", msg);
+        let msg = format!("{err}");
+        assert!(msg.contains("Unknown theme"), "message={msg:?}");
     }
 
     #[test]
@@ -1626,7 +1626,7 @@ mod tests {
             &ASSETS.syntax_set,
         )
         .unwrap_err();
-        assert_eq!(&format!("{}", err), "dummy error!", "message={}", err);
+        assert_eq!(&format!("{err}"), "dummy error!", "message={err}");
     }
 
     #[test]

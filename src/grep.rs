@@ -182,9 +182,7 @@ fn test_read_error() {
     for (got, expected) in msgs.iter().zip(expected.iter()) {
         assert!(
             got.contains(expected),
-            "expected {:?} is included in {:?}",
-            expected,
-            got
+            "expected {expected:?} is included in {got:?}"
         );
     }
 }

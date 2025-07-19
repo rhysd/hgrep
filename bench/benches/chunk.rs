@@ -17,7 +17,7 @@ fn prepare() -> Vec<u8> {
             if line.ends_with('*') {
                 let l = idx + 1;
                 let s = path.as_os_str().to_str().unwrap();
-                buf += &format!("{}:{}: {}\n", s, l, line);
+                buf += &format!("{s}:{l}: {line}\n");
             }
         }
     }

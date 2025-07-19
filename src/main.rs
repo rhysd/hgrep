@@ -781,9 +781,9 @@ fn main() {
         Ok(true) => 0,
         Ok(false) => 1,
         Err(err) => {
-            eprintln!("\x1b[1;91merror:\x1b[0m {}", err);
+            eprintln!("\x1b[1;91merror:\x1b[0m {err}");
             for err in err.chain().skip(1) {
-                eprintln!("  Caused by: {}", err);
+                eprintln!("  Caused by: {err}");
             }
             2
         }
@@ -983,7 +983,7 @@ mod tests {
                 &["--generate-completion-script", "unknown-shell"][..],
             ] {
                 let parsed = command().try_get_matches_from(args);
-                assert!(parsed.is_err(), "args: {:?}", args);
+                assert!(parsed.is_err(), "args: {args:?}");
             }
         }
     }
@@ -1115,7 +1115,7 @@ mod tests {
         for shell in COMPLETION_SHELLS {
             let mut v = vec![];
             generate_completion_script(shell, &mut v);
-            assert!(!v.is_empty(), "shell: {}", shell);
+            assert!(!v.is_empty(), "shell: {shell}");
         }
     }
 
@@ -1190,7 +1190,7 @@ mod tests {
             env::set_var(OPTS_ENV_VAR, "'-i");
 
             let err = Args::new().unwrap_err();
-            let msg = format!("{}", err);
+            let msg = format!("{err}");
             assert!(
                 msg.contains("cannot be parsed as a shell command"),
                 "{msg:?}",
@@ -1208,7 +1208,7 @@ mod tests {
             env::set_var(OPTS_ENV_VAR, OsStr::from_bytes(b"\xc3\x28"));
 
             let err = Args::new().unwrap_err();
-            let msg = format!("{}", err);
+            let msg = format!("{err}");
             assert!(msg.contains("is not a valid UTF-8 sequence"), "{msg:?}");
         }
     }

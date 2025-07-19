@@ -37,19 +37,19 @@ const THEME_PATHS: &[&str] = &[
 const THEME_BIN_PATH: &str = "../themes.bin";
 
 fn main() {
-    println!("Building theme set for syntect-printer: {}", THEME_BIN_PATH);
+    println!("Building theme set for syntect-printer: {THEME_BIN_PATH}");
 
     let mut set = ThemeSet::new();
 
     for path in THEME_PATHS {
         let path = PathBuf::from_slash(path);
-        println!("Loading theme from {:?}", path);
+        println!("Loading theme from {path:?}");
 
         let name = path.file_stem().and_then(OsStr::to_str).expect("File stem was not found in .tmTheme file. Did you specify incorrect file in THEME_PATHS?");
         let theme = ThemeSet::get_theme(&path).expect("Theme file was not found. Did you forget fetching submodules in ./submodules directory?");
         set.themes.insert(name.to_string(), theme);
 
-        println!("Loaded theme from {:?}", path);
+        println!("Loaded theme from {path:?}");
     }
 
     println!("Compressing theme set");
@@ -68,5 +68,5 @@ fn main() {
     fs::write(PathBuf::from_slash(THEME_BIN_PATH), &buf)
         .expect("Could not write compressed theme set");
 
-    println!("Built successfully: {}", THEME_BIN_PATH);
+    println!("Built successfully: {THEME_BIN_PATH}");
 }

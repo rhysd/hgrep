@@ -220,7 +220,7 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Files<I> {
 
         for (line, lnum) in lines {
             last_lnum = Some(lnum);
-            assert!(lnum <= after_end, "line {} > chunk {}", lnum, after_end);
+            assert!(lnum <= after_end, "line {lnum} > chunk {after_end}");
 
             let in_before = before_start <= lnum && lnum < before_end;
             let in_after = after_start < lnum && lnum <= after_end;
@@ -279,7 +279,7 @@ impl<I: Iterator<Item = Result<GrepMatch>>> Iterator for Files<I> {
             Err(e) => return self.error_item(e),
         };
         let contents = match fs::read(&path)
-            .with_context(|| format!("Could not open the matched file {:?}", path))
+            .with_context(|| format!("Could not open the matched file {path:?}"))
         {
             Ok(vec) => decode_text(vec, self.encoding),
             Err(err) => return self.error_item(err),
@@ -535,7 +535,7 @@ mod tests {
                 .unwrap()
                 .collect::<Result<Vec<_>>>()
                 .unwrap_err();
-            assert_eq!(format!("{}", err), "dummy error!");
+            assert_eq!(format!("{err}"), "dummy error!");
         }
     }
 

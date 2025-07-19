@@ -36,7 +36,7 @@ fn parse_size(input: &str) -> Result<u64> {
 
     let u: u64 = input
         .parse()
-        .with_context(|| format!("Could not parse {:?} as unsigned integer", input))?;
+        .with_context(|| format!("Could not parse {input:?} as unsigned integer"))?;
 
     Ok(u * mag)
 }
@@ -304,11 +304,11 @@ impl<'main> Config<'main> {
         Ok(if self.fixed_strings {
             let mut s = regex_syntax::escape(pat);
             if self.line_regexp {
-                s = format!("^(?:{})$", s);
+                s = format!("^(?:{s})$");
             }
             builder.build(&s)?
         } else if self.line_regexp {
-            builder.build(&format!("^(?:{})$", pat))?
+            builder.build(&format!("^(?:{pat})$"))?
         } else {
             builder.build(pat)?
         })
@@ -339,7 +339,7 @@ impl<'main> Config<'main> {
         }
 
         if self.line_regexp {
-            Ok(builder.build(&format!("^(?:{})$", pat))?)
+            Ok(builder.build(&format!("^(?:{pat})$"))?)
         } else {
             Ok(builder.build(pat)?)
         }
@@ -526,7 +526,7 @@ impl<M: Matcher> Sink for Matches<'_, M> {
                 ranges.push((m.start(), m.end()));
                 true
             })
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?;
+            .map_err(|e| io::Error::other(format!("{e}")))?;
         let mut regions = LineRegions::new(&ranges);
 
         let mut line_number = line_number;
@@ -693,7 +693,7 @@ mod tests {
         for input in inputs.iter() {
             let mut printer = DummyPrinter::default();
             let pat = r"\*$";
-            let file = dir.join(format!("{}.in", input));
+            let file = dir.join(format!("{input}.in"));
             let paths = iter::once(file.as_path());
             let found = grep(&printer, pat, Some(paths), Config::new(3, 6)).unwrap();
             let expected = read_expected_chunks(&dir, input)
@@ -717,7 +717,7 @@ mod tests {
         let pat = r"\*$";
         let paths = inputs
             .iter()
-            .map(|s| dir.join(format!("{}.in", s)).into_os_string())
+            .map(|s| dir.join(format!("{s}.in")).into_os_string())
             .collect::<Vec<_>>();
         let paths = paths.iter().map(AsRef::as_ref);
 
@@ -743,8 +743,8 @@ mod tests {
         let pat = "^this does not match to any line!!!!!!$";
         let found = grep(&printer, pat, Some(paths), Config::new(3, 6)).unwrap();
         let files = printer.0.into_inner().unwrap();
-        assert!(!found, "result: {:?}", files);
-        assert!(files.is_empty(), "result: {:?}", files);
+        assert!(!found, "result: {files:?}");
+        assert!(files.is_empty(), "result: {files:?}");
     }
 
     #[test]
@@ -776,7 +776,7 @@ mod tests {
         let paths = iter::once(path.as_path());
         let pat = ".*";
         let err = grep(ErrorPrinter, pat, Some(paths), Config::new(3, 6)).unwrap_err();
-        let msg = format!("{}", err);
+        let msg = format!("{err}");
         assert_eq!(msg, "dummy error");
     }
 
@@ -789,7 +789,7 @@ mod tests {
 
         let re = Regex::new(r"^\x1b\[1m\w+\x1b\[0m: .+(, .+)*$").unwrap();
         for line in output.lines() {
-            assert!(re.is_match(line), "{:?} did not match to {:?}", line, re);
+            assert!(re.is_match(line), "{line:?} did not match to {re:?}");
         }
     }
 
@@ -803,8 +803,7 @@ mod tests {
             let chunks_line = lines.next().unwrap();
             assert!(
                 chunks_line.starts_with("# chunks: "),
-                "actual={:?}",
-                chunks_line
+                "actual={chunks_line:?}"
             );
             let chunks_line = &chunks_line["# chunks: ".len()..];
             for chunk in chunks_line.split(", ") {
@@ -820,8 +819,7 @@ mod tests {
             let matches_line = lines.next().unwrap();
             assert!(
                 matches_line.starts_with("# lines: "),
-                "actual={:?}",
-                matches_line
+                "actual={matches_line:?}"
             );
             let matches_line = &matches_line["# lines: ".len()..];
             for mat in matches_line.split(", ") {
@@ -849,7 +847,7 @@ mod tests {
         f(&mut config);
 
         let found = grep(&printer, pat, Some(paths), config).unwrap();
-        assert!(found, "file={}", file);
+        assert!(found, "file={file}");
 
         let mut files = printer.0.into_inner().unwrap();
         assert_eq!(files.len(), 1, "file={}", file);
@@ -1027,19 +1025,12 @@ mod tests {
                     ),
                     Err(want) => {
                         let err = err.unwrap_or_else(|| {
-                            panic!(
-                                "wanted error {:?} but no error for {:?} ({})",
-                                want, input, opt
-                            )
+                            panic!("wanted error {want:?} but no error for {input:?} ({opt})")
                         });
-                        let msg = format!("{}", err);
+                        let msg = format!("{err}");
                         assert!(
                             msg.contains(want),
-                            "wanted error {:?} but got {:?} for {:?} ({})",
-                            want,
-                            msg,
-                            input,
-                            opt,
+                            "wanted error {want:?} but got {msg:?} for {input:?} ({opt})",
                         );
                     }
                 }
