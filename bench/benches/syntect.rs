@@ -1,10 +1,11 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use hgrep::chunk::{File, LineMatch};
 use hgrep::printer::{Printer, PrinterOptions, TextWrapMode};
 use hgrep::ripgrep;
 use hgrep::syntect::{SyntectAssets, SyntectPrinter, WriteOnLocked};
 use hgrep_bench::{printer_opts, read_package_lock_json, rust_releases_path};
 use rayon::prelude::*;
+use std::hint::black_box;
 use std::io;
 use std::io::Write;
 use std::iter;

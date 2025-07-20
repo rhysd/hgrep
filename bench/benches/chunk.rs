@@ -1,7 +1,8 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use hgrep::grep::BufReadExt;
 use hgrep_bench::read_package_lock_json;
 use std::fs;
+use std::hint::black_box;
 use std::path::Path;
 
 fn prepare() -> Vec<u8> {

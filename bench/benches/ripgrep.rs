@@ -1,9 +1,10 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use hgrep::chunk::File;
 use hgrep::printer::Printer;
 use hgrep::ripgrep;
 use hgrep::Result;
 use hgrep_bench::*;
+use std::hint::black_box;
 use std::iter;
 use std::path::Path;
 
