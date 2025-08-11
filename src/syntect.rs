@@ -1117,15 +1117,15 @@ impl<W: WriteOnLocked> Printer for SyntectPrinter<'_, W> {
 mod tests {
     use super::*;
     use crate::chunk::{File, LineMatch};
-    use once_cell::sync::Lazy;
     use std::cell::{RefCell, RefMut};
     use std::fmt;
     use std::fs;
     use std::mem;
     use std::path::PathBuf;
     use std::str;
+    use std::sync::LazyLock;
 
-    static ASSETS: Lazy<SyntectAssets> = Lazy::new(|| SyntectAssets::load(None).unwrap());
+    static ASSETS: LazyLock<SyntectAssets> = LazyLock::new(|| SyntectAssets::load(None).unwrap());
 
     struct DummyStdoutLock<'a>(RefMut<'a, Vec<u8>>);
     impl Write for DummyStdoutLock<'_> {
