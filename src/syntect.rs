@@ -1021,6 +1021,7 @@ impl<'main, W> SyntectPrinter<'main, W> {
                 "nginx.conf" | "mime.types" => Some("nginx"),
                 "httpd.conf" => Some("Apache Conf"),
                 "Containerfile" => Some("Dockerfile"),
+                "uv.lock" => Some("TOML"),
                 _ => None,
             })
             // Find from file path
