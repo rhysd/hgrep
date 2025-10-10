@@ -13,7 +13,7 @@ hgrep = { path = ".." }
 mimalloc = { version = "0.1", default-features = false }
 
 [dev-dependencies]
-criterion = "0.6.0"
+criterion = "0.7.0"
 gag = "1"
 rayon = "1.10"
 
