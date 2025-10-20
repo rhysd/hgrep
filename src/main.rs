@@ -773,8 +773,7 @@ fn run(matches: ArgMatches) -> Result<bool> {
 fn main() {
     #[cfg(windows)]
     if let Err(code) = nu_ansi_term::enable_ansi_support() {
-        eprintln!("ANSI color support could not be enabled with error code {code}");
-        process::exit(2);
+        panic!("ANSI color support could not be enabled with error code {code}");
     }
 
     let status = match Args::new().and_then(|a| run(command().get_matches_from(a))) {
