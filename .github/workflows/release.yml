@@ -50,7 +50,7 @@ jobs:
         shell: bash
         env:
           TARGET: ${{ matrix.target }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -121,7 +121,7 @@ jobs:
           apk add --no-cache clang lld musl-dev zip
           clang --version
           zip --version
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: cargo build --release --color always --target=x86_64-unknown-linux-musl
       - name: Archive files
         run: |
@@ -155,7 +155,7 @@ jobs:
           else
             echo "version=${GITHUB_REF##refs/tags/}" >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo install cargo-deb
       - run: cargo build --release
@@ -181,7 +181,7 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: main
           fetch-depth: 0
