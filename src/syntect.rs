@@ -1022,6 +1022,8 @@ impl<'main, W> SyntectPrinter<'main, W> {
                 "httpd.conf" => Some("Apache Conf"),
                 "Containerfile" => Some("Dockerfile"),
                 "uv.lock" => Some("TOML"),
+                "paru.conf" => Some("INI"),
+                "flake.lock" => Some("JSON"),
                 _ => None,
             })
             // Find from file path
