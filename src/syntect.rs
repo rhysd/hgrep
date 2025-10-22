@@ -1060,33 +1060,33 @@ impl<'main, W> SyntectPrinter<'main, W> {
                 if path.ends_with(SSH_CONFIG) {
                     return Some("SSH Config");
                 }
+
                 #[cfg(not(windows))]
-                if path == "/etc/profile" {
-                    return Some("Bourne Again Shell (bash)");
-                }
-                #[cfg(not(windows))]
-                if path.starts_with("/var/spool/mail/") || path.starts_with("/var/mail/") {
-                    return Some("Email");
-                }
-                #[cfg(not(windows))]
-                if path.starts_with("/etc/wireguard/") && path.ends_with(".conf") {
-                    return Some("INI");
-                }
-                #[cfg(not(windows))]
-                if path == "/etc/pacman.conf" {
-                    return Some("INI");
-                }
-                #[cfg(not(windows))]
-                if path.contains("/containers/") && path.ends_with(".conf") {
-                    return Some("TOML");
-                }
-                #[cfg(not(windows))]
-                if path.starts_with("/etc/kubernetes/") && path.ends_with(".conf") {
-                    return Some("YAML");
-                }
-                #[cfg(not(windows))]
-                if path.starts_with("/etc/letsencrypt/renewal/") && path.ends_with(".conf") {
-                    return Some("INI");
+                {
+                    if path == "/etc/profile" {
+                        return Some("Bourne Again Shell (bash)");
+                    }
+                    if path.starts_with("/var/spool/mail/") || path.starts_with("/var/mail/") {
+                        return Some("Email");
+                    }
+                    if path.starts_with("/etc/wireguard/") && path.ends_with(".conf") {
+                        return Some("INI");
+                    }
+                    if path == "/etc/pacman.conf" {
+                        return Some("INI");
+                    }
+                    if path.contains("/containers/") && path.ends_with(".conf") {
+                        return Some("TOML");
+                    }
+                    if path.starts_with("/etc/kubernetes/") && path.ends_with(".conf") {
+                        return Some("YAML");
+                    }
+                    if path.starts_with("/etc/letsencrypt/renewal/") && path.ends_with(".conf") {
+                        return Some("INI");
+                    }
+                    if path == "/var/log/dmesg" {
+                        return Some("Syslog");
+                    }
                 }
                 None
             });
