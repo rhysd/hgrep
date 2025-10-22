@@ -1014,6 +1014,7 @@ impl<'main, W> SyntectPrinter<'main, W> {
                 "ron" => Some("Rust"),
                 "mkd" => Some("Markdown"),
                 "mill" => Some("Scala"), // https://mill-build.org/mill/index.html
+                "flatpakref" | "flatpakrepo" => Some("INI"),
                 _ => None,
             })
             // Find from file name
@@ -1082,6 +1083,10 @@ impl<'main, W> SyntectPrinter<'main, W> {
                 #[cfg(not(windows))]
                 if path.starts_with("/etc/kubernetes/") && path.ends_with(".conf") {
                     return Some("YAML");
+                }
+                #[cfg(not(windows))]
+                if path.starts_with("/etc/letsencrypt/renewal/") && path.ends_with(".conf") {
+                    return Some("INI");
                 }
                 None
             });
