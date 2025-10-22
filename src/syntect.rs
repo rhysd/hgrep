@@ -1013,6 +1013,7 @@ impl<'main, W> SyntectPrinter<'main, W> {
                 "sarif" | "jsonl" | "geojson" | "jsonc" | "jsonld" => Some("JSON"),
                 "ron" => Some("Rust"),
                 "mkd" => Some("Markdown"),
+                "mill" => Some("Scala"), // https://mill-build.org/mill/index.html
                 _ => None,
             })
             // Find from file name
