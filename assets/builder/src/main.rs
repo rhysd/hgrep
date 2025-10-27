@@ -32,6 +32,11 @@ const THEME_PATHS: &[&str] = &[
     "../submodules/zenburn/zenburn.tmTheme",
     "../submodules/material-theme/schemes/Material-Theme.tmTheme",
     "../submodules/sublime-settings/Packages/Dayle Rees Color Schemes/Carbonight.tmTheme",
+    "../submodules/catppuccin-bat-sub/Catppuccin Latte.tmTheme",
+    "../submodules/catppuccin-bat-sub/Catppuccin Mocha.tmTheme",
+    "../submodules/catppuccin-bat-sub/Catppuccin Frappe.tmTheme",
+    "../submodules/catppuccin-bat-sub/Catppuccin Macchiato.tmTheme",
+    // Note: DarkNeon was not added because its focused background color is broken
 ];
 
 const THEME_BIN_PATH: &str = "../themes.bin";
