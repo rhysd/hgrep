@@ -22,6 +22,7 @@
 [submodule "assets/submodules/gruvbox-tmTheme"]
 	path = assets/submodules/gruvbox-tmTheme
 	url = https://github.com/subnut/gruvbox-tmTheme.git
+	branch = bat-source
 [submodule "assets/submodules/github-sublime-theme"]
 	path = assets/submodules/github-sublime-theme
 	url = https://github.com/AlexanderEkdahl/github-sublime-theme.git
