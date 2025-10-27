@@ -53,3 +53,6 @@
 [submodule "assets/submodules/sublime-settings"]
 	path = assets/submodules/sublime-settings
 	url = https://github.com/dyross/sublime-settings.git
+[submodule "assets/submodules/catppuccin-bat-sub"]
+	path = assets/submodules/catppuccin-bat-sub
+	url = https://github.com/SchweGELBin/catppuccin-bat-sub.git
