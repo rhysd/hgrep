@@ -45,7 +45,7 @@ to make an issue to request it.
 
 - Linux (x86_64-gnu, x86_64-musl, aarch64-gnu)
 - macOS (x86_64, aarch64)
-- Windows (x86_64-msvc)
+- Windows (x86_64-msvc, aarch64-msvc)
 
 ### Via [Homebrew][homebrew]
 
@@ -227,7 +227,7 @@ At first, there was `bat` printer only. And then `syntect` printer was implement
 
 (and more...)
 
-#### Why performance of `syntect` printer is better?
+#### Why is performance of `syntect` printer better?
 
 Syntax highlighting is very CPU-heavy task. Many regular expression matchings happen at each line. For accurate syntax
 highlighting, a highlighter needs to parse the syntax from the beginning of file. It means that printing a match at the last
