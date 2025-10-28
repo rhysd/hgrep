@@ -1,6 +1,10 @@
 name: CI
 on: [push, pull_request]
 
+env:
+  RUSTFLAGS: -D warnings
+  RUST_BACKTRACE: 1
+
 jobs:
   unit-test:
     strategy:
@@ -8,9 +12,6 @@ jobs:
         os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest, macos-15-intel]
       fail-fast: true
     runs-on: ${{ matrix.os }}
-    env:
-      RUSTFLAGS: -D warnings
-      RUST_BACKTRACE: 1
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
@@ -45,6 +46,16 @@ jobs:
         with:
           files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
+  # Run tests on arm64 Windows separately because cargo-llvm-cov doesn't support the platform
+  unit-test-arm-windows:
+    runs-on: windows-11-arm
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test
+      - name: Sanity check
+        run: cargo run --color always -- hgrep README.md
   lint:
     runs-on: ubuntu-latest
     steps:

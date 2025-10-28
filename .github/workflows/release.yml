@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build: [linux-x86_64, linux-aarch64, mac-x86_64, mac-aarch64, win]
+        build: [linux-x86_64, linux-aarch64, mac-x86_64, mac-aarch64, win-x86_64, win-aarch64]
         include:
           - build: linux-x86_64
             os: ubuntu-latest
@@ -26,9 +26,12 @@ jobs:
           - build: mac-aarch64
             os: macos-latest
             target: aarch64-apple-darwin
-          - build: win
+          - build: win-x86_64
             os: windows-latest
             target: x86_64-pc-windows-msvc
+          - build: win-aarch64
+            os: windows-11-arm
+            target: aarch64-pc-windows-msvc
     runs-on: ${{ matrix.os }}
     outputs:
       version: ${{ steps.info.outputs.version }}
@@ -74,7 +77,7 @@ jobs:
           cp target/${{ matrix.target }}/release/hgrep LICENSE.txt README.md ${{ steps.info.outputs.asset_dir }}
           zip ${{ steps.info.outputs.zip }} -r ${{ steps.info.outputs.asset_dir }}
       - name: Archive files
-        if: matrix.build == 'win'
+        if: startsWith(matrix.build, 'win-')
         shell: bash
         run: |
           mkdir ${{ steps.info.outputs.asset_dir }}
@@ -89,7 +92,7 @@ jobs:
           files: ${{ steps.info.outputs.zip }}
         if: ${{ github.event_name != 'workflow_dispatch' }}
       - name: Upload release artifact for dry-run
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ steps.info.outputs.asset_dir }}
           path: ${{ steps.info.outputs.asset_dir }}
