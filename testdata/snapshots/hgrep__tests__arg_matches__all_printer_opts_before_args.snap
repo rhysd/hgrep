@@ -197,6 +197,12 @@ expression: raw
         ],
     ),
     (
+        "threads",
+        [
+            "4",
+        ],
+    ),
+    (
         "type-list",
         [
             "false",

@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use hgrep::grep::BufReadExt;
 use hgrep::printer::{PrinterOptions, TextWrapMode};
+use rayon::ThreadPoolBuilder;
 use std::cmp;
 use std::env;
 use std::ffi::OsString;
@@ -190,6 +191,14 @@ fn command() -> Command {
                 .num_args(1)
                 .value_name("ENCODING")
                 .help("Specify the text encoding that hgrep will use on all files printed like 'sjis'")
+        )
+        .arg(
+            Arg::new("threads")
+                .short('j')
+                .long("threads")
+                .num_args(1)
+                .value_name("NUM")
+                .help("The approximate number of threads to use. A The default value causes ripgrep to choose the thread count using heuristics"),
         )
         .arg(
             Arg::new("generate-completion-script")
@@ -601,6 +610,16 @@ fn run(matches: ArgMatches) -> Result<bool> {
         .context("Could not parse \"max-context\" option value as unsigned integer")?;
     let max_context = cmp::max(min_context, max_context);
 
+    if let Some(threads) = matches.get_one::<String>("threads") {
+        let threads = threads
+            .parse()
+            .context("Could not parse \"threads\" option value as unsigned integer")?;
+        ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .build_global()
+            .with_context(|| format!("Could not prepare a thread pool with {threads} threads"))?;
+    }
+
     let mut printer_opts = PrinterOptions::default();
     if let Some(width) = matches.get_one::<String>("tab") {
         printer_opts.tab_width = width
@@ -890,6 +909,8 @@ mod tests {
                 "--ascii-lines",
                 "--custom-assets",
                 "--list-themes",
+                "--threads",
+                "4",
                 "some pattern",
                 "dir1",
                 "dir2",
@@ -967,6 +988,7 @@ mod tests {
             bat_doesnt_support_ascii_lines,
             ["--printer", "bat", "--ascii-lines"]
         );
+        snapshot_error_test!(invalid_threads, ["--threads", "foo"]);
 
         #[test]
         fn arg_parser_debug_assert() {
