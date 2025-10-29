@@ -85,7 +85,6 @@ terminfo = "0.9.0"
 insta = "1.42.2"
 pretty_assertions = "1"
 regex = "1.11.1"
-set-git-hooks-dir = "1.0.2"
 
 [package.metadata.deb]
 copyright = "Copyright (c) 2021 rhysd"

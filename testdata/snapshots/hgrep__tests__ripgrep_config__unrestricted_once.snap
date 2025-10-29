@@ -7,6 +7,7 @@ Config {
     max_context: 6,
     no_ignore: true,
     hidden: false,
+    ignore_files: [],
     case_insensitive: false,
     smart_case: false,
     globs: [],

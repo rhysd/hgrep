@@ -264,6 +264,14 @@ fn command() -> Command {
                     .help("Search hidden files and directories. By default, hidden files and directories are skipped"),
             )
             .arg(
+                Arg::new("ignore-file")
+                    .long("ignore-file")
+                    .action(ArgAction::Append)
+                    .num_args(1)
+                    .value_name("PATH")
+                    .help("Specify a path to one or more gitignore formatted rules files. These patterns are applied after the patterns found in .gitignore, .rgignore and .ignore are applied and are matched relative to the current working directory"),
+            )
+            .arg(
                 Arg::new("glob")
                     .short('g')
                     .long("glob")
@@ -439,6 +447,17 @@ fn command() -> Command {
                     .value_parser(clap::builder::ValueParser::path_buf()),
             );
 
+    #[cfg(any(feature = "syntect-printer", feature = "ripgrep"))]
+    let cmd = cmd
+        .arg(
+            Arg::new("threads")
+                .short('j')
+                .long("threads")
+                .num_args(1)
+                .value_name("NUM")
+                .help("The approximate number of threads to use. A The default value causes ripgrep to choose the thread count using heuristics"),
+        );
+
     cmd
 }
 
@@ -494,6 +513,10 @@ fn build_ripgrep_config(
 
     if let Some(globs) = matches.get_many::<String>("glob") {
         config.globs(globs.map(String::as_str));
+    }
+
+    if let Some(paths) = matches.get_many::<String>("ignore-file") {
+        config.ignore_files(paths.map(String::as_str));
     }
 
     if let Some(num) = matches.get_one::<String>("max-count") {
@@ -600,6 +623,17 @@ fn run(matches: ArgMatches) -> Result<bool> {
         .parse()
         .context("Could not parse \"max-context\" option value as unsigned integer")?;
     let max_context = cmp::max(min_context, max_context);
+
+    #[cfg(any(feature = "syntect-printer", feature = "ripgrep"))]
+    if let Some(threads) = matches.get_one::<String>("threads") {
+        let threads = threads
+            .parse()
+            .context("Could not parse \"threads\" option value as unsigned integer")?;
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .build_global()
+            .with_context(|| format!("Could not prepare a thread pool with {threads} threads"))?;
+    }
 
     let mut printer_opts = PrinterOptions::default();
     if let Some(width) = matches.get_one::<String>("tab") {
@@ -866,6 +900,7 @@ mod tests {
         snapshot_test!(unrestricted_twice, ["-u", "-u"]);
         snapshot_test!(unrestricted_twice_in_single_flag, ["-uu"]);
         snapshot_test!(encoding, ["--encoding", "sjis"]);
+        snapshot_test!(threads, ["--threads", "4"]);
         snapshot_test!(
             all_printer_opts_before_args,
             [
@@ -967,6 +1002,7 @@ mod tests {
             bat_doesnt_support_ascii_lines,
             ["--printer", "bat", "--ascii-lines"]
         );
+        snapshot_error_test!(invalid_threads, ["--threads", "foo"]);
 
         #[test]
         fn arg_parser_debug_assert() {
@@ -1023,6 +1059,17 @@ mod tests {
         snapshot_test!(
             glob_many,
             ["-g", "*.txt", "-g", "*.rs", "-g", "*.md", "pat", "dir"]
+        );
+        snapshot_test!(
+            ignore_file,
+            [
+                "--ignore-file",
+                "foo.ignore",
+                "--ignore-file",
+                "bar.ignore",
+                "pat",
+                "dir"
+            ]
         );
         snapshot_test!(glob_before_opt, ["-g", "*.txt", "-i", "pat", "dir"]);
         snapshot_test!(glob_arg_with_hyphen, ["-g", "-foo_*.txt", "pat", "dir"]);

@@ -7,12 +7,13 @@ Config {
     max_context: 6,
     no_ignore: false,
     hidden: false,
-    ignore_files: [],
-    case_insensitive: true,
-    smart_case: false,
-    globs: [
-        "*.txt",
+    ignore_files: [
+        "foo.ignore",
+        "bar.ignore",
     ],
+    case_insensitive: false,
+    smart_case: false,
+    globs: [],
     glob_case_insensitive: false,
     fixed_strings: false,
     word_regexp: false,

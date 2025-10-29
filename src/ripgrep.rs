@@ -47,6 +47,7 @@ pub struct Config<'main> {
     max_context: u64,
     no_ignore: bool,
     hidden: bool,
+    ignore_files: Box<[&'main Path]>,
     case_insensitive: bool,
     smart_case: bool,
     globs: Box<[&'main str]>,
@@ -92,6 +93,11 @@ impl<'main> Config<'main> {
 
     pub fn no_ignore(&mut self, yes: bool) -> &mut Self {
         self.no_ignore = yes;
+        self
+    }
+
+    pub fn ignore_files(&mut self, paths: impl Iterator<Item = &'main str>) -> &mut Self {
+        self.ignore_files = paths.map(Path::new).collect();
         self
     }
 
@@ -268,6 +274,12 @@ impl<'main> Config<'main> {
 
         if !self.no_ignore {
             builder.add_custom_ignore_filename(".rgignore");
+
+            for path in self.ignore_files.iter().copied() {
+                if let Some(err) = builder.add_ignore(path) {
+                    return Err(err).context(format!("Could not read the ignore file {path:?}"));
+                }
+            }
         }
 
         Ok(builder.build())
@@ -1036,5 +1048,34 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_ignore_file_ok() {
+        #[cfg(not(windows))]
+        let dir = Path::new("testdata/ripgrep/ignore_file");
+        #[cfg(windows)]
+        let dir = Path::new(r#"testdata\ripgrep\ignore_file"#);
+
+        let ignore = dir.join("test_ignore");
+        let mut config = Config::default();
+        config.ignore_files([ignore.to_str().unwrap()].into_iter());
+        let paths = iter::once(dir);
+        let printer = DummyPrinter::default();
+        let found = grep(&printer, "foo", Some(paths), config).unwrap();
+        assert!(!found, "Matched: {:?}", printer.0.lock().unwrap());
+    }
+
+    #[test]
+    fn test_ignore_file_file_not_found() {
+        let mut config = Config::default();
+        config.ignore_files(["this_does_not_exist"].into_iter());
+        let paths = iter::once(Path::new("testdata"));
+        let err = grep(&DummyPrinter::default(), "foo", Some(paths), config).unwrap_err();
+        let msg = format!("{err}");
+        assert!(
+            msg.contains("Could not read the ignore file"),
+            "Error message: {msg:?}",
+        );
     }
 }
