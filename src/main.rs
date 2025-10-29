@@ -273,6 +273,14 @@ fn command() -> Command {
                     .help("Search hidden files and directories. By default, hidden files and directories are skipped"),
             )
             .arg(
+                Arg::new("ignore-file")
+                    .long("ignore-file")
+                    .action(ArgAction::Append)
+                    .num_args(1)
+                    .value_name("PATH")
+                    .help("Specify a path to one or more gitignore formatted rules files. These patterns are applied after the patterns found in .gitignore, .rgignore and .ignore are applied and are matched relative to the current working directory"),
+            )
+            .arg(
                 Arg::new("glob")
                     .short('g')
                     .long("glob")
@@ -503,6 +511,10 @@ fn build_ripgrep_config(
 
     if let Some(globs) = matches.get_many::<String>("glob") {
         config.globs(globs.map(String::as_str));
+    }
+
+    if let Some(paths) = matches.get_many::<String>("ignore-file") {
+        config.ignore_files(paths.map(String::as_str));
     }
 
     if let Some(num) = matches.get_one::<String>("max-count") {
@@ -885,6 +897,7 @@ mod tests {
         snapshot_test!(unrestricted_twice, ["-u", "-u"]);
         snapshot_test!(unrestricted_twice_in_single_flag, ["-uu"]);
         snapshot_test!(encoding, ["--encoding", "sjis"]);
+        snapshot_test!(threads, ["--threads", "4"]);
         snapshot_test!(
             all_printer_opts_before_args,
             [
@@ -909,8 +922,6 @@ mod tests {
                 "--ascii-lines",
                 "--custom-assets",
                 "--list-themes",
-                "--threads",
-                "4",
                 "some pattern",
                 "dir1",
                 "dir2",
@@ -1045,6 +1056,17 @@ mod tests {
         snapshot_test!(
             glob_many,
             ["-g", "*.txt", "-g", "*.rs", "-g", "*.md", "pat", "dir"]
+        );
+        snapshot_test!(
+            ignore_file,
+            [
+                "--ignore-file",
+                "foo.ignore",
+                "--ignore-file",
+                "bar.ignore",
+                "pat",
+                "dir"
+            ]
         );
         snapshot_test!(glob_before_opt, ["-g", "*.txt", "-i", "pat", "dir"]);
         snapshot_test!(glob_arg_with_hyphen, ["-g", "-foo_*.txt", "pat", "dir"]);
