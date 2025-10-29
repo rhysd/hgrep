@@ -1,0 +1,8 @@
+#!/bin/sh
+
+set -e -o pipefail
+
+set -x
+cargo test && cargo clippy && cargo fmt -- --check
+# Sanity check
+cargo run Printer ./src/ > /dev/null
