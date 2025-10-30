@@ -17,7 +17,7 @@ export HGREP_DEFAULT_OPTS=
 HGREP="$(pwd)/target/release/hgrep"
 
 "$HGREP" '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80 --theme ansi              ./testdata/syntect/ansi16_colors.rs                > ./testdata/syntect/ansi16_colors.out
-env -u COLORTERM "$HGREP" '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80              ./testdata/syntect/ansi256_colors.rs               > ./testdata/syntect/ansi256_colors.out
+env -u COLORTERM "$HGREP" '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80          ./testdata/syntect/ansi256_colors.rs               > ./testdata/syntect/ansi256_colors.out
 "$HGREP" '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80 --background              ./testdata/syntect/background.rs                   > ./testdata/syntect/background.out
 "$HGREP" '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80                           ./testdata/syntect/default.rs                      > ./testdata/syntect/default.out
 "$HGREP" '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80 --tab 0                   ./testdata/syntect/hard_tab.rs                     > ./testdata/syntect/hard_tab.out
@@ -35,7 +35,7 @@ env -u COLORTERM "$HGREP" '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-wi
 "$HGREP" '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80                           ./testdata/syntect/wrap_twice.rs                   > ./testdata/syntect/wrap_twice.out
 "$HGREP" '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80 --no-grid                 ./testdata/syntect/wrap_no_grid.rs                 > ./testdata/syntect/wrap_no_grid.out
 "$HGREP" '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80 --theme Nord              ./testdata/syntect/wrap_theme.rs                   > ./testdata/syntect/wrap_theme.out
-env -u COLORTERM "$HGREP" '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80              ./testdata/syntect/wrap_ansi256.rs                 > ./testdata/syntect/wrap_ansi256.out
+env -u COLORTERM "$HGREP" '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80          ./testdata/syntect/wrap_ansi256.rs                 > ./testdata/syntect/wrap_ansi256.out
 "$HGREP" '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80 --background              ./testdata/syntect/wrap_middle_text_bg.rs          > ./testdata/syntect/wrap_middle_text_bg.out
 "$HGREP" '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80 --background              ./testdata/syntect/wrap_between_bg.rs              > ./testdata/syntect/wrap_between_bg.out
 "$HGREP" '\*match to .+? line\*' -c 6 -C 6 -p syntect --term-width 80 --wrap never              ./testdata/syntect/no_wrap_default.rs              > ./testdata/syntect/no_wrap_default.out

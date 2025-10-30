@@ -85,13 +85,12 @@ impl File {
         let chunks = vec![(1, 7)];
         let contents = "\
 // Parse input as float number and print sqrt of it
-fn print_sqrt<S: AsRef<str>>(input: S) {
+pub fn print_sqrt<S: AsRef<str>>(input: S) {
     let result = input.as_ref().parse::<f64>();
     if let Ok(f) = result {
         println!(\"sqrt of {:.2} is {:.2}\", f, f.sqrt());
     }
-}\
-        ";
+}";
         Self::new(
             PathBuf::from("sample.rs"),
             lmats,
