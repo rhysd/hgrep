@@ -1289,14 +1289,12 @@ mod tests {
             );
         }
 
-        fn run_parametrized_uitest_single_chunk(
-            mut input: &str,
-            f: fn(&mut PrinterOptions<'_>) -> (),
-        ) {
-            let dir = Path::new(".").join("testdata").join("syntect");
-            if input.starts_with("test_") {
-                input = &input["test_".len()..];
-            }
+        fn run_parametrized_uitest_single_chunk(input: &str, f: fn(&mut PrinterOptions<'_>) -> ()) {
+            #[cfg(windows)]
+            let dir = Path::new(r#".\testdata\syntect"#);
+            #[cfg(not(windows))]
+            let dir = Path::new("./testdata/syntect");
+            let input = input.strip_prefix("test_").unwrap_or(input);
             let infile = dir.join(format!("{input}.rs"));
             let outfile = dir.join(format!("{input}.out"));
             let file = read_chunks(infile);
@@ -1744,5 +1742,32 @@ mod tests {
                 "could not find correct syntax from first line {line:?}",
             );
         }
+    }
+
+    #[test]
+    fn test_strip_newline_at_end() {
+        fn strip<'a>(i: impl IntoIterator<Item = &'a str>) -> Vec<&'a str> {
+            let mut v = i
+                .into_iter()
+                .map(|text| Token {
+                    text,
+                    style: Style::default(),
+                })
+                .collect();
+            strip_newline_at_end(&mut v);
+            v.into_iter().map(|t| t.text).collect()
+        }
+
+        assert_eq!(strip([]), [] as [&str; _]);
+        assert_eq!(strip(["a"]), ["a"]);
+        assert_eq!(strip(["a", "b"]), ["a", "b"]);
+        assert_eq!(strip(["a\n"]), ["a"]);
+        assert_eq!(strip(["a", "b\n"]), ["a", "b"]);
+        assert_eq!(strip(["a", "\n"]), ["a"]);
+        assert_eq!(strip(["a\r\n"]), ["a"]);
+        assert_eq!(strip(["a", "b\r\n"]), ["a", "b"]);
+        assert_eq!(strip(["a", "\r\n"]), ["a"]);
+        assert_eq!(strip(["a\r", "\n"]), ["a"]);
+        assert_eq!(strip(["\r", "\n"]), [] as [&str; _]);
     }
 }
