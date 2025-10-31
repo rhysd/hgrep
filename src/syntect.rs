@@ -84,10 +84,9 @@ fn list_themes_with_syntaxes<W: Write>(
     Ok(())
 }
 
-// Use u64::log10 once it is stabilized: https://github.com/rust-lang/rust/issues/70887
 #[inline]
 fn num_digits(n: u64) -> u16 {
-    (n as f64).log10() as u16 + 1
+    n.ilog10() as u16 + 1
 }
 
 #[derive(Debug)]
