@@ -96,14 +96,35 @@ struct Token<'line> {
     text: &'line str,
 }
 
-impl Token<'_> {
-    fn chomp(&mut self) {
-        if self.text.ends_with('\n') {
-            self.text = &self.text[..self.text.len() - 1];
-            if self.text.ends_with('\r') {
-                self.text = &self.text[..self.text.len() - 1];
-            }
+fn strip_newline_at_end(tokens: &mut Vec<Token<'_>>) {
+    let Some(last) = tokens.last_mut() else {
+        return;
+    };
+    let Some(text) = last.text.strip_suffix('\n') else {
+        return;
+    };
+    if let Some(text) = text.strip_suffix('\r') {
+        if text.is_empty() {
+            tokens.pop();
+        } else {
+            last.text = text;
         }
+    } else if text.is_empty() {
+        tokens.pop();
+        // '\r\n' may be split into '\r' '\n'
+        let Some(last) = tokens.last_mut() else {
+            return;
+        };
+        let Some(text) = last.text.strip_suffix('\r') else {
+            return;
+        };
+        if text.is_empty() {
+            tokens.pop();
+        } else {
+            last.text = text;
+        }
+    } else {
+        last.text = text;
     }
 }
 
@@ -599,7 +620,7 @@ impl<'a> LineHighlighter<'a> {
         let tokens = HighlightIterator::new(&mut self.hl_state, &ops, line, &self.hl)
             .map(|(mut style, text)| {
                 style.foreground = blend_fg_color(style.foreground, style.background);
-                Token { style, text }
+                Token { style, text } // Note: `HighlightIterator` never emits an empty text token
             })
             .collect();
         Ok(tokens)
@@ -740,18 +761,13 @@ impl<'file, W: Write> Drawer<'file, W> {
         lnum: u64,
         regions: Option<Vec<(usize, usize)>>,
     ) -> io::Result<()> {
-        // The highlighter requires newline at the end. But we don't want it since
-        // - we sometimes need to fill the rest of line with spaces
-        // - we clear colors before writing newline
-        if let Some(tok) = tokens.last_mut() {
-            tok.chomp();
-            if tok.text.is_empty() {
-                tokens.pop(); // As the result of `chomp()`, text may be empty. Empty token can be removed
-            }
-        }
-
         let body_width = (self.term_width - self.gutter_width()) as usize;
         let matched = regions.is_some();
+
+        // `HighlightIterator` requires a newline at the end but we don't want it because
+        // - we sometimes fill the rest of line with spaces
+        // - we clear colors before writing newline
+        strip_newline_at_end(&mut tokens);
 
         let tokens = tokens.as_slice();
         let regions = regions.as_ref().map(AsRef::as_ref).unwrap_or(&[][..]);
@@ -853,6 +869,7 @@ impl<'file, W: Write> Drawer<'file, W> {
                     }
                     _ => None,
                 };
+
                 // Collect to `Vec` rather than handing HighlightIterator as-is. HighlightIterator takes ownership of Highlighter
                 // while the iteration. When the highlighter is stored in `self`, it means the iterator takes ownership of `self`.
                 self.draw_line(hl.highlight(line)?, lnum, regions)?;
