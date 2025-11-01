@@ -1444,6 +1444,7 @@ mod tests {
             }),
             test_wrap_between_regions(|_| {}),
             test_wrap_regions_japanese(|_| {}),
+            test_crlf(|_| {}),
         );
     }
 
@@ -1455,9 +1456,7 @@ mod tests {
             mut input: &str,
             f: fn(&mut PrinterOptions<'_>) -> (),
         ) {
-            if input.starts_with("test_") {
-                input = &input["test_".len()..];
-            }
+            input = input.strip_prefix("test_").unwrap_or(input);
             let file = format!("list_themes_{input}.out");
             let expected = Path::new("testdata").join("syntect").join(file);
             let expected = fs::read(expected).unwrap();
