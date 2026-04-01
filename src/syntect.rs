@@ -1111,8 +1111,8 @@ impl<'main, W> SyntectPrinter<'main, W> {
         // (That's why `SyntaxSet::find_syntax_for_file` returns `io::Result`).
         // It is redundant since we already read the file content into `File` struct.
         name.and_then(|n| self.syntaxes.find_syntax_by_name(n))
-            .or_else(|| self.syntaxes.find_syntax_by_extension(extension?.to_str()?))
             .or_else(|| self.syntaxes.find_syntax_by_extension(file_name?.to_str()?))
+            .or_else(|| self.syntaxes.find_syntax_by_extension(extension?.to_str()?))
             .or_else(|| self.syntaxes.find_syntax_by_first_line(file.first_line()))
             .unwrap_or_else(|| self.syntaxes.find_syntax_plain_text())
     }
