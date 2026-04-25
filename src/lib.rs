@@ -1,5 +1,6 @@
 #![deny(unsafe_code)]
 #![deny(clippy::dbg_macro)]
+#![allow(clippy::explicit_counter_loop)]
 
 #[cfg(not(any(feature = "bat-printer", feature = "syntect-printer")))]
 compile_error!("Either feature \"bat-printer\" or \"syntect-printer\" must be enabled");
